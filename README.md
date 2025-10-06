@@ -44,17 +44,12 @@ Este proyecto fue desarrollado por:
 **Matías Heyer**  
 **Francisca Carrasco**
 
-Como parte de la asignatura *Java: Diseño y Construcción de Soluciones Nativas en Nube* de **Duoc UC**.
-
----
-
-## 🧁 Licencia
-Este proyecto se distribuye bajo la licencia **MIT**, lo que permite su uso, modificación y distribución libre con atribución a los autores.
+Como parte de la asignatura *Fullstack II* de **Duoc UC**.
 
 ---
 
 ## 💖 Agradecimientos
-Agradecimientos especiales al profesor **Rodrigo Muñoz** y al equipo docente de **Duoc UC** por su guía en el desarrollo de proyectos nativos en la nube.
+Agradecimientos especiales al profesor **Alejandro Sepulveda** y al equipo docente de **Duoc UC** por su guía en el desarrollo de fullstack II.
 
 ---
 
