@@ -23,7 +23,7 @@ const miestilo:CSSProperties={
     color:micolor,
 }
 
-export function MiAplicacion() {
+export function App() {
     return (
         <>
             <div style={miestilo}>
