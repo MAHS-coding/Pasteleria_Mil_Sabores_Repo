@@ -1,24 +1,22 @@
-export function NavBar() {
+// src/components/navbar/navbar.tsx
+import React from 'react';
+import './navbar.css';
+
+const Navbar: React.FC = () => {
     return (
-        <>
-            <nav className="navbar navbar-expand-sm bg-light">
+        <nav className="navbar">
+            <div className="navbar-logo">
+                <img src="/images/logos/logo-principal.png" alt="Logo Pastelería Mil Sabores" />
+                <h2>Pastelería Mil Sabores</h2>
+            </div>
+            <ul className="navbar-links">
+                <li><a href="/">Inicio</a></li>
+                <li><a href="/productos">Productos</a></li>
+                <li><a href="/nosotros">Nosotros</a></li>
+                <li><a href="/blog">Blog</a></li>
+            </ul>
+        </nav>
+    );
+};
 
-                <div className="container-fluid">
-                    {/* <!-- Links --> */}
-                    <ul className="navbar-nav">
-                        <li className="nav-item">
-                            <a className="nav-link" href="#">Link 1</a>
-                        </li>
-                        <li className="nav-item">
-                            <a className="nav-link" href="#">Link 2</a>
-                        </li>
-                        <li className="nav-item">
-                            <a className="nav-link" href="#">Link 3</a>
-                        </li>
-                    </ul>
-                </div>
-
-            </nav>
-        </>
-    )
-}
+export default Navbar;
