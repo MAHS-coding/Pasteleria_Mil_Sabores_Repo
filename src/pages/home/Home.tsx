@@ -1,5 +1,5 @@
 import React from "react";
-import ParallaxHero from "./components/parallaxHero/ParallaxHero";
+import ParallaxHero from "../../components/parallaxHero/ParallaxHero";
 import "./Home.css";
 
 const Home: React.FC = () => {
@@ -22,7 +22,7 @@ const Home: React.FC = () => {
                     <div className="col">
                         <article className="card h-100 producto-destacado">
                             <img
-                                src="/images/products/torta-cuadrada-chocolate.png"
+                                src="/images/products/tortas/tradicional/torta-cuadrada-chocolate.png"
                                 className="card-img-top"
                                 alt="Torta Cuadrada de Chocolate"
                                 loading="lazy"
@@ -37,7 +37,7 @@ const Home: React.FC = () => {
                     <div className="col">
                         <article className="card h-100 producto-destacado">
                             <img
-                                src="/images/products/postre-tiramisu.jpg"
+                                src="/images/products/tiramisu/tradicional/tiramisu.jpg"
                                 className="card-img-top"
                                 alt="Tiramisú Clásico"
                                 loading="lazy"
@@ -52,7 +52,7 @@ const Home: React.FC = () => {
                     <div className="col">
                         <article className="card h-100 producto-destacado">
                             <img
-                                src="/images/products/sin-gluten-brownie.jpg"
+                                src="/images/products/brownie/sin-gluten/brownie-sin-gluten.jpg"
                                 className="card-img-top"
                                 alt="Brownie Sin Gluten"
                                 loading="lazy"
@@ -89,7 +89,7 @@ const Home: React.FC = () => {
                     muted
                     loop
                     playsInline
-                    src="/images/video/video_section.mp4"
+                    src="/videos/home/video_section.mp4"
                 />
                 <div className="video-hero-caption">
                     <h2>Comienza tu día con</h2>

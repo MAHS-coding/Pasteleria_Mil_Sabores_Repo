@@ -1,20 +1,24 @@
-.parallax {
+/* Contenedor del hero con efecto parallax */
+.parallax-hero {
     background-attachment: fixed;
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
+
     position: relative;
     isolation: isolate;
 }
 
-.parallax .hero-content {
+/* Contenido centrado verticalmente */
+.parallax-hero .hero-content {
     position: relative;
     z-index: 2;
     top: 50%;
     transform: translateY(-50%);
 }
 
-.parallax .scroll-down-arrow {
+/* Flecha animada */
+.parallax-hero .scroll-down-arrow {
     position: absolute;
     bottom: 20px;
     left: 50%;
@@ -42,5 +46,14 @@
 
     60% {
         transform: translate(-50%, -5px);
+    }
+}
+
+/* Fallback iOS: el parallax fixed no siempre funciona */
+@supports (-webkit-touch-callout: none) {
+    @media (max-width: 768px) {
+        .parallax-hero {
+            background-attachment: scroll;
+        }
     }
 }
