@@ -1,15 +1,81 @@
-/* --- CONTENEDOR PRINCIPAL DE LA PÁGINA --- */
-.home {
-    text-align: center;           /* Centra todo el texto y elementos dentro del main */
-    background-color: #fff7f9;    /* Fondo rosado muy claro (estilo pastelería) */
-    padding: 3rem 1rem;           /* Espaciado vertical y horizontal */
+/* Asegura que la ancla no quede oculta bajo la navbar */
+.anchor-offset {
+    scroll-margin-top: calc(var(--nav-h) + 28px);
 }
 
-/* --- IMAGEN PRINCIPAL (HERO) --- */
-.hero-img {
-    width: 80%;                   /* Imagen ocupa el 80% del ancho del contenedor */
-    max-width: 600px;             /* Limita el tamaño máximo en pantallas grandes */
-    border-radius: 16px;          /* Bordes redondeados para un estilo más suave */
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Sombra ligera para dar profundidad */
-    margin-top: 1rem;             /* Espacio superior entre el texto y la imagen */
+/* ===== CARDS DE DESTACADOS ===== */
+.card {
+    background: var(--color-background, #fff);
+    border: var(--border-soft, 1px solid rgba(0, 0, 0, 0.1));
+    border-radius: var(--radius-s, 6px);
+    transition: transform var(--transition, .3s), box-shadow var(--transition, .3s);
+}
+
+.card-img-top {
+    height: 220px;
+    object-fit: cover;
+    object-position: center;
+}
+
+.card:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.card-title {
+    font-size: 1.2rem;
+    font-weight: 300;
+}
+
+.card-text {
+    font-size: 0.95rem;
+    color: var(--color-text-secondary, #555);
+}
+
+/* ===== VIDEO HERO ===== */
+.video-hero {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.video-hero-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.video-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, .35), rgba(0, 0, 0, .25));
+    z-index: 1;
+}
+
+.video-hero-caption {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+    padding: 0 1rem;
+}
+
+.video-hero-caption h2 {
+    font-weight: 600;
+    letter-spacing: .2px;
+    margin-bottom: .25rem;
+}
+
+.video-hero-caption h1 {
+    margin: 0;
 }

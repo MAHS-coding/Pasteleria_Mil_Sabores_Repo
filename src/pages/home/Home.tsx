@@ -1,25 +1,100 @@
 import React from "react";
-import ParallaxHero from "../../components/parallaxHero/ParallaxHero";
+import ParallaxHero from "./components/parallaxHero/ParallaxHero";
 import "./Home.css";
 
 const Home: React.FC = () => {
     return (
-        <main>
-            <ParallaxHero image="/images/background/fondo.jpg">
-                <div className="hero-content container text-center text-white">
-                    <h1 className="display-5 fw-bold">Postres y momentos dulces</h1>
-                    <p className="lead">Sabores que celebran cada ocasión</p>
-                </div>
-                <a href="#frescura" className="scroll-down-arrow" aria-label="Bajar">
-                    <i className="bi bi-chevron-down" />
-                </a>
+        <main className="home flex-grow-1">
+            {/* HERO con ParallaxHero (sin clases parallax-1/2/etc.) */}
+            <ParallaxHero image="/images/background/fondo.jpg" arrowToId="frescura">
+                <h1 className="display-5 fw-bold">Postres y momentos dulces</h1>
+                <p className="lead">Sabores que celebran cada ocasión</p>
             </ParallaxHero>
 
-            <section id="frescura" className="container py-5">
-                <h2 className="text-center mb-4">
-                    En Pastelería Mil Sabores todo es frescura y calidad
-                </h2>
-                {/* aquí tus tarjetas / contenido */}
+            {/* MENSAJE CENTRAL */}
+            <h2 className="m-5 text-center anchor-offset" id="frescura">
+                En Pastelería Mil Sabores todo es frescura y calidad
+            </h2>
+
+            {/* PRODUCTOS DESTACADOS */}
+            <section className="container my-4">
+                <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+                    <div className="col">
+                        <article className="card h-100 producto-destacado">
+                            <img
+                                src="/images/products/torta-cuadrada-chocolate.png"
+                                className="card-img-top"
+                                alt="Torta Cuadrada de Chocolate"
+                                loading="lazy"
+                            />
+                            <div className="card-body d-flex flex-column text-center">
+                                <h5 className="card-title">Torta Cuadrada de Chocolate</h5>
+                                <p className="card-text">Tortas cuadradas</p>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div className="col">
+                        <article className="card h-100 producto-destacado">
+                            <img
+                                src="/images/products/postre-tiramisu.jpg"
+                                className="card-img-top"
+                                alt="Tiramisú Clásico"
+                                loading="lazy"
+                            />
+                            <div className="card-body d-flex flex-column text-center">
+                                <h5 className="card-title">Tiramisú Clásico</h5>
+                                <p className="card-text">Postres individuales</p>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div className="col">
+                        <article className="card h-100 producto-destacado">
+                            <img
+                                src="/images/products/sin-gluten-brownie.jpg"
+                                className="card-img-top"
+                                alt="Brownie Sin Gluten"
+                                loading="lazy"
+                            />
+                            <div className="card-body d-flex flex-column text-center">
+                                <h5 className="card-title">Brownie Sin Gluten</h5>
+                                <p className="card-text">Productos Sin Gluten</p>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div className="col">
+                        <article className="card h-100 producto-destacado">
+                            <img
+                                src="/images/products/sin-azucar-cheesecake.jpg"
+                                className="card-img-top"
+                                alt="Cheesecake Sin Azúcar"
+                                loading="lazy"
+                            />
+                            <div className="card-body d-flex flex-column text-center">
+                                <h5 className="card-title">Cheesecake Sin Azúcar</h5>
+                                <p className="card-text">Productos sin azúcar</p>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            {/* VIDEO HERO */}
+            <section className="video-hero" aria-label="Sección de video destacado">
+                <video
+                    className="video-hero-media"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    src="/images/video/video_section.mp4"
+                />
+                <div className="video-hero-caption">
+                    <h2>Comienza tu día con</h2>
+                    <h1>Dulzura</h1>
+                </div>
             </section>
         </main>
     );
