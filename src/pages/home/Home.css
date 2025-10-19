@@ -1,53 +1,15 @@
-/* src/pages/Home.css */
+/* --- CONTENEDOR PRINCIPAL DE LA PÁGINA --- */
 .home {
-    text-align: center;
-    background-color: #fff7f9;
-    padding: 2rem;
+    text-align: center;           /* Centra todo el texto y elementos dentro del main */
+    background-color: #fff7f9;    /* Fondo rosado muy claro (estilo pastelería) */
+    padding: 3rem 1rem;           /* Espaciado vertical y horizontal */
 }
 
-.hero {
-    margin-bottom: 3rem;
-}
-
-.hero img {
-    width: 80%;
-    max-width: 600px;
-    border-radius: 16px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    margin-top: 1rem;
-}
-
-.featured-products {
-    margin-top: 3rem;
-}
-
-.product-grid {
-    display: flex;
-    justify-content: center;
-    gap: 2rem;
-    flex-wrap: wrap;
-}
-
-.product-card {
-    background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    padding: 1rem;
-    width: 220px;
-    transition: transform 0.2s ease;
-}
-
-.product-card:hover {
-    transform: translateY(-5px);
-}
-
-.product-card img {
-    width: 100%;
-    border-radius: 8px;
-}
-
-.product-card p {
-    margin-top: 0.5rem;
-    font-weight: bold;
-    color: #5c3b33;
+/* --- IMAGEN PRINCIPAL (HERO) --- */
+.hero-img {
+    width: 80%;                   /* Imagen ocupa el 80% del ancho del contenedor */
+    max-width: 600px;             /* Limita el tamaño máximo en pantallas grandes */
+    border-radius: 16px;          /* Bordes redondeados para un estilo más suave */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Sombra ligera para dar profundidad */
+    margin-top: 1rem;             /* Espacio superior entre el texto y la imagen */
 }

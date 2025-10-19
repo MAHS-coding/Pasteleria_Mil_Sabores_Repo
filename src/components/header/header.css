@@ -1,31 +1,60 @@
-/* src/components/header/header.css */
-.header {
-    background-image: url('/images/background/fondo.jpg');
-    background-size: cover;
-    background-position: center;
-    color: white;
-    text-align: center;
-    padding: 4rem 2rem;
-    position: relative;
+/* --- LOGO PRINCIPAL --- */
+.brand-logo {
+    display: block;
+    height: auto;
+    width: auto;
+    max-height: 40px;  /* Mantiene proporción del logo */
+    max-width: 180px;  /* Evita que se estire demasiado */
 }
 
-.header::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+/* --- NAVBAR PRINCIPAL --- */
+.primary-nav {
+    background: rgba(255, 255, 255, 0.75) !important; /* Fondo blanco translúcido */
+    backdrop-filter: blur(12px); /* Efecto de desenfoque en el fondo */
+    border-bottom: var(--border-soft); /* Línea inferior suave */
+    height: var(--nav-h); /* Altura controlada mediante variable global */
 }
 
-.header-content {
-    position: relative;
-    z-index: 1;
+/* --- ENLACES DE NAVEGACIÓN --- */
+.primary-nav .nav-link {
+    font-weight: 300; /* Tipografía ligera */
+    font-size: 1rem;
+    color: var(--color-text-primary, #1a1a1a); /* Color de texto principal */
+    transition: color var(--transition, 0.3s ease); /* Suaviza el cambio de color */
 }
 
-.header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
+/* Color dorado al pasar el cursor */
+.primary-nav .nav-link:hover {
+    color: var(--accent-main, #b08d57);
 }
 
-.header p {
-    font-size: 1.2rem;
+/* --- BOTÓN DE MENÚ (solo visible en móvil) --- */
+.navbar-toggler {
+    border: none !important;
+}
+
+/* Quita el efecto de foco azul al presionar el botón */
+.navbar-toggler:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* --- ELEMENTOS DE MENÚ DESPLEGABLE --- */
+.dropdown-item {
+    font-weight: 300;
+}
+
+/* Colores de fondo y texto del item activo */
+.dropdown-item:focus,
+.dropdown-item:active {
+    background-color: var(--accent-main, #b08d57) !important;
+    color: var(--color-background, #fff) !important;
+}
+
+/* --- DESPLIEGUE AUTOMÁTICO DEL MENÚ EN ESCRITORIO --- */
+@media (min-width: 992px) {
+    /* Permite que el menú se abra al pasar el mouse (sin click) */
+    .navbar-nav .dropdown:hover > .dropdown-menu {
+        display: block;
+    }
 }
