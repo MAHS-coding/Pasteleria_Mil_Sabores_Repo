@@ -1,28 +1,28 @@
-// Importa React para usar componentes funcionales
 import React from "react";
-// Importa los estilos específicos de la página de inicio
+import ParallaxHero from "../../components/parallaxHero/ParallaxHero";
 import "./Home.css";
 
-// Componente funcional Home: representa la página principal del sitio
 const Home: React.FC = () => {
     return (
-        // <main> define la sección principal del contenido de la página
-        <main className="home">
-            {/* Título principal de bienvenida */}
-            <h1>Bienvenido a Pastelería Mil Sabores 🍰</h1>
+        <main>
+            <ParallaxHero image="/images/background/fondo.jpg">
+                <div className="hero-content container text-center text-white">
+                    <h1 className="display-5 fw-bold">Postres y momentos dulces</h1>
+                    <p className="lead">Sabores que celebran cada ocasión</p>
+                </div>
+                <a href="#frescura" className="scroll-down-arrow" aria-label="Bajar">
+                    <i className="bi bi-chevron-down" />
+                </a>
+            </ParallaxHero>
 
-            {/* Subtítulo descriptivo */}
-            <p>Descubre nuestras tortas, postres y dulces hechos con amor.</p>
-
-            {/* Imagen principal o banner (hero section) */}
-            <img
-                src="/images/background/fondo.jpg" // Ruta de la imagen de fondo
-                alt="Fondo de la pastelería"        // Texto alternativo accesible
-                className="hero-img"               // Clase CSS para aplicar estilos
-            />
+            <section id="frescura" className="container py-5">
+                <h2 className="text-center mb-4">
+                    En Pastelería Mil Sabores todo es frescura y calidad
+                </h2>
+                {/* aquí tus tarjetas / contenido */}
+            </section>
         </main>
     );
 };
 
-// Exporta el componente para ser utilizado en App.tsx u otras rutas
 export default Home;
