@@ -2,7 +2,7 @@ import React from "react";
 import "./Footer.css"; // Importa los estilos específicos del footer
 
 // Componente funcional Footer (define el pie de página del sitio)
-const Footer: React.FC = () => {
+export function Footer () {
     // Obtiene el año actual dinámicamente para mostrarlo en el copyright
     const year = new Date().getFullYear();
 

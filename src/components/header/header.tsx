@@ -2,7 +2,7 @@ import React from "react";
 import "./Header.css"; // Importa los estilos específicos para el encabezado
 
 // Componente funcional que define el encabezado global (navbar principal)
-const Header: React.FC = () => {
+export function Header () {
     return (
         // "sticky-top" fija la barra superior al hacer scroll
         <header className="sticky-top">

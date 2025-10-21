@@ -2,7 +2,7 @@ import React from "react";
 import ParallaxHero from "../../components/parallaxHero/ParallaxHero";
 import "./Home.css";
 
-const Home: React.FC = () => {
+export function Home () {
     return (
         <main className="home flex-grow-1">
             {/* HERO con ParallaxHero (sin clases parallax-1/2/etc.) */}
