@@ -5,7 +5,7 @@
 :root {
     --color-background: #ffffff;
     --color-text-primary: #1a1a1a;
-    --color-text-secondary: #555555;
+    --color-text-secondary: #1a1a1a;
 
     --accent-main: #b08d57;
     --accent-dark: #6b3e26;
@@ -13,7 +13,8 @@
     --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.08);
     --border-soft: 1px solid rgba(0, 0, 0, 0.1);
 
-    --font-main: "Segoe UI", system-ui, -apple-system, "Inter", sans-serif;
+    --font-main: "Segoe UI", sans-serif;
+    --font-h: "Segoe UI", sans-serif;
 
     --radius-s: 6px;
     --radius-m: 10px;
@@ -21,22 +22,17 @@
     --nav-h: 65px;
 }
 
-/* ===== Reset suave y tipografía base ===== */
-html,
-body,
-#root {
-    height: 100%;
+/* ===== Disenio de fuente ===== */
+
+body {
+    font-family: var(--font-main);
 }
 
-/* ayuda al sticky-footer */
-body {
-    margin: 0;
-    font-family: var(--font-main);
-    color: var(--color-text-primary);
-    background: var(--color-background);
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+h1, h2, h3, h4 {
+    font-family: var(--font-h);
 }
+
+
 
 /* ===== Layout: sticky footer con Bootstrap =====
    (Si App usa .d-flex.flex-column.min-vh-100, igual sirve como refuerzo) */

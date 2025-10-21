@@ -7,8 +7,8 @@ const Home: React.FC = () => {
         <main className="home flex-grow-1">
             {/* HERO con ParallaxHero (sin clases parallax-1/2/etc.) */}
             <ParallaxHero image="/images/background/fondo.jpg" arrowToId="frescura">
-                <h1 className="display-5 fw-bold">Postres y momentos dulces</h1>
-                <p className="lead">Sabores que celebran cada ocasión</p>
+                <h1 className="display-5 fw-bold titulo-home">Postres y momentos dulces</h1>
+                <p className="lead subtitulo-home">Sabores que celebran cada ocasión</p>
             </ParallaxHero>
 
             {/* MENSAJE CENTRAL */}
@@ -67,7 +67,7 @@ const Home: React.FC = () => {
                     <div className="col">
                         <article className="card h-100 producto-destacado">
                             <img
-                                src="/images/products/sin-azucar-cheesecake.jpg"
+                                src="/images/products/cheesecake/sin-azucar/cheesecake-sin-azucar.avif"
                                 className="card-img-top"
                                 alt="Cheesecake Sin Azúcar"
                                 loading="lazy"
