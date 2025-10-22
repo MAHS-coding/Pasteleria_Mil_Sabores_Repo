@@ -1,0 +1,33 @@
+/* Detalle de producto - estilos locales */
+.detalle-page .detalle-card-central,
+.detalle-page .detalle-card-compra {
+  min-height: 360px;
+}
+
+.detalle-page img {
+  max-height: 380px;
+  object-fit: cover;
+}
+
+.card-products img {
+  height: 120px;
+  width: 100%;
+  object-fit: cover;
+}
+
+.card-products {
+  padding: 0.8rem;
+  border-radius: 8px;
+  background: white;
+  transition: box-shadow 0.15s ease, transform 0.12s ease;
+}
+.card-products:hover {
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  transform: translateY(-3px);
+}
+
+/* Responsive tweaks */
+@media (max-width: 992px) {
+  .detalle-page .detalle-card-central,
+  .detalle-page .detalle-card-compra { min-height: auto; }
+}
