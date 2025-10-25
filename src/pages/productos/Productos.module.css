@@ -1,0 +1,20 @@
+@import url('../../styles/main.css');
+
+.btnFilter {
+    color: var(--accent-main, #b08d57);
+    border-color: var(--accent-main, #b08d57);
+    font-size: 0.8rem;
+}
+
+.btnFilterPrimary,
+.btnFilter:hover {
+    background-color: var(--accent-main, #b08d57);
+    color: var(--color-background, #fff);
+}
+
+.shopContent {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+}

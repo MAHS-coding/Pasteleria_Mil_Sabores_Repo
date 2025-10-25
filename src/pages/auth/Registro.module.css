@@ -1,0 +1,26 @@
+
+.btn-registro {
+    background-color: var(--accent-main);
+    border: none;
+    color: var(--color-background);
+}
+
+.btn-registro:hover {
+    background-color: var(--accent-dark);
+    color: var(--color-background);
+}
+
+.btn-sec{
+    background-color: var(--accent-main);
+    color: var(--color-background)
+}
+
+.btn-sec:hover{
+    background-color: var(--accent-dark);
+    color: var(--color-background)
+}
+
+.checkbox:checked {
+    background-color: var(--accent-dark);
+    border: none;
+}

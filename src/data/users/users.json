@@ -1,0 +1,220 @@
+    [
+        {
+            "run": "11111111-1",
+            "nombre": "Ana María",
+            "apellidos": "Pérez Soto",
+            "correo": "ana.maria@gmail.cl",
+            "fechaNacimiento": "1990-05-12",
+            "tipoUsuario": "SuperAdmin",
+            "addresses": [
+                {
+                    "id": "seed-ana.maria@gmail.cl",
+                    "address": "Av. Libertador 123",
+                    "region": "Metropolitana",
+                    "comuna": "Santiago"
+                },
+                {
+                    "id": "seed-ana.maria@gmail.cl-2",
+                    "address": "Av. Providencia 456",
+                    "region": "Metropolitana",
+                    "comuna": "Providencia"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        },
+        {
+            "run": "12345678-9",
+            "nombre": "Luis Felipe",
+            "apellidos": "González Fuentes",
+            "correo": "luis.felipe@gmail.com",
+            "fechaNacimiento": "1985-11-20",
+            "tipoUsuario": "Administrador",
+            "addresses": [
+                {
+                    "id": "seed-luis.felipe@gmail.com",
+                    "address": "Calle 5 Norte 456",
+                    "region": "Valparaíso",
+                    "comuna": "Viña del Mar"
+                },
+                {
+                    "id": "seed-luis.felipe@gmail.com-2",
+                    "address": "Av. Libertad 890",
+                    "region": "Valparaíso",
+                    "comuna": "Valparaíso"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        },
+        {
+            "run": "14567832-1",
+            "nombre": "Marcela Andrea",
+            "apellidos": "Rojas Díaz",
+            "correo": "marcela.andrea@gmail.com",
+            "fechaNacimiento": "1978-03-08",
+            "tipoUsuario": "Vendedor",
+            "addresses": [
+                {
+                    "id": "seed-marcela.andrea@gmail.com",
+                    "address": "Pasaje Los Álamos 789",
+                    "region": "Biobío",
+                    "comuna": "Concepción"
+                },
+                {
+                    "id": "seed-marcela.andrea@gmail.com-2",
+                    "address": "Av. O'Higgins 102",
+                    "region": "Biobío",
+                    "comuna": "Talcahuano"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        },
+        {
+            "run": "15678932-1",
+            "nombre": "José Ignacio",
+            "apellidos": "Ramírez Torres",
+            "correo": "jose.ignacio@gmail.com",
+            "fechaNacimiento": "1995-07-14",
+            "tipoUsuario": "Vendedor",
+            "addresses": [
+                {
+                    "id": "seed-jose.ignacio@gmail.com",
+                    "address": "Camino a Labranza 234",
+                    "region": "Araucanía",
+                    "comuna": "Temuco"
+                },
+                {
+                    "id": "seed-jose.ignacio@gmail.com-2",
+                    "address": "Av. Alemania 567",
+                    "region": "Araucanía",
+                    "comuna": "Temuco"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        },
+        {
+            "run": "16789032-2",
+            "nombre": "Claudia Isabel",
+            "apellidos": "Fernández Mella",
+            "correo": "claudia.isabel@duoc.cl",
+            "fechaNacimiento": "1992-09-30",
+            "tipoUsuario": "Cliente",
+            "addresses": [
+                {
+                    "id": "seed-claudia.isabel@duoc.cl",
+                    "address": "Av. San Miguel 876",
+                    "region": "Maule",
+                    "comuna": "Talca"
+                },
+                {
+                    "id": "seed-claudia.isabel@duoc.cl-2",
+                    "address": "Calle 1 Sur 210",
+                    "region": "Maule",
+                    "comuna": "Talca"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        },
+        {
+            "run": "17890132-2",
+            "nombre": "Andrés Eduardo",
+            "apellidos": "Morales Castro",
+            "correo": "andres.eduardo@duoc.cl",
+            "fechaNacimiento": "1980-01-22",
+            "tipoUsuario": "Cliente",
+            "addresses": [
+                {
+                    "id": "seed-andres.eduardo@duoc.cl",
+                    "address": "Los Perales 111",
+                    "region": "Coquimbo",
+                    "comuna": "La Serena"
+                },
+                {
+                    "id": "seed-andres.eduardo@duoc.cl-2",
+                    "address": "Av. Francisco de Aguirre 345",
+                    "region": "Coquimbo",
+                    "comuna": "La Serena"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        },
+        {
+            "run": "18901232-2",
+            "nombre": "Paola Alejandra",
+            "apellidos": "Hernández Silva",
+            "correo": "paola.alex@gmail.com",
+            "fechaNacimiento": "1998-12-05",
+            "tipoUsuario": "Cliente",
+            "addresses": [
+                {
+                    "id": "seed-paola.alex@gmail.com",
+                    "address": "Calle Estado 222",
+                    "region": "O'Higgins",
+                    "comuna": "Rancagua"
+                },
+                {
+                    "id": "seed-paola.alex@gmail.com-2",
+                    "address": "Av. Libertador 1010",
+                    "region": "O'Higgins",
+                    "comuna": "Rancagua"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        },
+        {
+            "run": "19011022-2",
+            "nombre": "Felipe Andrés",
+            "apellidos": "Vega Carrasco",
+            "correo": "felipe.andres@profesor.duoc.cl",
+            "fechaNacimiento": "1975-04-10",
+            "tipoUsuario": "Cliente",
+            "addresses": [
+                {
+                    "id": "seed-felipe.andres@profesor.duoc.cl",
+                    "address": "Av. Brasil 333",
+                    "region": "Antofagasta",
+                    "comuna": "Antofagasta"
+                },
+                {
+                    "id": "seed-felipe.andres@profesor.duoc.cl-2",
+                    "address": "Calle Prat 215",
+                    "region": "Antofagasta",
+                    "comuna": "Antofagasta"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        },
+        {
+            "run": "20456782-2",
+            "nombre": "Carolina Beatriz",
+            "apellidos": "Navarro Campos",
+            "correo": "carolina.beatriz@duoc.cl",
+            "fechaNacimiento": "1988-08-19",
+            "tipoUsuario": "Cliente",
+            "addresses": [
+                {
+                    "id": "seed-carolina.beatriz@duoc.cl",
+                    "address": "Diego Portales 444",
+                    "region": "Los Lagos",
+                    "comuna": "Puerto Montt"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        },
+        {
+            "run": "21567832-2",
+            "nombre": "Rodrigo Alonso",
+            "apellidos": "Salazar Reyes",
+            "correo": "rodrigo.alonso@gmail.com",
+            "fechaNacimiento": "1993-06-25",
+            "tipoUsuario": "Cliente",
+            "addresses": [
+                {
+                    "id": "seed-rodrigo.alonso@gmail.com",
+                    "address": "Colipí 555",
+                    "region": "Atacama",
+                    "comuna": "Copiapó"
+                }
+            ],
+            "password": "61be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b4"
+        }
+    ]

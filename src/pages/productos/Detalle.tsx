@@ -1,18 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { products as seedProducts, type Product } from "../../data/products";
-import "./Detalle.css";
+import { products as seedProducts } from "../../utils/dataLoaders";
+import type { Product } from "../../types/product";
+import styles from "./Detalle.module.css";
+import ProductCard from "../../components/product/ProductCard";
+import { useCart } from "../../context/CartContext";
+import { getRelatedProducts, isPersonalizable, getProductByCode } from "../../utils/products";
+import { formatCLP } from "../../utils/currency";
+import Modal from "../../components/ui/Modal";
 
-const personalizables = ["TC001", "TE001", "TE002"];
-
-const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
-
-function getCart() {
-  try { return JSON.parse(localStorage.getItem("carrito") || "[]"); } catch { return []; }
-}
-function setCart(cart: any[]) { localStorage.setItem("carrito", JSON.stringify(cart)); }
-
-export const Detalle: React.FC = () => {
+const Detalle: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const code = searchParams.get("code");
@@ -20,11 +17,14 @@ export const Detalle: React.FC = () => {
   const [producto, setProducto] = useState<Product | null>(null);
   const [qty, setQty] = useState<number>(1);
   const [mensaje, setMensaje] = useState("");
+  const { addMultiple, add } = useCart();
+  const [showMessageWizard, setShowMessageWizard] = useState(false);
+  const [wizardMessages, setWizardMessages] = useState<string[]>([]);
+  const [wizardIndex, setWizardIndex] = useState(0);
+  const [wizardInput, setWizardInput] = useState("");
 
   useEffect(() => {
-    const catalogo = (() => { try { return JSON.parse(localStorage.getItem("catalogo") || "null"); } catch { return null; } })();
-    const fuente = Array.isArray(catalogo) && catalogo.length ? catalogo : seedProducts;
-    const found = (fuente || []).find((p: Product) => p.code === code);
+    const found = getProductByCode(code, seedProducts);
     if (!found) {
       setProducto(null);
       return;
@@ -32,17 +32,7 @@ export const Detalle: React.FC = () => {
     setProducto(found as Product);
   }, [code]);
 
-  const related = useMemo(() => {
-    if (!producto) return [];
-    const fuente = (() => { try { return JSON.parse(localStorage.getItem("catalogo") || "null"); } catch { return null; } })() || seedProducts;
-    const others = (fuente || []).filter((p: Product) => p.code !== producto.code);
-    // mezcla simple
-    for (let i = others.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [others[i], others[j]] = [others[j], others[i]];
-    }
-    return others.slice(0, 4);
-  }, [producto]);
+  const related = useMemo(() => getRelatedProducts(producto, seedProducts), [producto]);
 
   if (producto === null) return <div className="container py-5"><p className="text-danger">Producto no encontrado</p></div>;
 
@@ -50,40 +40,78 @@ export const Detalle: React.FC = () => {
 
   function addToCart() {
     if (!producto) return;
-    const esPersonalizable = personalizables.includes(producto.code);
-    // si personalizable y qty>1, aquí simplificamos: si hay mensaje se aplica a cada unidad; para multiselección se podría pedir modal
-    const carrito = getCart();
+    const esPersonalizable = isPersonalizable(producto.code);
     if (!esPersonalizable) {
-      const existing = carrito.find((c: any) => c.code === producto.code && (c.mensaje || "") === "");
-      if (existing) existing.cantidad += qty; else carrito.push({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img, cantidad: qty, mensaje: "" });
-      setCart(carrito);
-      if ((window as any).updateCartCount) (window as any).updateCartCount();
+      // use addMultiple to add qty
+      addMultiple({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img }, qty);
+      setMensaje("");
+      navigate("/productos");
       return;
     }
-    // personalizable: si qty===1 usamos mensaje, si qty>1 tratamos cada unidad como ítem separado con el mismo mensaje
-    for (let i = 0; i < qty; i++) {
-      const existing = carrito.find((c: any) => c.code === producto.code && (c.mensaje || "") === (mensaje || ""));
-      if (existing) existing.cantidad += 1; else carrito.push({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img, cantidad: 1, mensaje: mensaje || "" });
+
+    if (qty <= 1) {
+      const trimmed = mensaje.trim();
+      add({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img, mensaje: trimmed ? trimmed : undefined });
+      setMensaje("");
+      navigate("/productos");
+      return;
     }
-    setCart(carrito);
-    if ((window as any).updateCartCount) (window as any).updateCartCount();
+
+    const initialMessages = Array.from({ length: qty }, (_, idx) => (idx === 0 ? mensaje : ""));
+    setWizardMessages(initialMessages);
+    setWizardIndex(0);
+    setWizardInput(initialMessages[0] ?? "");
+    setShowMessageWizard(true);
+  }
+
+  function closeWizard() {
+    setShowMessageWizard(false);
+    setWizardMessages([]);
+    setWizardIndex(0);
+    setWizardInput("");
+  }
+
+  function handleWizardConfirm() {
+    if (!producto) return;
+    const nextMessages = [...wizardMessages];
+    nextMessages[wizardIndex] = wizardInput;
+
+    if (wizardIndex + 1 < nextMessages.length) {
+      setWizardMessages(nextMessages);
+      const nextIndex = wizardIndex + 1;
+      setWizardIndex(nextIndex);
+      setWizardInput(nextMessages[nextIndex] ?? "");
+      return;
+    }
+
+    nextMessages.forEach((msg) => {
+      const trimmed = (msg || "").trim();
+      add({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img, mensaje: trimmed ? trimmed : undefined });
+    });
+    closeWizard();
+    setMensaje("");
+    navigate("/productos");
+  }
+
+  function handleWizardCancel() {
+    closeWizard();
   }
 
   return (
-    <main className="container py-4 detalle-page">
+    <main className={`container py-4 ${styles.detallePage}`}>
       <div className="row g-4" id="detalle-layout">
         <div className="col-lg-4 text-center">
           <img src={producto.img} alt={producto.productName} className="img-fluid rounded shadow" />
         </div>
         <div className="col-lg-4">
-          <div className="border rounded p-3 h-100 bg-light-subtle d-flex flex-column justify-content-between detalle-card-central">
+          <div className={`border rounded p-3 h-100 bg-light-subtle d-flex flex-column justify-content-between ${styles.detalleCardCentral}`}>
             <div>
               <h1 className="h4 mb-2">{producto.productName}</h1>
               <div id="badgesDetalle" className="d-flex gap-1 flex-wrap mb-3">{/* badges */}
                 {producto.category === "productos-sin-azucar" && <span className="badge text-bg-dark">Sin azúcar</span>}
                 {producto.category === "productos-sin-gluten" && <span className="badge text-bg-warning">Sin gluten</span>}
                 {producto.category === "productos-veganos" && <span className="badge text-bg-success">Vegano</span>}
-                {personalizables.includes(producto.code) && <span className="badge text-bg-info">Personalizable</span>}
+                {isPersonalizable(producto.code) && <span className="badge text-bg-info">Personalizable</span>}
               </div>
               <p className="small text-muted mb-3">{producto.desc || "Producto artesanal, hecho con ingredientes frescos."}</p>
             </div>
@@ -99,9 +127,9 @@ export const Detalle: React.FC = () => {
           </div>
         </div>
         <div className="col-lg-4">
-          <div className="border rounded p-3 h-100 bg-light-subtle d-flex flex-column justify-content-between detalle-card-compra">
+          <div className={`border rounded p-3 h-100 bg-light-subtle d-flex flex-column justify-content-between ${styles.detalleCardCompra}`}>
             <div>
-              <span className="h4 d-block mb-2">{clp.format(producto.price)}</span>
+              <span className="h4 d-block mb-2">{formatCLP(producto.price)}</span>
               <div className="mt-3 d-flex align-items-center gap-2">
                 <button className="btn btn-outline-secondary" onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
                 <input type="number" className="form-control text-center" style={{ maxWidth: 80 }} value={qty} min={1} onChange={(e) => setQty(Math.max(1, Number(e.target.value || 1)))} />
@@ -109,7 +137,7 @@ export const Detalle: React.FC = () => {
                 <span className="badge bg-info text-dark ms-2">Stock: {stock}</span>
               </div>
 
-              {personalizables.includes(producto.code) && (
+              {isPersonalizable(producto.code) && (
                 <div className="mb-3 mt-3">
                   <label htmlFor="mensajePersonalizado" className="form-label">Mensaje personalizado (opcional)</label>
                   <input id="mensajePersonalizado" className="form-control" value={mensaje} onChange={(e) => setMensaje(e.target.value)} maxLength={60} placeholder="Ej: ¡Feliz Cumpleaños, Ana!" />
@@ -117,7 +145,7 @@ export const Detalle: React.FC = () => {
                 </div>
               )}
 
-              <button className="btn btn-dark w-100 mt-3" onClick={() => { addToCart(); navigate('/productos'); }}>
+              <button className="btn btn-dark w-100 mt-3" onClick={() => { addToCart(); }}>
                 <i className="bi bi-bag-plus me-2" /> Agregar al Carrito
               </button>
             </div>
@@ -135,29 +163,36 @@ export const Detalle: React.FC = () => {
         <div className="container my-5">
         <h2 className="mb-4">También te podría interesar</h2>
         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-          {related.map((r: Product) => (
+            {related.map((r: Product) => (
             <div key={r.code} className="col">
-              <div className="card-products text-start" tabIndex={0} role="link" style={{ cursor: 'pointer' }} onClick={() => navigate(`/detalle?code=${encodeURIComponent(r.code)}`)}>
-                <img src={r.img} alt={r.productName} className="img-fluid" />
-                <h3 className="mb-1">{r.productName}</h3>
-                <p className="code text-muted mb-1">Código: {r.code}</p>
-                <div className="d-flex align-items-center justify-content-between mb-2">
-                  <span className="price fw-semibold">{clp.format(r.price)}</span>
-                  <div className="badges-inline d-flex gap-1 flex-wrap justify-content-end px-3">{/* badges */}
-                    {r.category === 'productos-sin-azucar' && <span className="badge text-bg-dark">Sin azúcar</span>}
-                    {r.category === 'productos-sin-gluten' && <span className="badge text-bg-warning">Sin gluten</span>}
-                    {r.category === 'productos-veganos' && <span className="badge text-bg-success">Vegano</span>}
-                    {personalizables.includes(r.code) && <span className="badge text-bg-info">Personalizable</span>}
-                  </div>
-                </div>
-                <button data-code={r.code} className="btn btn-outline-secondary btn-sm" onClick={(e) => { e.stopPropagation(); navigate(`/detalle?code=${encodeURIComponent(r.code)}`); }}>
-                  <i className="bi bi-eye" /> Ver detalle
-                </button>
-              </div>
+              <ProductCard p={r} />
             </div>
           ))}
         </div>
       </div>
+
+      <Modal
+        show={showMessageWizard}
+        title={wizardMessages.length > 1 ? `Mensaje ${wizardIndex + 1} de ${wizardMessages.length}` : "Mensaje personalizado"}
+        onClose={handleWizardCancel}
+        onConfirm={handleWizardConfirm}
+        confirmLabel={wizardIndex + 1 < wizardMessages.length ? "Siguiente" : "Agregar al carrito"}
+        cancelLabel="Cancelar"
+      >
+        <div className="mb-3">
+          <label htmlFor="detalleMensajeWizard" className="form-label">Mensaje para esta torta (opcional)</label>
+          <input
+            id="detalleMensajeWizard"
+            className="form-control"
+            maxLength={60}
+            value={wizardInput}
+            onChange={(event) => setWizardInput(event.target.value)}
+            placeholder="Ej: ¡Feliz Cumpleaños, Ana!"
+            autoFocus
+          />
+          <div className="form-text">Máximo 60 caracteres. Puedes dejarlo vacío.</div>
+        </div>
+      </Modal>
     </main>
   );
 };

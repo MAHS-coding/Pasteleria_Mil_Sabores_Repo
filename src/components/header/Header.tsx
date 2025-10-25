@@ -1,8 +1,67 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./Header.css"; // Importa los estilos específicos para el encabezado
+import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
+import { useEffect, useState } from "react";
+import Modal from "../ui/Modal";
+import FormField from "../ui/FormField";
+import { readUsers } from "../../utils/registro";
+import { sha256Hex } from "../../utils/hash";
 
-export function Header () {
+function CartBadge() {
+    const { count } = useCart();
+    return (
+        <Link to="/carrito" className="nav-link ms-3 position-relative" style={{ marginRight: "16px" }}>
+            <i className="bi bi-cart fs-4"></i>
+            <span className={`position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger ${count > 0 ? "" : "d-none"}`}>{count}</span>
+        </Link>
+    );
+}
+
+const Header: React.FC = () => {
+    const navigate = useNavigate();
+    const { user, logout, login } = useAuth();
+    const [showLogin, setShowLogin] = useState(false);
+    const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
+    const [loginEmail, setLoginEmail] = useState("");
+    const [loginPassword, setLoginPassword] = useState("");
+    const [loginError, setLoginError] = useState("");
+
+    useEffect(() => {
+        const handler = () => setShowLogin(true);
+        window.addEventListener('open-login', handler as EventListener);
+        return () => window.removeEventListener('open-login', handler as EventListener);
+    }, []);
+
+    useEffect(() => {
+        if (showLogin) {
+            setLoginEmail("");
+            setLoginPassword("");
+            setLoginError("");
+        }
+    }, [showLogin]);
+
+    async function handleLoginSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        try {
+            const users = readUsers();
+            const hashed = await sha256Hex(loginPassword);
+            const found = users.find(
+                (candidate) =>
+                    String(candidate.email).toLowerCase() === String(loginEmail).toLowerCase() &&
+                    candidate.password === hashed
+            );
+            if (!found) {
+                setLoginError("Usuario o contraseña incorrectos.");
+                return;
+            }
+            login({ name: found.name || "Usuario", email: found.email });
+            setShowLogin(false);
+            navigate("/");
+        } catch (err) {
+            setLoginError("Ocurrió un problema al iniciar sesión.");
+        }
+    }
     return (
         <header className="sticky-top">
             <nav className="navbar navbar-expand-lg primary-nav">
@@ -70,11 +129,11 @@ export function Header () {
                         </ul>
 
                         <div className="d-flex align-items-center">
-                            <span className="me-2 d-none d-lg-inline">Hola, Matías!</span>
+                            {user ? <span className="me-2 d-none d-lg-inline">Hola, {user.name}!</span> : null}
 
                             <div className="nav-item dropdown account-dropdown ms-2">
                                 <button
-                                    className="nav-link btn btn-link p-0"
+                                    className="nav-link btn btn-link p-0 dropdown-toggle"
                                     type="button"
                                     data-bs-toggle="dropdown"
                                     aria-expanded="false"
@@ -82,20 +141,88 @@ export function Header () {
                                     <i className="bi bi-person-circle fs-4"></i>
                                 </button>
                                 <ul className="dropdown-menu dropdown-menu-end" id="account-menu">
-                                    <li><Link className="dropdown-item" to="/perfil">Mi perfil</Link></li>
-                                    <li><Link className="dropdown-item" to="/logout">Cerrar sesión</Link></li>
+                                    {user ? (
+                                        <>
+                                            <li><Link className="dropdown-item" to="/perfil">Mi perfil</Link></li>
+                                            <li><button className="dropdown-item" onClick={() => setConfirmLogoutOpen(true)}>Cerrar sesión</button></li>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <li><button className="dropdown-item" onClick={() => setShowLogin(true)}>Iniciar sesión</button></li>
+                                            <li><Link className="dropdown-item" to="/registro">Registrarse</Link></li>
+                                        </>
+                                    )}
                                 </ul>
                             </div>
 
-                            <Link to="/carrito" className="nav-link ms-3 position-relative" style={{ marginRight: "16px" }}>
-                                <i className="bi bi-cart fs-4"></i>
-                                <span id="cart-count" className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
-                            </Link>
+                            <CartBadge />
                         </div>
                     </div>
                 </div>
             </nav>
+            <Modal
+                show={showLogin}
+                title="Iniciar sesión"
+                onClose={() => setShowLogin(false)}
+                hideFooter
+                id="loginModal"
+                labelledBy="loginTitle"
+                contentClassName="border-0 shadow-lg rounded-4"
+            >
+                <form onSubmit={handleLoginSubmit} noValidate>
+                    <FormField id="loginEmail" label="Correo" feedback="Ingresa un correo válido." className="mb-1">
+                        <input
+                            id="loginEmail"
+                            type="email"
+                            className="form-control"
+                            placeholder="tu@correo.com"
+                            value={loginEmail}
+                            onChange={(event) => setLoginEmail(event.target.value)}
+                            required
+                        />
+                    </FormField>
+
+                    <FormField id="loginPass" label="Contraseña" feedback="La contraseña es obligatoria." className="mb-2">
+                        <input
+                            id="loginPass"
+                            type="password"
+                            className="form-control"
+                            placeholder="********"
+                            value={loginPassword}
+                            onChange={(event) => setLoginPassword(event.target.value)}
+                            required
+                        />
+                    </FormField>
+
+                    {loginError ? <div className="alert alert-danger p-1">{loginError}</div> : null}
+
+                    <div className="d-flex justify-content-end align-items-center mb-3">
+                        <a href="#" className="small">¿Olvidaste tu contraseña?</a>
+                    </div>
+
+                    <button type="submit" className="btn btn-primary w-100">Entrar</button>
+
+                    <p className="text-center small mt-3 mb-0">
+                        ¿No tienes cuenta? <a href="/registro">Regístrate</a>
+                    </p>
+                </form>
+            </Modal>
+            <Modal
+                show={confirmLogoutOpen}
+                title="Cerrar sesión"
+                onClose={() => setConfirmLogoutOpen(false)}
+                onConfirm={() => {
+                    logout();
+                    navigate('/');
+                    setConfirmLogoutOpen(false);
+                }}
+                confirmLabel="Sí, cerrar"
+                cancelLabel="Cancelar"
+            >
+                <p className="mb-0">¿Deseas cerrar tu sesión actual?</p>
+            </Modal>
         </header>
     );
 };
+
 export default Header;

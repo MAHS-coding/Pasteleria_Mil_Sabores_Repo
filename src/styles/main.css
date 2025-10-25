@@ -124,3 +124,9 @@ h1, h2, h3, h4 {
         }
     }
 }
+
+/* Evita que la página se desplace horizontalmente cuando cambia la altura
+   (forzar la scrollbar vertical siempre visible para prevenir layout shift) */
+html {
+    overflow-y: scroll;
+}

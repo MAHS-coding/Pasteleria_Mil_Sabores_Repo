@@ -1,0 +1,197 @@
+{
+    "nombre_pasteleria": "Pasteleria Mil Sabores",
+    "categorias": [
+        {
+            "id_categoria": 1,
+            "nombre_categoria": "Tortas Cuadradas",
+            "productos": [
+                {
+                    "codigo_producto": "TC001",
+                    "nombre_producto": "Torta Cuadrada de Chocolate",
+                    "precio_producto": 45000,
+                    "descripción_producto": "Deliciosa torta de chocolate con varias capas de esponjoso bizcocho, rellenas de ganache de chocolate belga y un toque de avellanas tostadas. Decorada con virutas de chocolate y una cobertura brillante, es ideal para los amantes del cacao intenso. Perfecta para celebraciones especiales o para consentirte en cualquier ocasión.",
+                    "imagen_producto": "/images/products/tortas/tradicional/torta-cuadrada-chocolate.png",
+                    "stock": 10,
+                    "stock_critico": 3
+                },
+                {
+                    "codigo_producto": "TC002",
+                    "nombre_producto": "Torta Cuadrada de Frutas",
+                    "precio_producto": 50000,
+                    "descripción_producto": "Una mezcla exquisita de frutas frescas de temporada y crema chantilly natural sobre un suave bizcocho de vainilla. Cada bocado es una explosión de frescura y dulzura, decorada con frutas seleccionadas y glaseado ligero. Ideal para quienes buscan un postre colorido, refrescante y elegante.",
+                    "imagen_producto": "/images/products/tortas/tradicional/torta-cuadrada-frutas.jpg",
+                    "stock": 10,
+                    "stock_critico": 3
+                }
+            ]
+        },
+        {
+            "id_categoria": 2,
+            "nombre_categoria": "Tortas Circulares",
+            "productos": [
+                {
+                    "codigo_producto": "TT001",
+                    "nombre_producto": "Torta Circular de Vainilla",
+                    "precio_producto": 40000,
+                    "descripción_producto": "Bizcocho de vainilla clásico, suave y aromático, relleno con generosa crema pastelera y cubierto con un glaseado dulce y delicado. Decorada con detalles de chocolate blanco y perlas de azúcar, es una opción tradicional que nunca falla en cumpleaños y reuniones familiares.",
+                    "imagen_producto": "/images/products/tortas/tradicional/torta-circular-vainilla.jpg",
+                    "stock": 10,
+                    "stock_critico": 3
+                },
+                {
+                    "codigo_producto": "TT002",
+                    "nombre_producto": "Torta Circular de Manjar",
+                    "precio_producto": 42000,
+                    "descripción_producto": "Torta tradicional chilena con capas de bizcocho esponjoso, rellenas de abundante manjar artesanal y nueces trozadas. Su cobertura de merengue italiano y decoración con nueces enteras la convierten en un clásico irresistible para los fanáticos del sabor dulce y la textura crujiente.",
+                    "imagen_producto": "/images/products/tortas/tradicional/torta-circular-manjar.jpg",
+                    "stock": 10,
+                    "stock_critico": 3
+                }
+            ]
+        },
+        {
+            "id_categoria": 3,
+            "nombre_categoria": "Postres Individuales",
+            "productos": [
+                {
+                    "codigo_producto": "PI001",
+                    "nombre_producto": "Mousse de Chocolate",
+                    "precio_producto": 5000,
+                    "descripción_producto": "Postre cremoso y suave, elaborado con chocolate de alta calidad y una textura aireada que se deshace en la boca. Perfecto para los amantes del chocolate, ideal como broche de oro para cualquier comida o celebración. Se sirve frío y decorado con virutas de chocolate y frutos rojos.",
+                    "imagen_producto": "/images/products/postres-individuales/mousse-chocolate.png",
+                    "stock": 10,
+                    "stock_critico": 3
+                },
+                {
+                    "codigo_producto": "PI002",
+                    "nombre_producto": "Tiramisú Clásico",
+                    "precio_producto": 5500,
+                    "descripción_producto": "El clásico postre italiano con capas de bizcocho empapado en café, crema de mascarpone y cacao puro. Su sabor equilibrado y textura suave lo convierten en el favorito de quienes buscan un postre sofisticado y reconfortante. Presentado en porciones individuales listas para disfrutar.",
+                    "imagen_producto": "/images/products/postres-individuales/tiramisu.jpg",
+                    "stock": 10,
+                    "stock_critico": 3
+                }
+            ]
+        },
+        {
+            "id_categoria": 4,
+            "nombre_categoria": "Productos sin Azúcar",
+            "productos": [
+                {
+                    "codigo_producto": "PSA001",
+                    "nombre_producto": "Torta Sin Azúcar de Naranja",
+                    "precio_producto": 48000,
+                    "descripción_producto": "Torta ligera y deliciosa, endulzada naturalmente con jugo de naranja y edulcorantes saludables. Su bizcocho esponjoso y su aroma cítrico la hacen perfecta para quienes cuidan su consumo de azúcar sin renunciar al placer de un buen postre.",
+                    "imagen_producto": "/images/products/tortas/sin-azucar/torta-sin-azucar-naranja.png",
+                    "stock": 10,
+                    "stock_critico": 3
+                },
+                {
+                    "codigo_producto": "PSA002",
+                    "nombre_producto": "Cheesecake Sin Azúcar",
+                    "precio_producto": 47000,
+                    "descripción_producto": "Cheesecake suave y cremoso, elaborado con queso crema light y endulzado sin azúcar refinada. Su base de galleta integral y su cobertura de frutas frescas lo hacen irresistible y apto para quienes buscan opciones más saludables.",
+                    "imagen_producto": "/images/products/cheesecake/sin-azucar/cheesecake-sin-azucar.avif",
+                    "stock": 10,
+                    "stock_critico": 3
+                }
+            ]
+        },
+        {
+            "id_categoria": 5,
+            "nombre_categoria": "Pastelería Tradicional",
+            "productos": [
+                {
+                    "codigo_producto": "PT001",
+                    "nombre_producto": "Empanada de Manzana",
+                    "precio_producto": 3000,
+                    "descripción_producto": "Empanada tradicional rellena de manzanas frescas, canela y pasas, envuelta en una masa dorada y crujiente. Un clásico de la pastelería chilena, ideal para acompañar el té o el café de la tarde.",
+                    "imagen_producto": "/images/products/pasteleria-tradicional/empanada-manzana.jpg",
+                    "stock": 10,
+                    "stock_critico": 3
+                },
+                {
+                    "codigo_producto": "PT002",
+                    "nombre_producto": "Tarta de Santiago",
+                    "precio_producto": 6000,
+                    "descripción_producto": "Tarta española hecha con almendras molidas, azúcar y huevos, decorada con la tradicional cruz de Santiago en azúcar glas. Su sabor intenso y textura húmeda la convierten en una delicia para los amantes de la repostería europea.",
+                    "imagen_producto": "/images/products/pasteleria-tradicional/tarta-santiago.png",
+                    "stock": 10,
+                    "stock_critico": 3
+                }
+            ]
+        },
+        {
+            "id_categoria": 6,
+            "nombre_categoria": "Productos sin Gluten",
+            "productos": [
+                {
+                    "codigo_producto": "PG001",
+                    "nombre_producto": "Brownie Sin Gluten",
+                    "precio_producto": 3500,
+                    "descripción_producto": "Brownie denso y húmedo, elaborado sin gluten pero con todo el sabor del chocolate. Ideal para personas celíacas o quienes buscan alternativas más saludables, sin sacrificar el placer de un buen postre.",
+                    "imagen_producto": "/images/products/sin-gluten/brownie-sin-gluten.jpg",
+                    "stock": 10,
+                    "stock_critico": 3
+                },
+                {
+                    "codigo_producto": "PG002",
+                    "nombre_producto": "Pan Sin Gluten",
+                    "precio_producto": 3500,
+                    "descripción_producto": "Pan suave y esponjoso, libre de gluten, perfecto para acompañar cualquier comida o preparar deliciosos sándwiches. Su sabor neutro y textura ligera lo hacen apto para toda la familia.",
+                    "imagen_producto": "/images/products/sin-gluten/pan-sin-gluten.jpg",
+                    "stock": 10,
+                    "stock_critico": 3
+                }
+            ]
+        },
+        {
+            "id_categoria": 7,
+            "nombre_categoria": "Productos Veganos",
+            "productos": [
+                {
+                    "codigo_producto": "PV001",
+                    "nombre_producto": "Torta Vegana de Chocolate",
+                    "precio_producto": 38000,
+                    "descripción_producto": "Torta húmeda y esponjosa, elaborada sin productos de origen animal. Rellena de crema de chocolate vegana y decorada con frutas frescas o frutos secos. Una opción deliciosa y ética para quienes siguen una dieta vegana.",
+                    "imagen_producto": "/images/products/tortas/vegana/vegana-chocolate.jpg",
+                    "stock": 10,
+                    "stock_critico": 3
+                },
+                {
+                    "codigo_producto": "PV002",
+                    "nombre_producto": "Galletas Veganas de Avena",
+                    "precio_producto": 4500,
+                    "descripción_producto": "Galletas crujientes y sabrosas, hechas con avena integral, plátano y chips de chocolate vegano. Son una opción saludable y energética para disfrutar en cualquier momento del día.",
+                    "imagen_producto": "/images/products/galletas/vegana/galletas-vegana.jpg",
+                    "stock": 10,
+                    "stock_critico": 3
+                }
+            ]
+        },
+        {
+            "id_categoria": 8,
+            "nombre_categoria": "Tortas Especiales",
+            "productos": [
+                {
+                    "codigo_producto": "TE001",
+                    "nombre_producto": "Torta Especial de Cumpleaños",
+                    "precio_producto": 55000,
+                    "descripción_producto": "Celebra a lo grande con una torta de cumpleaños totalmente personalizable: elige sabores, colores y decoraciones temáticas. Rellena de crema suave y frutas o chocolate, y decorada con fondant artístico, figuras y mensajes especiales. Sorprende a tus seres queridos con una torta única y deliciosa, hecha a tu medida.",
+                    "imagen_producto": "/images/products/tortas/especial/torta-especial-cumpleaños.png",
+                    "stock": 10,
+                    "stock_critico": 3
+                },
+                {
+                    "codigo_producto": "TE002",
+                    "nombre_producto": "Torta Especial de Boda",
+                    "precio_producto": 60000,
+                    "descripción_producto": "Elegante torta de boda de varios pisos, elaborada con ingredientes premium y decorada con flores naturales o de azúcar. Rellena de crema de vainilla, frutos rojos o chocolate, según tu preferencia. Un centro de mesa espectacular y delicioso para el día más importante de tu vida.",
+                    "imagen_producto": "/images/products/tortas/especial/torta-especial-boda.jpeg",
+                    "stock": 10,
+                    "stock_critico": 3
+                }
+            ]
+        }
+    ]
+}

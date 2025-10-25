@@ -1,0 +1,49 @@
+/* Detalle de producto - CSS Module (nombres camelCase) */
+.detallePage .detalleCardCentral,
+.detallePage .detalleCardCompra {
+    min-height: 360px;
+}
+
+.detallePage img {
+    max-height: 380px;
+    object-fit: cover;
+}
+
+.cardProducts img {
+    height: 120px;
+    width: 100%;
+    object-fit: cover;
+}
+
+.cardProducts {
+    padding: 0.8rem;
+    border-radius: 8px;
+    background: white;
+    transition: box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.cardProducts:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    transform: translateY(-3px);
+}
+
+/* Responsive tweaks */
+@media (max-width: 992px) {
+
+    .detallePage .detalleCardCentral,
+    .detallePage .detalleCardCompra {
+        min-height: auto;
+    }
+}
+
+/* Badges inline (usado en related products) */
+.badgesInline {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.badgesInline .badge {
+    font-size: 0.65rem;
+    padding: 0.22rem 0.4rem;
+    border-radius: 0.5rem;
+}

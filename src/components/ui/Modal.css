@@ -1,0 +1,25 @@
+.modal .btn-primary {
+    background: var(--accent-main);
+    border: none;
+}
+
+.modal .btn-primary:hover {
+    background: var(--accent-dark);
+}
+
+.modal a {
+    color: var(--accent-main);
+}
+
+.modal a:hover {
+    color: var(--accent-dark);
+}
+
+.modal-backdrop {
+    background-color: rgba(0,0,0,0.45) !important;
+}
+
+.modal .modal-footer,
+.modal .modal-header {
+    border: none;
+}
