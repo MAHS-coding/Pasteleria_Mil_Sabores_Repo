@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { findUserByEmail, updateUser } from '../../utils/registro';
+import { findUserByEmail, updateUser, isDuocEmail, isBirthdayToday } from '../../utils/registro';
 import type { StoredUser } from '../../utils/registro';
 import Modal from '../../components/ui/Modal';
 import FormField from '../../components/ui/FormField';
-import { regions } from '../../utils/dataLoaders';
+import { regions, products as allProducts } from '../../utils/dataLoaders';
 import styles from './Perfil.module.css';
+import { getJSON } from '../../utils/storage';
+import { formatCLP } from '../../utils/currency';
 
 const Perfil: React.FC = () => {
     const { user, login } = useAuth();
@@ -33,6 +35,15 @@ const Perfil: React.FC = () => {
     const [addrComuna, setAddrComuna] = useState('');
     const [addAddressError, setAddAddressError] = useState('');
 
+    // orders
+    const [orders, setOrders] = useState<Array<any>>([]);
+
+    function productNameByCode(code?: string) {
+        if (!code) return '';
+        const p = allProducts.find(pp => String(pp.code) === String(code));
+        return p?.productName || String(code);
+    }
+
     useEffect(() => {
         if (!user?.email) {
             setStoredUser(null);
@@ -48,11 +59,34 @@ const Perfil: React.FC = () => {
         setTelefono(storedUser?.phone ?? '');
         setBirthdate(storedUser?.birthdate ?? '');
         setAvatarPreview(storedUser?.avatarDataUrl ?? null);
+        // load orders for this user
+        try {
+            const all = getJSON<any[]>('ordenes') || [];
+            const own = storedUser?.email ? all.filter(o => String(o.usuarioCorreo || '').toLowerCase() === String(storedUser.email).toLowerCase()) : [];
+            own.sort((a: any, b: any) => String(b.tsISO || '').localeCompare(String(a.tsISO || '')));
+            setOrders(own);
+        } catch { setOrders([]); }
+    }, [storedUser]);
+
+    useEffect(() => {
+        function onStorage(e: StorageEvent) {
+            if (e.key === 'ordenes') {
+                try {
+                    const all = getJSON<any[]>('ordenes') || [];
+                    const own = storedUser?.email ? all.filter(o => String(o.usuarioCorreo || '').toLowerCase() === String(storedUser.email).toLowerCase()) : [];
+                    own.sort((a: any, b: any) => String(b.tsISO || '').localeCompare(String(a.tsISO || '')));
+                    setOrders(own);
+                } catch { }
+            }
+        }
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
     }, [storedUser]);
 
     function handleSaveProfile() {
         if (!user?.email) return;
-        const changes: Partial<StoredUser> = { name: nombre, lastname: apellido, phone: telefono, birthdate, avatarDataUrl: avatarPreview ?? undefined };
+        // Birthdate is read-only: do not allow updating it here
+        const changes: Partial<StoredUser> = { name: nombre, lastname: apellido, phone: telefono, avatarDataUrl: avatarPreview ?? undefined };
         const updated = updateUser(user.email, changes);
         if (updated) {
             // update auth displayed name
@@ -202,6 +236,14 @@ const Perfil: React.FC = () => {
     if (storedUser?.discountPercent) benefits.push(`${storedUser.discountPercent}% de descuento`);
     if (storedUser?.lifetimeDiscount) benefits.push('10% de descuento de por vida (FELICES50)');
     if (storedUser?.freeCakeVoucher && !storedUser?.freeCakeRedeemed) benefits.push('Torta gratis (voucher no canjeado)');
+    // Institutional email benefit: free cake on birthday (eligibility)
+    if (storedUser?.email && isDuocEmail(storedUser.email)) {
+        if (isBirthdayToday(storedUser?.birthdate)) {
+            benefits.push('Torta gratis por cumpleaños (email institucional)');
+        } else {
+            benefits.push('Torta gratis el día de tu cumpleaños (email institucional)');
+        }
+    }
 
     return (
         <main className="container my-5">
@@ -220,8 +262,8 @@ const Perfil: React.FC = () => {
                                 </div>
 
                                 <div className="col-12 col-md-6">
-                                    <label className="form-label" htmlFor="birthdate">Fecha de nacimiento (opcional)</label>
-                                    <input id="birthdate" className="form-control" type="date" value={birthdate} name="fechaNacimiento" onChange={(e) => setBirthdate(e.target.value)} />
+                                    <label className="form-label" htmlFor="birthdate">Fecha de nacimiento</label>
+                                    <input id="birthdate" className="form-control" type="date" value={birthdate} name="fechaNacimiento" disabled readOnly />
                                 </div>
 
                                 <div className="col-12 col-md-6">
@@ -269,15 +311,43 @@ const Perfil: React.FC = () => {
                                         <tr>
                                             <th>Pedido #</th>
                                             <th>Fecha</th>
+                                            <th>Productos</th>
                                             <th>Total</th>
                                             <th>Estado</th>
                                             <th></th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr>
-                                            <td colSpan={5} className="text-center text-secondary">Aún nada por acá.</td>
-                                        </tr>
+                                        {orders.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center text-secondary">Aún nada por acá.</td>
+                                            </tr>
+                                        ) : (
+                                            orders.map((o: any) => (
+                                                <tr key={String(o.id)}>
+                                                    <td>{String(o.id)}</td>
+                                                    <td>{new Date(o.tsISO || o.fecha || Date.now()).toLocaleString()}</td>
+                                                    <td>
+                                                        {Array.isArray(o.items) && o.items.length > 0 ? (
+                                                            <ul className="list-unstyled mb-0">
+                                                                {o.items.map((it: any, idx: number) => (
+                                                                    <li key={`${String(it.code || it.productId || idx)}-${idx}`}>
+                                                                        {productNameByCode(it.code || it.productId)} <span className="text-secondary">x{Number(it.qty || it.cantidad || 0)}</span>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        ) : (
+                                                            <span className="text-secondary">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td>{formatCLP(Number(o.total || 0))}</td>
+                                                    <td>{o.estado || 'Pendiente'}</td>
+                                                    <td className="text-end">
+                                                        {/* Placeholder for details button */}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

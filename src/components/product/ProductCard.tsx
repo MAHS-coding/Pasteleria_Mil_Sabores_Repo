@@ -5,6 +5,9 @@ import { useCart } from "../../context/CartContext";
 import Modal from "../ui/Modal";
 import { isPersonalizable } from "../../utils/products";
 import { formatCLP } from "../../utils/currency";
+import PersonalizeMessageModal from "./PersonalizeMessageModal";
+import { STOCK_INSUFICIENTE_TITLE, STOCK_INSUFICIENTE_MSG } from "../../utils/messages";
+import useInfoModal from "../../hooks/useInfoModal";
 
 export type Product = {
     code: string;
@@ -25,6 +28,7 @@ export const ProductCard: React.FC<Props> = ({ p, onPersonalize }) => {
     const [showAdded, setShowAdded] = useState(false);
     const [showPersonalizeModal, setShowPersonalizeModal] = useState(false);
     const [pendingMessage, setPendingMessage] = useState("");
+    const { InfoModal, showInfo } = useInfoModal();
 
     function openDetail() {
         navigate(`/detalle?code=${encodeURIComponent(p.code)}`);
@@ -46,7 +50,11 @@ export const ProductCard: React.FC<Props> = ({ p, onPersonalize }) => {
     function finalizeAdd(message?: string) {
         const trimmed = message ? message.trim() : "";
         const payloadMessage = trimmed.length > 0 ? trimmed : undefined;
-        add({ code: p.code, productName: p.productName, price: p.price, img: p.img, mensaje: payloadMessage });
+        const added = add({ code: p.code, productName: p.productName, price: p.price, img: p.img, mensaje: payloadMessage });
+        if (!added) {
+            showInfo(STOCK_INSUFICIENTE_TITLE, STOCK_INSUFICIENTE_MSG);
+            return;
+        }
         setShowAdded(true);
     }
 
@@ -107,27 +115,16 @@ export const ProductCard: React.FC<Props> = ({ p, onPersonalize }) => {
                     <p className="mb-0">{p.productName ? <strong>{p.productName}</strong> : "El producto"} ha sido agregado al carrito.</p>
                 </div>
             </Modal>
-            <Modal
+            <PersonalizeMessageModal
                 show={showPersonalizeModal}
-                title="Añadir mensaje"
-                onClose={cancelPersonalize}
+                productName={p.productName}
+                onCancel={cancelPersonalize}
                 onConfirm={confirmPersonalize}
-                confirmLabel="Agregar al carrito"
-                cancelLabel="Cancelar"
-            >
-                <div className="mb-3">
-                    <label htmlFor={`personalize-${p.code}`} className="form-label">Mensaje personalizado (opcional)</label>
-                    <input
-                        id={`personalize-${p.code}`}
-                        className="form-control"
-                        maxLength={60}
-                        value={pendingMessage}
-                        onChange={(event) => setPendingMessage(event.target.value)}
-                        placeholder="Ej: ¡Feliz Cumpleaños, Ana!"
-                    />
-                    <div className="form-text">Máximo 60 caracteres.</div>
-                </div>
-            </Modal>
+                value={pendingMessage}
+                onChange={setPendingMessage}
+                inputId={`personalize-${p.code}`}
+            />
+            <InfoModal />
         </div>
     );
 };

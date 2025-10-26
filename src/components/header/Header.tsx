@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Modal from "../ui/Modal";
 import FormField from "../ui/FormField";
 import { readUsers } from "../../utils/registro";
+import { isAdminEmail } from "../../utils/roles";
 import { sha256Hex } from "../../utils/hash";
 
 function CartBadge() {
@@ -57,6 +58,7 @@ const Header: React.FC = () => {
             }
             login({ name: found.name || "Usuario", email: found.email });
             setShowLogin(false);
+            // No redirección automática al panel; se muestra item "Admin" en el navbar si corresponde
             navigate("/");
         } catch (err) {
             setLoginError("Ocurrió un problema al iniciar sesión.");
@@ -126,6 +128,11 @@ const Header: React.FC = () => {
                             <li className="nav-item">
                                 <Link className="nav-link" to="/contacto">Contacto</Link>
                             </li>
+                            {user && isAdminEmail(user.email) ? (
+                                <li className="nav-item">
+                                    <Link className="nav-link" to="/admin">Admin</Link>
+                                </li>
+                            ) : null}
                         </ul>
 
                         <div className="d-flex align-items-center">
@@ -143,6 +150,9 @@ const Header: React.FC = () => {
                                 <ul className="dropdown-menu dropdown-menu-end" id="account-menu">
                                     {user ? (
                                         <>
+                                            {isAdminEmail(user.email) ? (
+                                                <li><Link className="dropdown-item" to="/admin">Panel de administración</Link></li>
+                                            ) : null}
                                             <li><Link className="dropdown-item" to="/perfil">Mi perfil</Link></li>
                                             <li><button className="dropdown-item" onClick={() => setConfirmLogoutOpen(true)}>Cerrar sesión</button></li>
                                         </>

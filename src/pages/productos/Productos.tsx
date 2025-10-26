@@ -7,21 +7,17 @@ import { useCart } from "../../context/CartContext";
 import ProductGrid from "../../components/product/ProductGrid";
 import { initCatalog, mapSegmentToId, mapIdToSegment, filterProducts, sortProducts } from "../../utils/products";
 import Modal from "../../components/ui/Modal";
+import PersonalizeMessageModal from "../../components/product/PersonalizeMessageModal";
+import useInfoModal from "../../hooks/useInfoModal";
+import { STOCK_INSUFICIENTE_TITLE, STOCK_INSUFICIENTE_MSG } from "../../utils/messages";
 
 const KEY_CATALOG = "catalogo";
 
 
-const allCategories = [
-    { id: "*", label: "Todos", btnId: "todosBtn" },
-    { id: "tortas-cuadradas", label: "Tortas Cuadradas", btnId: "tortasCuadradasBtn" },
-    { id: "tortas-circulares", label: "Tortas Circulares", btnId: "tortasCircularesBtn" },
-    { id: "postres-individuales", label: "Postres Individuales", btnId: "postresIndividualesBtn" },
-    { id: "productos-sin-azucar", label: "Sin Azúcar", btnId: "sinAzucarBtn" },
-    { id: "pasteleria-tradicional", label: "Pastelería Tradicional", btnId: "tradicionalBtn" },
-    { id: "productos-sin-gluten", label: "Sin Gluten", btnId: "sinGlutenBtn" },
-    { id: "productos-veganos", label: "Veganos", btnId: "veganosBtn" },
-    { id: "tortas-especiales", label: "Tortas Especiales", btnId: "tortasEspecialesBtn" },
-];
+function titleCaseFromSlug(slug: string) {
+    const name = String(slug || "").replace(/-/g, " ").trim();
+    return name.replace(/\b\w/g, (m) => m.toUpperCase());
+}
 
 // cart persistence is handled by CartContext
 
@@ -36,6 +32,8 @@ const Productos: React.FC = () => {
     // confirmation modal state when a product is added
     const [showAddedConfirm, setShowAddedConfirm] = useState(false);
     const [addedProductName, setAddedProductName] = useState<string>("");
+    // Info modal via hook
+    const { InfoModal, showInfo } = useInfoModal();
 
     // Modal states for personalized message
     const [showModal, setShowModal] = useState(false);
@@ -83,6 +81,29 @@ const Productos: React.FC = () => {
         }
     }, [location]);
 
+    // Keep products in sync if catalog changes in another tab
+    useEffect(() => {
+        const handler = (e: StorageEvent) => {
+            if (e.key === KEY_CATALOG) {
+                const cat = initCatalog(seedProducts, KEY_CATALOG);
+                setProducts(cat as Product[]);
+            }
+        };
+        window.addEventListener("storage", handler);
+        return () => window.removeEventListener("storage", handler);
+    }, []);
+
+    // Dynamic categories (from current catalog)
+    const categories = useMemo(() => {
+        const set = new Set<string>();
+        (products || []).forEach((p) => {
+            const c = String(p.category || "").trim();
+            if (c) set.add(c);
+        });
+        const items = Array.from(set).sort((a, b) => a.localeCompare(b));
+        return [{ id: "*", label: "Todos" }, ...items.map((id) => ({ id, label: titleCaseFromSlug(id) }))];
+    }, [products]);
+
     const filtered = useMemo(() => filterProducts(products, filter), [products, filter]);
 
     const displayedProducts = useMemo(() => sortProducts(filtered, sort), [filtered, sort]);
@@ -115,7 +136,11 @@ const Productos: React.FC = () => {
 
     function doAddToCart(product: Product, mensajeOpt?: string) {
         const mensajeFinal = mensajeOpt && mensajeOpt.trim() ? mensajeOpt.trim() : undefined;
-        add({ code: product.code, productName: product.productName, price: product.price, img: product.img, mensaje: mensajeFinal } as any);
+        const added = add({ code: product.code, productName: product.productName, price: product.price, img: product.img, mensaje: mensajeFinal } as any);
+        if (!added) {
+            showInfo(STOCK_INSUFICIENTE_TITLE, STOCK_INSUFICIENTE_MSG);
+            return;
+        }
         // show confirmation modal instead of alert
         setAddedProductName(product.productName);
         setShowAddedConfirm(true);
@@ -162,10 +187,10 @@ const Productos: React.FC = () => {
                 <aside className="col-md-2 d-none d-md-block">
                     <h2 className="h6 mb-3">Filtros</h2>
                     <div className="d-grid gap-2 filters">
-                        {allCategories.map((c) => (
+                        {categories.map((c: {id: string; label: string}) => (
                             <button
                                 key={c.id}
-                                id={c.btnId}
+                                id={`filter-${c.id}`}
                                 className={`btn btn-sm text-start ${filter === c.id ? styles.btnFilterPrimary : styles.btnFilter}`}
                                 onClick={() => applyFilter(c.id)}
                             >
@@ -188,7 +213,7 @@ const Productos: React.FC = () => {
                                 value={filter}
                                 onChange={(e) => applyFilter(e.target.value)}
                             >
-                                {allCategories.map((c) => (
+                                {categories.map((c: {id: string; label: string}) => (
                                     <option key={c.id} value={c.id}>
                                         {c.label}
                                     </option>
@@ -218,29 +243,14 @@ const Productos: React.FC = () => {
             </div>
 
             {/* Modal controlado para mensaje personalizado (reutiliza componente Modal) */}
-            <Modal
+            <PersonalizeMessageModal
                 show={showModal && !!modalProduct}
-                title={<>Mensaje personalizado <small className="text-secondary">(opcional)</small></>}
-                onClose={cancelModal}
+                productName={modalProduct?.productName}
+                onCancel={cancelModal}
                 onConfirm={confirmModalAdd}
-                confirmLabel="Agregar al carrito"
-                cancelLabel="Cancelar"
-            >
-                {modalProduct && (
-                    <>
-                        <p className="mb-2"><strong>{modalProduct.productName}</strong></p>
-                        <input
-                            autoFocus
-                            maxLength={60}
-                            value={mensaje}
-                            onChange={(e) => setMensaje(e.target.value)}
-                            className="form-control"
-                            placeholder="Ej: ¡Feliz Cumpleaños, Ana! (opcional)"
-                        />
-                        <div className="form-text mt-2">Puedes dejar este campo vacío si no deseas agregar un mensaje.</div>
-                    </>
-                )}
-            </Modal>
+                value={mensaje}
+                onChange={setMensaje}
+              />
 
             {/* Confirmation when product added */}
             <Modal
@@ -256,6 +266,9 @@ const Productos: React.FC = () => {
                     <p className="mb-0">{addedProductName ? <strong>{addedProductName}</strong> : "El producto"} ha sido agregado al carrito.</p>
                 </div>
             </Modal>
+
+            {/* Shared Info Modal */}
+            <InfoModal />
         </div>
     );
 };

@@ -1,5 +1,15 @@
 import usersJson from '../data/users/users.json';
-import { findUserByEmail, createUser } from './registro';
+import { findUserByEmail, createUser, updateUser } from './registro';
+
+function normalizeRole(t?: string): 'Cliente' | 'Vendedor' | 'Administrador' | 'SuperAdmin' | undefined {
+    const v = String(t || '').trim().toLowerCase();
+    if (!v) return undefined;
+    if (v === 'cliente') return 'Cliente';
+    if (v === 'vendedor') return 'Vendedor';
+    if (v === 'administrador' || v === 'admin') return 'Administrador';
+    if (v === 'superadmin' || v === 'super-admin' || v === 'super admin') return 'SuperAdmin';
+    return undefined;
+}
 
 export function seedUsersFromJson(): void {
     if (!Array.isArray(usersJson)) return;
@@ -8,7 +18,15 @@ export function seedUsersFromJson(): void {
         try {
             const email = String(u.correo || u.email || '').toLowerCase();
             if (!email) continue;
-            if (findUserByEmail(email)) continue; // already present
+            const existing = findUserByEmail(email);
+            if (existing) {
+                // If already present, ensure role matches the seed's intended role
+                const r = normalizeRole(u.tipoUsuario || u.rol || u.role);
+                if (r && existing.role !== r) {
+                    try { updateUser(email, { role: r }); } catch {}
+                }
+                continue; // skip creation
+            }
 
             const payload = {
                 run: String(u.run ?? u.id ?? ''),
@@ -18,6 +36,7 @@ export function seedUsersFromJson(): void {
                 birthdate: String(u.fechaNacimiento ?? u.birthdate ?? ''),
                 codigo: String(u.codigo ?? ''),
                 password: String(u.password ?? ''),
+                role: normalizeRole(u.tipoUsuario || u.rol || u.role),
                 addresses: (u.addresses && Array.isArray(u.addresses)) ? u.addresses : (u.direccion ? [{ id: `seed-${email}`, address: String(u.direccion), region: String(u.regionNombre ?? u.region ?? ''), comuna: String(u.comuna ?? '') }] : undefined),
             };
 

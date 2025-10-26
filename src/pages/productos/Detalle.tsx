@@ -8,6 +8,7 @@ import { useCart } from "../../context/CartContext";
 import { getRelatedProducts, isPersonalizable, getProductByCode } from "../../utils/products";
 import { formatCLP } from "../../utils/currency";
 import Modal from "../../components/ui/Modal";
+import { STOCK_INSUFICIENTE_TITLE, STOCK_INSUFICIENTE_MSG, CANTIDAD_AJUSTADA_TITLE, soloQuedanUnidades, seSolicitaranMensajes } from "../../utils/messages";
 
 const Detalle: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -17,11 +18,18 @@ const Detalle: React.FC = () => {
   const [producto, setProducto] = useState<Product | null>(null);
   const [qty, setQty] = useState<number>(1);
   const [mensaje, setMensaje] = useState("");
-  const { addMultiple, add } = useCart();
+  const { items, addMultiple, add, addPersonalizedBatch } = useCart();
   const [showMessageWizard, setShowMessageWizard] = useState(false);
   const [wizardMessages, setWizardMessages] = useState<string[]>([]);
   const [wizardIndex, setWizardIndex] = useState(0);
   const [wizardInput, setWizardInput] = useState("");
+  const [showAddedConfirm, setShowAddedConfirm] = useState(false);
+  const [addedExtraMessage, setAddedExtraMessage] = useState<string>("");
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [infoTitle, setInfoTitle] = useState<string>("Aviso");
+  const [infoMessage, setInfoMessage] = useState<string>("");
+  const [adjustedFromQty, setAdjustedFromQty] = useState<number | null>(null);
+  const [pendingWizardQtyToAdd, setPendingWizardQtyToAdd] = useState<number | null>(null);
 
   useEffect(() => {
     const found = getProductByCode(code, seedProducts);
@@ -38,30 +46,88 @@ const Detalle: React.FC = () => {
 
   const stock = typeof producto.stock === "number" ? producto.stock : 0;
 
-  function addToCart() {
-    if (!producto) return;
-    const esPersonalizable = isPersonalizable(producto.code);
-    if (!esPersonalizable) {
-      // use addMultiple to add qty
-      addMultiple({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img }, qty);
-      setMensaje("");
-      navigate("/productos");
-      return;
-    }
+  function buildInitialMessages(count: number) {
+    return Array.from({ length: count }, (_, idx) => (idx === 0 ? mensaje : ""));
+  }
 
-    if (qty <= 1) {
-      const trimmed = mensaje.trim();
-      add({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img, mensaje: trimmed ? trimmed : undefined });
-      setMensaje("");
-      navigate("/productos");
-      return;
-    }
-
-    const initialMessages = Array.from({ length: qty }, (_, idx) => (idx === 0 ? mensaje : ""));
+  function openWizardWithCount(count: number) {
+    const initialMessages = buildInitialMessages(count);
     setWizardMessages(initialMessages);
     setWizardIndex(0);
     setWizardInput(initialMessages[0] ?? "");
     setShowMessageWizard(true);
+  }
+
+  function addToCart() {
+    if (!producto) return;
+    const desiredQty = Math.max(1, qty);
+    const esPersonalizable = isPersonalizable(producto.code);
+    // clear any previous extra message for a fresh add attempt
+    setAddedExtraMessage("");
+    if (!esPersonalizable) {
+      const addedUnits = addMultiple({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img }, desiredQty);
+      if (addedUnits <= 0) {
+        setInfoTitle(STOCK_INSUFICIENTE_TITLE);
+        setInfoMessage(STOCK_INSUFICIENTE_MSG);
+        setInfoOpen(true);
+        return;
+      }
+      if (addedUnits < desiredQty) {
+        setAddedExtraMessage(`Solo se agregaron ${addedUnits} de ${desiredQty} unidades por disponibilidad de stock.`);
+      }
+      setMensaje("");
+      setShowAddedConfirm(true);
+      return;
+    }
+
+    // Personalized flow: check available stock BEFORE opening the wizard
+    const currentInCart = items.reduce((s, it) => it.code === producto.code ? s + (it.cantidad || 0) : s, 0);
+    const prodStock = typeof producto.stock === 'number' ? producto.stock : 0;
+    const available = Math.max(0, prodStock - currentInCart);
+
+    if (available <= 0) {
+      setInfoTitle(STOCK_INSUFICIENTE_TITLE);
+      setInfoMessage(STOCK_INSUFICIENTE_MSG);
+      setInfoOpen(true);
+      return;
+    }
+
+    if (desiredQty <= 1) {
+      const trimmed = mensaje.trim();
+      const added = add({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img, mensaje: trimmed ? trimmed : undefined });
+      if (!added) {
+        setInfoTitle(STOCK_INSUFICIENTE_TITLE);
+        setInfoMessage(STOCK_INSUFICIENTE_MSG);
+        setInfoOpen(true);
+        return;
+      }
+      setMensaje("");
+      setShowAddedConfirm(true);
+      return;
+    }
+
+    if (available === 1) {
+      const qtyToAdd = 1;
+      setInfoTitle(CANTIDAD_AJUSTADA_TITLE);
+      setInfoMessage(`${soloQuedanUnidades(qtyToAdd)} ${seSolicitaranMensajes(qtyToAdd)}`);
+      setAdjustedFromQty(desiredQty);
+      setPendingWizardQtyToAdd(1);
+      setInfoOpen(true);
+      return;
+    }
+
+    const qtyToAdd = Math.min(desiredQty, available);
+    if (qtyToAdd < desiredQty) {
+      setInfoTitle(CANTIDAD_AJUSTADA_TITLE);
+      setInfoMessage(`${soloQuedanUnidades(qtyToAdd)} ${seSolicitaranMensajes(qtyToAdd)}`);
+      setAdjustedFromQty(desiredQty);
+      setPendingWizardQtyToAdd(qtyToAdd);
+      setInfoOpen(true);
+      return;
+    }
+
+    // No adjustment needed, open wizard immediately
+    openWizardWithCount(qtyToAdd);
   }
 
   function closeWizard() {
@@ -84,17 +150,60 @@ const Detalle: React.FC = () => {
       return;
     }
 
-    nextMessages.forEach((msg) => {
-      const trimmed = (msg || "").trim();
-      add({ code: producto.code, productName: producto.productName, price: producto.price, img: producto.img, mensaje: trimmed ? trimmed : undefined });
-    });
+    // All messages collected; add them atomically respecting stock
+    const addedCount = addPersonalizedBatch(
+      { code: producto.code, productName: producto.productName, price: producto.price, img: producto.img },
+      nextMessages.map((m) => {
+        const t = (m || "").trim();
+        return t.length > 0 ? t : undefined;
+      })
+    );
+
+    if (addedCount === 0) {
+      setInfoTitle(STOCK_INSUFICIENTE_TITLE);
+      setInfoMessage(STOCK_INSUFICIENTE_MSG);
+      setInfoOpen(true);
+      closeWizard();
+      return;
+    }
+    // Show accurate "added of desired" message using original desired when it was adjusted
+    const requestedTotal = adjustedFromQty ?? nextMessages.length;
+    if (addedCount < requestedTotal) {
+      setAddedExtraMessage(`Solo se agregaron ${addedCount} de ${requestedTotal} unidades por disponibilidad de stock.`);
+    }
     closeWizard();
     setMensaje("");
-    navigate("/productos");
+    setShowAddedConfirm(true);
+    if (adjustedFromQty) setAdjustedFromQty(null);
+  }
+
+  function closeAddedConfirm() {
+    setShowAddedConfirm(false);
+    // clear any leftover extra message
+    setAddedExtraMessage("");
+  }
+
+  function goToCart() {
+    setShowAddedConfirm(false);
+    navigate("/carrito");
   }
 
   function handleWizardCancel() {
     closeWizard();
+    // clear any pending single-add flow
+    setAdjustedFromQty(null);
+    setPendingWizardQtyToAdd(null);
+  }
+
+  // Info modal dismiss handler: if there is a pending wizard quantity, open the wizard now
+  function handleInfoDismiss() {
+    setInfoOpen(false);
+    if (pendingWizardQtyToAdd && producto) {
+      // open the multi-step wizard now that the info modal is closed
+      const qtyToAdd = pendingWizardQtyToAdd;
+      setPendingWizardQtyToAdd(null);
+      openWizardWithCount(qtyToAdd);
+    }
   }
 
   return (
@@ -160,10 +269,10 @@ const Detalle: React.FC = () => {
       </div>
 
       {/* Productos relacionados */}
-        <div className="container my-5">
+      <div className="container my-5">
         <h2 className="mb-4">También te podría interesar</h2>
         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-            {related.map((r: Product) => (
+          {related.map((r: Product) => (
             <div key={r.code} className="col">
               <ProductCard p={r} />
             </div>
@@ -192,6 +301,33 @@ const Detalle: React.FC = () => {
           />
           <div className="form-text">Máximo 60 caracteres. Puedes dejarlo vacío.</div>
         </div>
+      </Modal>
+
+      {/* Confirmation when product added */}
+      <Modal
+        show={showAddedConfirm}
+        title="Producto agregado"
+        onClose={closeAddedConfirm}
+        onConfirm={goToCart}
+        confirmLabel="Ver carrito"
+        cancelLabel="Seguir en este producto"
+      >
+        <div className="text-center">
+          <i className="bi bi-cart-check text-success fs-1 mb-2"></i>
+          <p className="mb-0">{producto ? <strong>{producto.productName}</strong> : "El producto"} ha sido agregado al carrito.</p>
+          {addedExtraMessage && <p className="mt-2 text-muted">{addedExtraMessage}</p>}
+        </div>
+      </Modal>
+
+      {/* Info modal replacing alerts */}
+      <Modal
+        show={infoOpen}
+        title={infoTitle}
+        onClose={handleInfoDismiss}
+        onConfirm={handleInfoDismiss}
+        confirmLabel="Aceptar"
+      >
+        <div>{infoMessage}</div>
       </Modal>
     </main>
   );

@@ -41,6 +41,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     function logout() {
+        // Clear persisted admin UI state so Back won't land on stale admin section
+        try {
+            sessionStorage.removeItem("admin.section");
+            sessionStorage.removeItem("admin.productos.sub");
+            sessionStorage.removeItem("admin.usuarios.filtroTipo");
+            sessionStorage.removeItem("admin.usuarios.orderDesc");
+            sessionStorage.removeItem("admin.usuarios.qSearch");
+        } catch {}
         setUser(null);
     }
 

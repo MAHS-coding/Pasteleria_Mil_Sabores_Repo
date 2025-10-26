@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "./AuthContext";
+import { getProductByCode } from "../utils/products";
+import { products as seedProducts } from "../utils/dataLoaders";
 
 const KEY_CART = "carrito"; // base key; actual key will include user identifier
 
@@ -15,10 +17,11 @@ type CartItem = {
 type CartContextValue = {
     items: CartItem[];
     count: number;
-    add: (item: Omit<CartItem, "cantidad">) => void;
-    addMultiple: (item: Omit<CartItem, "cantidad">, qty: number) => void;
+    add: (item: Omit<CartItem, "cantidad">) => boolean;
+    addMultiple: (item: Omit<CartItem, "cantidad">, qty: number) => number;
+    addPersonalizedBatch: (base: Omit<CartItem, "cantidad" | "mensaje">, messages: (string | undefined)[]) => number;
     remove: (code: string, mensaje?: string) => void;
-    setQuantity: (code: string, mensaje: string | undefined, qty: number) => void;
+    setQuantity: (code: string, mensaje: string | undefined, qty: number) => number;
     clear: () => void;
 };
 
@@ -49,6 +52,27 @@ function readCartForKey(key: string): CartItem[] {
 
 function writeCartForKey(key: string, items: CartItem[]) {
     setJSON(key, items);
+}
+
+const STOCK_UNLIMITED = Number.POSITIVE_INFINITY;
+
+function normalizeMessage(msg?: string | null) {
+    return msg ?? "";
+}
+
+function resolveStockLimit(code: string): number {
+    const product = getProductByCode(code, seedProducts);
+    const stock = product?.stock;
+    if (typeof stock === "number" && Number.isFinite(stock) && stock >= 0) return stock;
+    return STOCK_UNLIMITED;
+}
+
+function totalQuantityForCode(items: CartItem[], code: string, excludeMessage?: string): number {
+    return items.reduce((sum, it) => {
+        if (it.code !== code) return sum;
+        if (excludeMessage !== undefined && normalizeMessage(it.mensaje) === excludeMessage) return sum;
+        return sum + (it.cantidad || 0);
+    }, 0);
 }
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -115,27 +139,43 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         prevKeyRef.current = storageKey;
     }, [storageKey]);
 
-    function add(item: Omit<CartItem, "cantidad">) {
-        setItems((cur) => {
-            const existing = cur.find((c) => c.code === item.code && (c.mensaje || "") === (item.mensaje || ""));
-            const next = existing
-                ? cur.map((c) => (c === existing ? { ...c, cantidad: (c.cantidad || 0) + 1 } : c))
-                : [...cur, { ...item, cantidad: 1 }];
-            try { writeCartForKey(storageKey, next); } catch {};
-            return next;
-        });
+    function add(item: Omit<CartItem, "cantidad">): boolean {
+        const limit = resolveStockLimit(item.code);
+        const messageKey = normalizeMessage(item.mensaje);
+        const unlimited = !Number.isFinite(limit);
+        const totalForProduct = totalQuantityForCode(items, item.code);
+        const available = unlimited ? 1 : Math.max(0, limit - totalForProduct);
+        const increment = unlimited ? 1 : Math.min(1, available);
+        if (increment <= 0) return false;
+
+        const existing = items.find((c) => c.code === item.code && normalizeMessage(c.mensaje) === messageKey);
+        const next = existing
+            ? items.map((c) => (c === existing ? { ...c, cantidad: (c.cantidad || 0) + increment } : c))
+            : [...items, { ...item, cantidad: increment }];
+        try { writeCartForKey(storageKey, next); } catch {};
+        setItems(next);
+        return true;
     }
 
-    function addMultiple(item: Omit<CartItem, "cantidad">, qty: number) {
-        if (!qty || qty <= 0) return;
-        setItems((cur) => {
-            const existing = cur.find((c) => c.code === item.code && (c.mensaje || "") === (item.mensaje || ""));
-            const next = existing
-                ? cur.map((c) => (c === existing ? { ...c, cantidad: (c.cantidad || 0) + qty } : c))
-                : [...cur, { ...item, cantidad: qty }];
-            try { writeCartForKey(storageKey, next); } catch {};
-            return next;
-        });
+    function addMultiple(item: Omit<CartItem, "cantidad">, qty: number): number {
+        const normalizedQty = Math.max(0, Math.floor(qty || 0));
+        if (normalizedQty <= 0) return 0;
+
+        const limit = resolveStockLimit(item.code);
+        const messageKey = normalizeMessage(item.mensaje);
+        const unlimited = !Number.isFinite(limit);
+        const totalForProduct = totalQuantityForCode(items, item.code);
+        const available = unlimited ? normalizedQty : Math.max(0, limit - totalForProduct);
+        const toAdd = unlimited ? normalizedQty : Math.min(normalizedQty, available);
+        if (toAdd <= 0) return 0;
+
+        const existing = items.find((c) => c.code === item.code && normalizeMessage(c.mensaje) === messageKey);
+        const next = existing
+            ? items.map((c) => (c === existing ? { ...c, cantidad: (c.cantidad || 0) + toAdd } : c))
+            : [...items, { ...item, cantidad: toAdd }];
+        try { writeCartForKey(storageKey, next); } catch {};
+        setItems(next);
+        return toAdd;
     }
 
     function remove(code: string, mensaje?: string) {
@@ -146,17 +186,71 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
     }
 
-    function setQuantity(code: string, mensaje: string | undefined, qty: number) {
-        if (qty <= 0) return;
-        setItems((cur) => {
-            const next = cur.map((c) => (
-                c.code === code && (c.mensaje || "") === (mensaje || "")
-                    ? { ...c, cantidad: qty }
-                    : c
-            ));
+    function setQuantity(code: string, mensaje: string | undefined, qty: number): number {
+        const requestedQty = Math.max(0, Math.floor(qty || 0));
+        if (requestedQty <= 0) return 0;
+
+        const limit = resolveStockLimit(code);
+        const messageKey = normalizeMessage(mensaje);
+
+        const index = items.findIndex((c) => c.code === code && normalizeMessage(c.mensaje) === messageKey);
+        if (index === -1) return 0;
+
+        const existingItem = items[index];
+        const existingQty = existingItem.cantidad || 0;
+        let targetQty = requestedQty;
+
+        if (Number.isFinite(limit)) {
+            const otherTotal = totalQuantityForCode(items, code, messageKey);
+            const allowed = Math.max(0, limit - otherTotal);
+            targetQty = Math.min(targetQty, allowed);
+        }
+
+        if (Number.isFinite(limit) && targetQty <= 0) {
+            const next = items.filter((_, idx) => idx !== index);
             try { writeCartForKey(storageKey, next); } catch {};
-            return next;
-        });
+            setItems(next);
+            return 0;
+        }
+
+        if (targetQty === existingQty) {
+            return existingQty;
+        }
+
+        const next = items.map((c, idx) => (idx === index ? { ...c, cantidad: targetQty } : c));
+        try { writeCartForKey(storageKey, next); } catch {};
+        setItems(next);
+        return targetQty;
+    }
+
+    function addPersonalizedBatch(base: Omit<CartItem, "cantidad" | "mensaje">, messages: (string | undefined)[]): number {
+        const code = base.code;
+        const limit = resolveStockLimit(code);
+        const unlimited = !Number.isFinite(limit);
+        const currentTotal = totalQuantityForCode(items, code);
+        const desired = messages.length;
+        const canAdd = unlimited ? desired : Math.max(0, Math.min(desired, limit - currentTotal));
+        if (canAdd <= 0) return 0;
+
+        const next: CartItem[] = items.map((it) => ({ ...it }));
+
+        for (let i = 0; i < canAdd; i++) {
+            // normalize message: trim and use undefined when empty
+            const raw = messages[i] ?? "";
+            const trimmed = String(raw).trim();
+            const message: string | undefined = trimmed.length > 0 ? trimmed : undefined;
+            const key = normalizeMessage(message);
+            const idx = next.findIndex((c) => c.code === code && normalizeMessage(c.mensaje) === key);
+            if (idx >= 0) {
+                next[idx] = { ...next[idx], cantidad: (next[idx].cantidad || 0) + 1 };
+            } else {
+                next.push({ ...base, code, mensaje: message, cantidad: 1 });
+            }
+        }
+
+        try { writeCartForKey(storageKey, next); } catch {}
+        setItems(next);
+        return canAdd;
     }
 
     function clear() {
@@ -167,7 +261,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
     }
 
-    const value = { items, count, add, addMultiple, remove, setQuantity, clear };
+    const value = { items, count, add, addMultiple, addPersonalizedBatch, remove, setQuantity, clear };
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };
