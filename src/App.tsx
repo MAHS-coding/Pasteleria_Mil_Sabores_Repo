@@ -11,6 +11,7 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import RequireAdmin from "./routes/RequireAdmin";
 import Admin from "./pages/admin/Admin";
 import Blog from "./pages/blog/Blog";
+import Receta from "./pages/blog/Receta";
 import Nosotros from "./pages/nosotros/Nosotros";
 import Contacto from "./pages/contacto/Contacto";
 
@@ -29,8 +30,8 @@ export function App() {
                 <Route path = '/detalle' element = {<Detalle/>}/>
                 <Route path = '/registro' element = {<Registro/>}/>
                 <Route path = '/blogs' element = {<Blog/>} />
-                <Route path = '/blogs/:id' element = {<Blog/>} />
-                <Route path = '/blog/:id' element = {<Blog/>} />
+                <Route path = '/blogs/:id' element = {<Receta/>} />
+                <Route path = '/blog/:id' element = {<Receta/>} />
                 <Route path = '/nosotros' element = {<Nosotros/>} />
                 <Route path = '/contacto' element = {<Contacto/>} />
                 <Route path = '/carrito' element = {<ProtectedRoute><Carrito/></ProtectedRoute>} />

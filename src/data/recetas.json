@@ -1,0 +1,32 @@
+[
+  {
+    "id": "cheesecake",
+    "titulo": "Cheesecake clásico sin horno",
+    "resumen": "Base de galleta, relleno cremoso y topping de frutas. 20 min + frío.",
+    "ingredientes": "200g galletas, 100g mantequilla, 400g queso crema, 200ml crema, 100g azúcar, 1 sobre gelatina sin sabor, frutas frescas",
+    "preparacion": "1. Tritura las galletas y mézclalas con la mantequilla derretida. Forra la base de un molde y refrigera.\n2. Hidrata la gelatina según instrucciones.\n3. Bate el queso crema con el azúcar, añade la crema y la gelatina disuelta.\n4. Vierte la mezcla sobre la base y refrigera 4 horas.\n5. Decora con frutas frescas antes de servir.",
+    "imagen": "/images/blog/cheesecake_sin_horno.jpg",
+    "badge": "Sin horno",
+    "badgeClass": "text-bg-warning"
+  },
+  {
+    "id": "brownies",
+    "titulo": "Brownies húmedos en 1 bowl",
+    "resumen": "Textura fudge, cacao intenso y pocos ingredientes. 30 minutos.",
+    "ingredientes": "200g chocolate, 150g mantequilla, 3 huevos, 100g azúcar, 80g harina",
+    "preparacion": "1. Derretir el chocolate y la mantequilla.\n2. Batir los huevos con el azúcar.\n3. Mezclar todo y hornear a 180°C por 25 minutos.",
+    "imagen": "/images/blog/Brownies.jpg",
+    "badge": "Económica",
+    "badgeClass": "text-bg-success"
+  },
+  {
+    "id": "tiramisu",
+    "titulo": "Tiramisú casero",
+    "resumen": "Capas de bizcotelas, café y crema suave. Montaje en 15 minutos.",
+    "ingredientes": "200g bizcotelas, 250g queso mascarpone, 2 huevos, 80g azúcar, 1 taza café fuerte, cacao en polvo",
+    "preparacion": "1. Batir las yemas con el azúcar y añadir el mascarpone.\n2. Batir las claras a nieve y mezclar suavemente.\n3. Remojar bizcotelas en café y alternar capas con la crema.\n4. Refrigerar 2 horas y espolvorear cacao antes de servir.",
+    "imagen": "/images/blog/Tiramisu.jpg",
+    "badge": "Avanzado",
+    "badgeClass": "text-bg-primary"
+  }
+]

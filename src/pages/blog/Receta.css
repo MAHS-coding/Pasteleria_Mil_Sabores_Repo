@@ -1,0 +1,42 @@
+/* Minimal styles for Receta page */
+.recetas-card img.card-img-top {
+    width: 100%;
+    height: auto;
+}
+
+/* Legacy: ensure aspect ratio and object-fit for recipe cards and parallax hero */
+.recetas-card img {
+    aspect-ratio: 4/3;
+    object-fit: cover;
+}
+
+/* Parallax hero (used on recipe detail) */
+.parallax {
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    height: calc(100vh - var(--nav-h));
+    position: relative;
+}
+
+.parallax-2 {
+    /* Path adjusted to project public folder. Ensure /images/background/Blog/Fondo2.jpg exists in public/ */
+    background-image: url('/images/background/Blog/Fondo2.jpg');
+    background-position: center center;
+    background-size: auto;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+@media (max-width: 576px) {
+    .recetas-card img.card-img-top {
+        height: 160px;
+        object-fit: cover;
+    }
+}
