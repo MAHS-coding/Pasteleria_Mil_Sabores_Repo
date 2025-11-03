@@ -1,0 +1,29 @@
+[
+  {
+    "id": "torta-chocolate",
+    "titulo": "Torta de Chocolate: 5 trucos para que quede húmeda",
+    "resumen": "Aprende a preparar una torta de chocolate perfecta: balance de cacao, tiempo de horneado y almíbares.",
+    "imagen": "/images/blog/TortaChocolate.jpg",
+    "fecha": "2025-09-01",
+    "autor": "Pastelería Mil Sabores",
+    "link": "/blog/torta-chocolate"
+  },
+  {
+    "id": "rellenos-primavera",
+    "titulo": "Rellenos frescos de primavera",
+    "resumen": "Tres combinaciones de frutas y cremas que sorprenden, con tips de conservación y armado.",
+    "imagen": "/images/blog/RellenoDulce.jpg",
+    "fecha": "2025-08-25",
+    "autor": "Equipo de Pastelería",
+    "link": "/blog/rellenos-primavera"
+  },
+  {
+    "id": "sin-azucar",
+    "titulo": "Postres sin azúcar: guía de endulzantes",
+    "resumen": "Stevia, eritritol y más: cómo reemplazar sin perder textura ni sabor.",
+    "imagen": "/images/blog/SinAzucar.jpg",
+    "fecha": "2025-08-10",
+    "autor": "Francisca",
+    "link": "/blog/sin-azucar"
+  }
+]

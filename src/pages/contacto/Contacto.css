@@ -1,0 +1,17 @@
+/* Minimal styles for Contacto page */
+.parallax {
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  height: calc(40vh - 0px);
+  position: relative;
+}
+.parallax-1 { background-color: #f3e9e0; }
+.hero-content { position: relative; top: 50%; transform: translateY(-50%); }
+.contact-card { background: #fff; border-radius: 0.6rem; box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+.map-iframe { border-radius: 0.5rem; }
+
+@media (max-width: 576px) {
+  .parallax { height: 28vh; }
+}

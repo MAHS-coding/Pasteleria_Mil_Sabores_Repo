@@ -1,0 +1,40 @@
+/* Minimal styles for migrated blog page */
+.hero-blog {
+	background-image: linear-gradient(135deg, rgba(238,121,25,0.75), rgba(90,63,5,0.55));
+	background-size: cover;
+	background-position: center center;
+	padding: 4rem 0;
+}
+
+.card-blog img.card-img-top {
+	height: 220px;
+	object-fit: cover;
+	object-position: center;
+	border-top-left-radius: 0.5rem;
+	border-top-right-radius: 0.5rem;
+}
+
+.chat-preview { background: #fff; }
+
+.chat-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0,0,0,0.45);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1200;
+}
+.chat-modal {
+	width: min(720px, 96%);
+	max-height: 80vh;
+	overflow: auto;
+	background: #fff;
+	border-radius: 0.6rem;
+	padding: 1rem;
+}
+.chat-modal-body { max-height: 60vh; overflow:auto; }
+
+@media (max-width: 576px) {
+	.card-blog img.card-img-top { height: 160px; }
+}

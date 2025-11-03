@@ -10,6 +10,9 @@ import Perfil from "./pages/account/Perfil";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import RequireAdmin from "./routes/RequireAdmin";
 import Admin from "./pages/admin/Admin";
+import Blog from "./pages/blog/Blog";
+import Nosotros from "./pages/nosotros/Nosotros";
+import Contacto from "./pages/contacto/Contacto";
 
 
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom"
@@ -25,6 +28,11 @@ export function App() {
                 <Route path = '/productos/:category' element = {<Productos/>}/>
                 <Route path = '/detalle' element = {<Detalle/>}/>
                 <Route path = '/registro' element = {<Registro/>}/>
+                <Route path = '/blogs' element = {<Blog/>} />
+                <Route path = '/blogs/:id' element = {<Blog/>} />
+                <Route path = '/blog/:id' element = {<Blog/>} />
+                <Route path = '/nosotros' element = {<Nosotros/>} />
+                <Route path = '/contacto' element = {<Contacto/>} />
                 <Route path = '/carrito' element = {<ProtectedRoute><Carrito/></ProtectedRoute>} />
                 <Route path = '/checkout' element = {<ProtectedRoute><Checkout/></ProtectedRoute>} />
                 <Route path = '/perfil' element = {<ProtectedRoute><Perfil/></ProtectedRoute>} />
