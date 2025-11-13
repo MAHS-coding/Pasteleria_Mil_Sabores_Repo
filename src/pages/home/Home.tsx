@@ -148,77 +148,25 @@ const Home: React.FC = () => {
 
             <section id="presentacion" className="py-5">
                 <div className="container">
-                    <div className="row align-items-center g-5">
-                        <div className="col-lg-6 order-lg-2">
+                    <div className="row">
+                        <div className="col-12">
                             <div className="pe-lg-4">
-                                <h2 className="h3 mb-4" style={{ color: '#2d3748' }}>
+                                <h2 className="h3 mb-4 text-center" style={{ color: '#2d3748' }}>
                                     ¿Qué es Pastelería Mil Sabores?
                                 </h2>
-                                <p className="text-muted mb-4 lh-lg">
-                                    Somos una pastelería artesanal que celebra la tradición y el buen gusto. 
-                                    Productos frescos y recetas hechas a mano, con atención al detalle.
-                                </p>
-
-                                <div className="row g-4">
-                                  <div className="col-6">
-                                    <div className="d-flex align-items-center">
-                                      <div className="me-3">
-                                        <div className="bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
-                                          <i className="bi bi-egg-fried text-success"></i>
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="fw-semibold mb-1">Artesanal</div>
-                                        <small className="text-muted">Hecho a mano</small>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="col-6">
-                                    <div className="d-flex align-items-center">
-                                      <div className="me-3">
-                                        <div className="bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
-                                          <i className="bi bi-truck text-success"></i>
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="fw-semibold mb-1">Entrega a domicilio</div>
-                                        <small className="text-muted">Directo a tu mesa</small>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="col-6">
-                                    <div className="d-flex align-items-center">
-                                      <div className="me-3">
-                                        <div className="bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
-                                          <i className="bi bi-people text-success"></i>
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="fw-semibold mb-1">Apoyo local</div>
-                                        <small className="text-muted">Productores y proveedores</small>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="col-6">
-                                    <div className="d-flex align-items-center">
-                                      <div className="me-3">
-                                        <div className="bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
-                                          <i className="bi bi-recycle text-success"></i>
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="fw-semibold mb-1">Sostenible</div>
-                                        <small className="text-muted">Prácticas responsables</small>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
+                <p className="text-muted mb-4 lh-lg text-center">
+                  En Pastelería Mil Sabores elaboramos cada producto con ingredientes seleccionados y recetas artesanales que combinan tradición y modernidad. Nuestro obrador utiliza materias primas de calidad: harinas y mantequillas seleccionadas, chocolates y frutas frescas. Trabajamos con prácticas responsables con el medio ambiente.
+                  Ofrecemos opciones personalizadas (tortas a medida, decoraciones y mensajes), alternativas sin azúcar y sin gluten, y un servicio de entrega confiable para particulares y eventos. Nuestro equipo de reposteros cuida la presentación y la textura en cada pieza para que tus celebraciones sean memorables.
+                </p>
                             </div>
                         </div>
-                        <div className="col-lg-6 order-lg-1">
+                    </div>
+
+                    <div className="row mt-4">
+                        <div className="col-12">
                             <div className="position-relative">
                                 <video
-                                    className="img-fluid rounded-3 shadow-lg embedded-video"
+                                    className="img-fluid rounded-3 shadow-lg embedded-video w-100"
                                     src="/videos/home/video_section.mp4"
                                     autoPlay
                                     muted
