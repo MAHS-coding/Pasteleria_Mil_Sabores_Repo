@@ -202,31 +202,34 @@ const Productos: React.FC = () => {
 
                 {/* MAIN */}
                 <section className="col-12 col-md-10">
-                    <div className="d-flex align-items-center justify-content-between mb-3">
+                    <div className={`d-flex align-items-center justify-content-start mb-3 ${styles.controlsRow}`}>
                         <h1 className="h3 mb-0">Productos</h1>
 
-                        {/* Móvil: select para filtros */}
-                        <div className="d-md-none" style={{ minWidth: 220 }}>
-                            <select
-                                id="mobileFilter"
-                                className="form-select form-select-sm"
-                                value={filter}
-                                onChange={(e) => applyFilter(e.target.value)}
-                            >
-                                {categories.map((c: {id: string; label: string}) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        {/* Ordenar por precio (visible en todas las pantallas) */}
-                        <div className="ms-3" style={{ minWidth: 200 }}>
-                            <select id="sortSelect" className="form-select form-select-sm" value={sort} onChange={(e) => applySort(e.target.value)}>
-                                <option value="default">Ordenar</option>
-                                <option value="price-asc">Precio: menor a mayor</option>
-                                <option value="price-desc">Precio: mayor a menor</option>
-                            </select>
+                        {/* Contenedor de controles (filtro móvil + ordenar) */}
+                        <div className={`${styles.controlsGroup} d-flex align-items-center`}> 
+                            <div className={`d-md-none ${styles.mobileFilter}`}>
+                                <select
+                                    id="mobileFilter"
+                                    className="form-select form-select-sm"
+                                    value={filter}
+                                    onChange={(e) => applyFilter(e.target.value)}
+                                >
+                                    {categories.map((c: {id: string; label: string}) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Ordenar por precio (visible en todas las pantallas) */}
+                            <div className={`ms-3 ${styles.sortWrapper}`}>
+                                <select id="sortSelect" className="form-select form-select-sm" value={sort} onChange={(e) => applySort(e.target.value)}>
+                                    <option value="default">Ordenar</option>
+                                    <option value="price-asc">Precio: menor a mayor</option>
+                                    <option value="price-desc">Precio: mayor a menor</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <div className={styles.shopContent}>

@@ -2,8 +2,9 @@ import Home from "./pages/home/Home";
 import Productos from "./pages/productos/Productos";
 import Detalle from "./pages/productos/Detalle";
 import Registro from "./pages/auth/Registro";
-import Header from "./components/header/Header";
+import Header from "./components/header/Navbar";
 import Footer from "./components/footer/Footer";
+import CarritoFlotante from "./components/cart/CarritoFlotante";
 import Carrito from "./pages/cart/Carrito";
 import Checkout from "./pages/checkout/Checkout";
 import Perfil from "./pages/account/Perfil";
@@ -23,6 +24,7 @@ export function App() {
         <div className = "d-flex flex-column min-vh-100">
             <BrowserRouter>
             <Header />
+            <CarritoFlotante />
             <Routes>
                 <Route path = '/' element = {<Home/>}/>
                 <Route path = '/productos' element = {<Productos/>}/>

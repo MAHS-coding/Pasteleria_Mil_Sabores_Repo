@@ -8,13 +8,16 @@
     --color-text-secondary: #1a1a1a;
 
     --accent-main: #b08d57;
+    /* RGB components of --accent-main for rgba() usage */
+    --accent-main-rgb: 176,141,87;
     --accent-dark: #6b3e26;
 
     --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.08);
     --border-soft: 1px solid rgba(0, 0, 0, 0.1);
 
-    --font-main: "Segoe UI", sans-serif;
-    --font-h: "Segoe UI", sans-serif;
+    /* Use Inter for body text and Montserrat for headings (loaded via Google Fonts above) */
+    --font-main: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-h: 'Montserrat', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
     --radius-s: 6px;
     --radius-m: 10px;
@@ -130,3 +133,21 @@ h1, h2, h3, h4 {
 html {
     overflow-y: scroll;
 }
+
+/* Smooth in-page scrolling for anchor links (hero arrow) */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Override Bootstrap 'success' utilities to use project's accent color */
+.text-success { color: var(--accent-main) !important; }
+.bg-success { background-color: var(--accent-main) !important; }
+.border-success { border-color: var(--accent-main) !important; }
+.text-bg-success { background-color: var(--accent-main) !important; color: var(--color-background) !important; }
+.badge.text-bg-success, .badge.bg-success { background-color: var(--accent-main) !important; color: var(--color-background) !important; }
+.bg-success.bg-opacity-10 { background-color: rgba(var(--accent-main-rgb), .1) !important; }
+.btn-success { background-color: var(--accent-main) !important; border-color: var(--accent-main) !important; }
+.btn-outline-success { color: var(--accent-main) !important; border-color: var(--accent-main) !important; }
+.btn-outline-success:hover, .btn-outline-success:focus { color: #fff !important; background-color: var(--accent-main) !important; border-color: var(--accent-main) !important; }
+
+/* Metallic badges removed — badges now use standard Bootstrap coloring. */

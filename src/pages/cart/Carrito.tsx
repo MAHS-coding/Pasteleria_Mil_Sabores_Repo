@@ -238,7 +238,7 @@ const Carrito: React.FC = () => {
                                     Vaciar carrito
                                 </button>
                             </div>
-                        </div>
+                        </div>Vaciar
                     </div>
                 </div>
             </div>

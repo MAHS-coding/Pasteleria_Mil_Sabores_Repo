@@ -13,6 +13,11 @@
                     "imagen_producto": "/images/products/tortas/tradicional/torta-cuadrada-chocolate.png",
                     "stock": 10,
                     "stock_critico": 3
+                    ,
+                    "ratings": [
+                        { "userEmail": "claudia.isabel@duoc.cl", "userName": "Claudia Isabel", "stars": 5, "comment": "Excelente sabor y presentación.", "date": "2025-10-01T12:00:00.000Z" },
+                        { "userEmail": "paola.alex@gmail.com", "userName": "Paola Alejandra", "stars": 4, "comment": "Muy buena, un poco dulce para mi gusto.", "date": "2025-10-12T09:30:00.000Z" }
+                    ]
                 },
                 {
                     "codigo_producto": "TC002",
@@ -37,6 +42,10 @@
                     "imagen_producto": "/images/products/tortas/tradicional/torta-circular-vainilla.jpg",
                     "stock": 10,
                     "stock_critico": 3
+                    ,
+                    "ratings": [
+                        { "userEmail": "andres.eduardo@duoc.cl", "userName": "Andrés Eduardo", "stars": 5, "comment": "Perfecta para cumpleaños.", "date": "2025-09-21T15:45:00.000Z" }
+                    ]
                 },
                 {
                     "codigo_producto": "TT002",
@@ -61,6 +70,10 @@
                     "imagen_producto": "/images/products/postres-individuales/mousse-chocolate.png",
                     "stock": 10,
                     "stock_critico": 3
+                    ,
+                    "ratings": [
+                        { "userEmail": "carolina.beatriz@duoc.cl", "userName": "Carolina Beatriz", "stars": 4, "comment": "Muy rico, textura excelente.", "date": "2025-11-01T11:20:00.000Z" }
+                    ]
                 },
                 {
                     "codigo_producto": "PI002",
@@ -133,6 +146,11 @@
                     "imagen_producto": "/images/products/sin-gluten/brownie-sin-gluten.jpg",
                     "stock": 10,
                     "stock_critico": 3
+                    ,
+                    "ratings": [
+                        { "userEmail": "felipe.andres@profesor.duoc.cl", "userName": "Felipe Andrés", "stars": 5, "comment": "Increíble textura, no parece sin gluten.", "date": "2025-08-15T08:00:00.000Z" },
+                        { "userEmail": "rodrigo.alonso@gmail.com", "userName": "Rodrigo Alonso", "stars": 4, "comment": "Buen sabor, un poco pequeño.", "date": "2025-10-05T14:10:00.000Z" }
+                    ]
                 },
                 {
                     "codigo_producto": "PG002",
@@ -157,6 +175,10 @@
                     "imagen_producto": "/images/products/tortas/vegana/vegana-chocolate.jpg",
                     "stock": 10,
                     "stock_critico": 3
+                    ,
+                    "ratings": [
+                        { "userEmail": "andres.eduardo@duoc.cl", "userName": "Andrés Eduardo", "stars": 5, "comment": "Deliciosa y ligera, super recomendable.", "date": "2025-07-30T10:05:00.000Z" }
+                    ]
                 },
                 {
                     "codigo_producto": "PV002",

@@ -95,3 +95,31 @@
     margin: 0;
 }
 
+/* Hero header (banner) */
+.hero-header{
+    background-image: url('/images/background/fondo.jpg');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    color: #fff;
+}
+.hero-header .hero-overlay{
+    position:absolute;inset:0;background:linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.2));z-index:0
+}
+.hero-header .hero-content{position:relative;z-index:1;padding:4rem 0}
+.hero-header .btn-outline-light{border-color:rgba(255,255,255,.25);color:#fff}
+
+/* Embedded video used in presentation section */
+.embedded-video{
+    width:100%;
+    height:100%;
+    max-height:420px;
+    object-fit:cover;
+    display: block; /* evita el gap de línea debajo de elementos replaced (img/video) */
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius:20px;
+}
+
+

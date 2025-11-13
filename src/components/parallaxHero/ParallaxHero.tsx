@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styles from "./ParallaxHero.module.css";
 
 type ParallaxHeroProps = {
@@ -18,6 +18,7 @@ const ParallaxHero: React.FC<ParallaxHeroProps> = ({ image, height, speed = 0.4,
     const ref = useRef<HTMLElement | null>(null);
     const rafId = useRef<number | null>(null);
     const ticking = useRef(false);
+    const [navH, setNavH] = useState<number | null>(null);
 
     useEffect(() => {
         const el = ref.current;
@@ -62,12 +63,57 @@ const ParallaxHero: React.FC<ParallaxHeroProps> = ({ image, height, speed = 0.4,
         };
     }, [speed]);
 
+    // Measure header/nav height and keep it updated (ResizeObserver + resize)
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const header = document.querySelector('header');
+        const updateNav = () => {
+            const h = header ? (header as HTMLElement).getBoundingClientRect().height : 0;
+            setNavH(Math.round(h));
+        };
+
+        updateNav();
+
+        let ro: ResizeObserver | null = null;
+        try {
+            if ((window as any).ResizeObserver && header) {
+                ro = new (window as any).ResizeObserver(updateNav);
+                if (ro && header) ro.observe(header as Element);
+            }
+        } catch (err) {
+            ro = null;
+        }
+
+        window.addEventListener('resize', updateNav, { passive: true });
+
+        // If Bootstrap collapse toggles, update after the animation so height is correct
+        const collapseEls = Array.from(document.querySelectorAll('.navbar-collapse')) as HTMLElement[];
+        const onCollapse = () => setTimeout(updateNav, 160);
+        collapseEls.forEach((el) => {
+            el.addEventListener('shown.bs.collapse', onCollapse as EventListener);
+            el.addEventListener('hidden.bs.collapse', onCollapse as EventListener);
+        });
+
+        return () => {
+            window.removeEventListener('resize', updateNav as any);
+            if (ro && header) ro.unobserve(header as Element);
+            collapseEls.forEach((el) => {
+                el.removeEventListener('shown.bs.collapse', onCollapse as EventListener);
+                el.removeEventListener('hidden.bs.collapse', onCollapse as EventListener);
+            });
+        };
+    }, []);
+
     return (
         <section
             ref={ref as any}
             className={styles["parallax-hero"]}
             style={{
-                height: height || `calc(100vh - var(--nav-h))`,
+                // By default the hero should fill the remaining viewport under the
+                // navbar so navbar + hero together do not exceed 100vh.
+                // Use measured navH when available so the hero always fits.
+                height: height || `calc(100vh - ${navH ?? 0}px)`,
+                width: '100vw'
             }}
             role="img"
             aria-label="Sección destacada"

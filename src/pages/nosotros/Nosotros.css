@@ -1,38 +1,48 @@
-/* Minimal styles for Nosotros page (extracted from old site) */
-.parallax {
-  background-attachment: fixed;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  height: calc(60vh - 56px);
-  position: relative;
+/* Nosotros page styles aligned with Home visual language */
+
+/* Ensure anchor positions take into account the navbar height like Home */
+.anchor-offset {
+    scroll-margin-top: calc(var(--nav-h) + 28px);
 }
-.parallax-1 {
-  /* User will provide background image via public/images/nosotros/ , keep a fallback color */
-  background-color: #f3e9e0;
+
+/* Títulos hero (coinciden con Home) */
+.titulo-home {
+    color: #1a1a1a;
+    text-shadow:
+        1px 1px 15px rgba(201, 214, 245, 0.9),
+        -1px -1px 15px rgba(201, 214, 245, 0.9);
 }
-.hero-content {
-  position: relative;
-  z-index: 2;
-  top: 50%;
-  transform: translateY(-50%);
+
+.subtitulo-home {
+    color: #1a1a1a;
+    text-shadow: 
+        1px 1px 15px rgba(201, 214, 245, 0.9),
+        -1px -1px 15px rgba(201, 214, 245, 0.9);
 }
-.scroll-down-arrow {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 10px;
-  font-size: 1.25rem;
-  color: #fff;
+
+.nosotros-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
-.nosotros-page main {
-  flex: 1 1 auto;
-}
+
 .nosotros-page .img-fluid {
   max-width: 100%;
   height: auto;
+  border-radius: .5rem;
+  box-shadow: 0 6px 18px rgba(16,24,40,0.06);
 }
 
-@media (max-width: 576px) {
-  .parallax { height: 40vh; }
+/* Make embedded media/images behave like Home's embedded-video */
+.embedded-video{
+    width:100%;
+    height:100%;
+    max-height:420px;
+    object-fit:cover;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius:20px;
 }
+
+/* Small screens: reduce hero height if needed (kept intentionally empty) */

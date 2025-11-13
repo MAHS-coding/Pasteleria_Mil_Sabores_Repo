@@ -1,0 +1,70 @@
+/* Styles for RatingsSection aligned with store theme */
+.ratingsCard {
+  background-color: rgba(var(--accent-main-rgb), 0.04);
+  border: 1px solid rgba(var(--accent-main-rgb), 0.12);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.avgValue {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.starsInline i {
+  font-size: 1.05rem;
+  color: #f6c23e; /* warm gold for stars */
+}
+
+.countText {
+  color: rgba(0,0,0,0.6);
+}
+
+.formControls textarea {
+  min-height: 64px;
+}
+
+.reviewItem {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(var(--accent-main-rgb), 0.12), rgba(var(--accent-main-rgb), 0.06));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--accent-dark);
+}
+
+.reviewContent {
+  flex: 1;
+}
+
+.reviewMeta {
+  color: rgba(0,0,0,0.5);
+  font-size: 0.85rem;
+}
+
+.submitRow {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 576px) {
+  .avgValue { font-size: 1rem; }
+  .avatar { width: 36px; height: 36px; }
+}

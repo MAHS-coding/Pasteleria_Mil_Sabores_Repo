@@ -58,3 +58,40 @@
         display: block;
     }
 }
+
+/* Si el collapse del navbar está abierto (típico en móvil), usamos :has para
+   quitar temporariamente el comportamiento sticky del header y que el menú
+   empuje el contenido (parallax) hacia abajo en lugar de superponerse.
+   Nota: :has tiene soporte moderno en navegadores actuales (Chrome, Safari,
+   Firefox recientes). Si necesitas compatibilidad con navegadores antiguos,
+   podemos añadir una versión JS que añada/quite la clase 'nav-expanded'. */
+header:has(.navbar-collapse.show) {
+    position: static !important;
+}
+
+header:has(.navbar-collapse.show) .navbar {
+    position: relative !important;
+}
+
+/* Add extra spacing between navbar items for better readability */
+.navbar-nav .nav-item {
+    margin-left: 0.5rem; /* space between items */
+    margin-right: 0.5rem;
+}
+
+/* Increase clickable area of links */
+.navbar-nav .nav-link {
+    padding: 0.5rem 0.75rem;
+}
+
+/* Space between brand and nav items on large screens */
+@media (min-width: 992px) {
+    .navbar .navbar-brand {
+        margin-right: 1.25rem;
+    }
+}
+
+/* Slightly increase spacing for action buttons (register/login) */
+.navbar .btn.btn-success {
+    margin-left: 0.5rem;
+}

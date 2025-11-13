@@ -3,6 +3,10 @@
     position: relative;
     overflow: hidden;
     isolation: isolate;
+    /* Force full viewport width; default hero height is viewport minus navbar height
+       so navbar + hero fit in a single screen and the scroll arrow stays visible. */
+    width: 100vw;
+    height: var(--hero-h, calc(100vh - var(--nav-h)));
 }
 
 /* Capa de fondo que se mueve con el scroll (parallax) */
@@ -10,6 +14,8 @@
     position: absolute;
     left: 0;
     right: 0;
+    /* Keep the parallax offset logic but ensure the background always covers the
+       hero area (100% of the section). */
     top: calc(-1 * var(--p-extra, 0px));
     height: calc(100% + var(--p-extra, 0px) * 2);
     background-position: center;
@@ -21,11 +27,11 @@
     transition: background-size 600ms ease, background-position 600ms ease;
 }
 
-/* En orientación vertical (portrait), muestra más de la foto manteniendo el alto completo */
-@media (orientation: portrait) {
-    .parallax-hero .parallax-bg {
-        background-size: auto calc(100% - var(--p-extra, 0px) * 2);
-    }
+/* Mantener siempre background-size: cover y centrar la imagen para evitar
+   cambios bruscos de zoom entre resoluciones (portrait/landscape). */
+.parallax-hero .parallax-bg {
+    background-position: center center;
+    background-size: cover;
 }
 
 /* Contenido centrado verticalmente */
@@ -53,7 +59,7 @@
     transform: translateX(-50%);
     font-size: 2rem;
     color: var(--color-text-primary, #111);
-    z-index: 3;
+    z-index: 4; /* make sure arrow sits above hero overlay and content */
     text-decoration: none;
     animation: bounce 2s infinite;
 }

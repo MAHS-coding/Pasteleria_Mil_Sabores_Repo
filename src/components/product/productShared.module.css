@@ -45,3 +45,28 @@
     display: block;
     align-self: stretch;
 }
+
+/* Ensure product titles don't expand cards: clamp to 2 lines */
+.titleClamp {
+    /* Clamp visually to 2 lines and enforce a fixed height so cards align */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Use em-based measurements so clamp follows the element's font-size */
+    line-height: 1.15;
+    max-height: calc(2 * 1.15em);
+    height: calc(2 * 1.15em);
+}
+
+/* Ensure card body doesn't collapse and keeps layout consistent */
+.productCard .card-body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Make the area between title and actions stretch so footer controls stay aligned */
+.productCard .card-body > .mt-auto {
+    margin-top: auto !important;
+}

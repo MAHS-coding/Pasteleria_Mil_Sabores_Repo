@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import RatingsSection from "../../components/product/RatingsSection";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { products as seedProducts } from "../../utils/dataLoaders";
 import type { Product } from "../../types/product";
@@ -246,6 +247,8 @@ const Detalle: React.FC = () => {
                 <span className="badge bg-info text-dark ms-2">Stock: {stock}</span>
               </div>
 
+              {/* ratings moved to dedicated component below */}
+
               {isPersonalizable(producto.code) && (
                 <div className="mb-3 mt-3">
                   <label htmlFor="mensajePersonalizado" className="form-label">Mensaje personalizado (opcional)</label>
@@ -267,8 +270,12 @@ const Detalle: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* Ratings section: placed below personalization/add-to-cart and above related products */}
+      <div className="container">
+        <RatingsSection productCode={producto.code} />
+      </div>
 
-      {/* Productos relacionados */}
+          {/* Productos relacionados */}
       <div className="container my-5">
         <h2 className="mb-4">También te podría interesar</h2>
         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">

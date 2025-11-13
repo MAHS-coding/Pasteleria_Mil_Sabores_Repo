@@ -18,3 +18,107 @@
     gap: 1rem;
     align-items: stretch;
 }
+
+/* Controls (filter + sort) responsive tweaks */
+.controlsRow {
+    /* allow wrapping on small screens */
+    gap: 0.35rem;
+    display: flex; /* ensure module-level rules apply if the markup changes */
+    align-items: center; /* keep children vertically centered by default */
+}
+
+.controlsGroup {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Rounded selects */
+.controlsRow .form-select,
+.controlsGroup .form-select,
+.mobileFilter .form-select,
+.sortWrapper .form-select {
+    border-radius: 0.5rem; /* subtle rounded on desktop */
+    transition: border-radius 120ms ease, box-shadow 120ms ease;
+}
+
+.mobileFilter {
+    min-width: 0; /* override any parent constraints */
+    width: 120px; /* slightly smaller default compact width */
+    align-self: center;
+}
+
+.sortWrapper {
+    min-width: 0;
+    /* allow selects to be a bit wider on medium screens to improve usability */
+    width: 160px;
+    flex: 0 0 auto;
+    align-self: center;
+}
+
+.sortWrapper .form-select {
+    width: 100%;
+}
+
+/* On large / wide screens give the sort/select more room */
+@media (min-width: 992px) {
+    .sortWrapper {
+        width: 240px;
+    }
+}
+
+/* On very small screens make selects share the row or stack if needed */
+@media (max-width: 767.98px) {
+    .controlsRow {
+        flex-wrap: wrap; /* allow the header and controls to wrap */
+    }
+
+    /* Make controls share row and stay aligned */
+    .mobileFilter {
+        width: 40%;
+        margin-bottom: 0.25rem;
+    }
+
+    .sortWrapper {
+        width: 40%;
+        margin-bottom: 0.25rem;
+    }
+
+    /* Even more compact selects for small screens, keep heights consistent */
+    .mobileFilter .form-select,
+    .sortWrapper .form-select {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.45rem;
+        line-height: 1.1;
+        height: auto; /* allow browser to compute consistent height */
+        display: block;
+        box-sizing: border-box;
+    }
+
+    /* Make selects pill-shaped on small screens */
+    .mobileFilter .form-select,
+    .sortWrapper .form-select {
+        border-radius: 999px;
+    }
+
+    /* Force the controlsGroup to use full width and keep items side-by-side */
+    .controlsGroup {
+        width: 100%;
+        justify-content: flex-start; /* left align controls */
+    }
+}
+
+@media (max-width: 420px) {
+    /* On very narrow screens stack selects full width */
+    .mobileFilter,
+    .sortWrapper {
+        width: 100%;
+    }
+
+    /* make selects extra compact on very narrow devices */
+    .mobileFilter .form-select,
+    .sortWrapper .form-select {
+        font-size: 0.78rem;
+        padding: 0.18rem 0.4rem;
+    }
+}
