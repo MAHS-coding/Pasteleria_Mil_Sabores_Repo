@@ -36,7 +36,7 @@ export const CarritoFlotante: React.FC = () => {
     <>
       <button
         onClick={openCart}
-        className="floating-cart-btn btn btn-success"
+        className="floating-cart-btn"
         aria-label="Abrir carrito"
       >
         <div className="cart-icon">
@@ -51,8 +51,8 @@ export const CarritoFlotante: React.FC = () => {
 
       <aside className={`cart-sidebar ${isOpen ? 'active' : ''}`} aria-hidden={!isOpen}>
         <div className="cart-header">
-          <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-            <h5 className="mb-0 fw-bold text-success">
+            <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+            <h5 className="mb-0 fw-bold text-white">
               <i className="bi bi-cart3 me-2"></i>
               Mi Carrito
             </h5>
@@ -67,7 +67,7 @@ export const CarritoFlotante: React.FC = () => {
             <div className="text-center py-5">
               <i className="bi bi-basket fa-3x text-muted mb-3"></i>
               <p className="text-muted">Tu carrito está vacío</p>
-              <Link to="/productos" className="btn btn-success" onClick={closeCart}>
+              <Link to="/productos" className="btn" onClick={closeCart} style={{ background: 'var(--accent-main)', color: '#fff', border: 'none' }}>
                 <i className="bi bi-shop me-2"></i> Ver Productos
               </Link>
             </div>
@@ -84,7 +84,7 @@ export const CarritoFlotante: React.FC = () => {
                       <img src={item.img || '/images/placeholder.png'} alt={item.productName} className="cart-item-image" />
                       <div className="flex-grow-1">
                         <h6 className="mb-1">{item.productName}</h6>
-                        <p className="text-success fw-bold mb-2">{formatCLP(item.price || 0)}</p>
+                        <p className="fw-bold mb-2" style={{ color: 'var(--accent-main)' }}>{formatCLP(item.price || 0)}</p>
 
                         <div className="d-flex align-items-center gap-2">
                           <button
@@ -120,7 +120,7 @@ export const CarritoFlotante: React.FC = () => {
 
                     <div className="text-end mt-2 pt-2 border-top">
                       <small className="text-muted">Subtotal: </small>
-                      <span className="fw-bold text-success">{formatCLP(subtotal)}</span>
+                      <span className="fw-bold" style={{ color: 'var(--accent-main)' }}>{formatCLP(subtotal)}</span>
                     </div>
                   </div>
                 );
@@ -139,14 +139,14 @@ export const CarritoFlotante: React.FC = () => {
           <div className="cart-footer p-3 border-top">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <span className="fw-bold">Total:</span>
-              <span className="h5 mb-0 text-success fw-bold">{formatCLP(total)}</span>
+              <span className="h5 mb-0 fw-bold" style={{ color: 'var(--accent-main)' }}>{formatCLP(total)}</span>
             </div>
 
-            <Link to="/checkout" className="btn btn-success w-100 mb-2" onClick={closeCart}>
+            <Link to="/checkout" className="btn w-100 mb-2" onClick={closeCart}>
               <i className="bi bi-credit-card me-2"></i> Finalizar Compra
             </Link>
 
-            <Link to="/productos" className="btn btn-outline-success w-100" onClick={closeCart}>
+            <Link to="/productos" className="btn w-100" onClick={closeCart} style={{ background: 'transparent', border: '1px solid var(--accent-main)', color: 'var(--accent-main)' }}>
               <i className="bi bi-shop me-2"></i> Seguir Comprando
             </Link>
           </div>

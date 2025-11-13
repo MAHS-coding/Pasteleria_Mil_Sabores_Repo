@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import RatingsSection from "../../components/product/RatingsSection";
+import { getRatings, getAverage } from '../../utils/ratings';
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { products as seedProducts } from "../../utils/dataLoaders";
 import type { Product } from "../../types/product";
@@ -45,7 +46,7 @@ const Detalle: React.FC = () => {
 
   if (producto === null) return <div className="container py-5"><p className="text-danger">Producto no encontrado</p></div>;
 
-  const stock = typeof producto.stock === "number" ? producto.stock : 0;
+  const stock = producto?.stock ?? 0;
 
   function buildInitialMessages(count: number) {
     return Array.from({ length: count }, (_, idx) => (idx === 0 ? mensaje : ""));
@@ -209,71 +210,201 @@ const Detalle: React.FC = () => {
 
   return (
     <main className={`container py-4 ${styles.detallePage}`}>
-      <div className="row g-4" id="detalle-layout">
-        <div className="col-lg-4 text-center">
-          <img src={producto.img} alt={producto.productName} className="img-fluid rounded shadow" />
-        </div>
-        <div className="col-lg-4">
-          <div className={`border rounded p-3 h-100 bg-light-subtle d-flex flex-column justify-content-between ${styles.detalleCardCentral}`}>
-            <div>
-              <h1 className="h4 mb-2">{producto.productName}</h1>
-              <div id="badgesDetalle" className="d-flex gap-1 flex-wrap mb-3">{/* badges */}
-                {producto.category === "productos-sin-azucar" && <span className="badge text-bg-dark">Sin azúcar</span>}
-                {producto.category === "productos-sin-gluten" && <span className="badge text-bg-warning">Sin gluten</span>}
-                {producto.category === "productos-veganos" && <span className="badge text-bg-success">Vegano</span>}
-                {isPersonalizable(producto.code) && <span className="badge text-bg-info">Personalizable</span>}
-              </div>
-              <p className="small text-muted mb-3">{producto.desc || "Producto artesanal, hecho con ingredientes frescos."}</p>
-            </div>
-            <div>
-              <h2 className="h6 mt-3">¿Por qué elegir este producto?</h2>
-              <ul className="list-unstyled small mb-3">
-                <li><i className="bi bi-check-circle-fill text-success me-2" />Ingredientes frescos y de calidad</li>
-                <li><i className="bi bi-check-circle-fill text-success me-2" />Receta artesanal exclusiva</li>
-                <li><i className="bi bi-check-circle-fill text-success me-2" />Personalización disponible</li>
-                <li><i className="bi bi-check-circle-fill text-success me-2" />Entrega rápida y segura</li>
-              </ul>
-            </div>
+      <div className="mb-3">
+        <button className={styles.backButton} onClick={() => {
+          // go back if possible, otherwise go to catalog
+          try {
+            if (window.history && window.history.length > 1) navigate(-1);
+            else navigate('/productos');
+          } catch (e) {
+            navigate('/productos');
+          }
+        }} aria-label="Volver">
+          <i className="bi bi-arrow-left me-2"></i>Volver
+        </button>
+      </div>
+      <div className="row mb-5 align-items-stretch">
+        <div className="col-lg-6 mb-4">
+          <div className="product-image-container h-100 d-flex align-items-center justify-content-center" style={{
+            background: 'rgba(255, 255, 255, 0.8)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            padding: '1rem',
+            border: 'var(--border-soft)',
+            boxShadow: 'var(--shadow-soft)',
+            height: '100%'
+          }}>
+            <img
+              src={producto?.img}
+              alt={producto?.productName}
+              className="img-fluid"
+              style={{ width: '100%', height: '100%', minHeight: '360px', objectFit: 'cover', borderRadius: '16px' }}
+              onError={(e) => { e.currentTarget.src = '/img/default.jpg'; }}
+            />
           </div>
         </div>
-        <div className="col-lg-4">
-          <div className={`border rounded p-3 h-100 bg-light-subtle d-flex flex-column justify-content-between ${styles.detalleCardCompra}`}>
-            <div>
-              <span className="h4 d-block mb-2">{formatCLP(producto.price)}</span>
-              <div className="mt-3 d-flex align-items-center gap-2">
-                <button className="btn btn-outline-secondary" onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
-                <input type="number" className="form-control text-center" style={{ maxWidth: 80 }} value={qty} min={1} onChange={(e) => setQty(Math.max(1, Number(e.target.value || 1)))} />
-                <button className="btn btn-outline-secondary" onClick={() => setQty(Math.min((typeof producto.stock === 'number' ? producto.stock : 0), qty + 1))}>+</button>
-                <span className="badge bg-info text-dark ms-2">Stock: {stock}</span>
-              </div>
 
-              {/* ratings moved to dedicated component below */}
-
+        <div className="col-lg-6">
+          {/* details */}
+          <div className="product-details h-100" style={{
+            background: 'rgba(255, 255, 255, 0.8)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            padding: '2rem',
+            border: '1px solid rgba(0, 0, 0, 0.06)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+            height: '100%'
+          }}>
+            <div className="mb-2">
               {isPersonalizable(producto.code) && (
-                <div className="mb-3 mt-3">
-                  <label htmlFor="mensajePersonalizado" className="form-label">Mensaje personalizado (opcional)</label>
-                  <input id="mensajePersonalizado" className="form-control" value={mensaje} onChange={(e) => setMensaje(e.target.value)} maxLength={60} placeholder="Ej: ¡Feliz Cumpleaños, Ana!" />
-                  <div className="form-text">Máx. 60 caracteres.</div>
-                </div>
+                <span className="badge text-bg-info me-1">Personalizable</span>
               )}
+              {(producto.category === 'productos-sin-azucar' || (producto.category || '').includes('sin-azucar')) && (
+                <span className="badge text-bg-dark me-1">Sin azúcar</span>
+              )}
+              {(producto.category === 'productos-sin-gluten' || (producto.category || '').includes('sin-gluten')) && (
+                <span className="badge text-bg-warning me-1">Sin gluten</span>
+              )}
+              {(producto.category === 'productos-veganos' || (producto.category || '').includes('vegan')) && (
+                <span className="badge" style={{ background: 'var(--accent-green)', color: '#fff' }}>Vegano</span>
+              )}
+            </div>
+            
+            <h1 className="display-5 fw-bold mb-3" style={{ color: 'var(--color-text-primary)', letterSpacing: '-0.5px' }}>
+              {producto?.productName}
+            </h1>
 
-              <button className="btn btn-dark w-100 mt-3" onClick={() => { addToCart(); }}>
-                <i className="bi bi-bag-plus me-2" /> Agregar al Carrito
+            {/* ratings */}
+            {(() => {
+              const rese = getRatings(producto.code);
+              const avg = getAverage(producto.code).avg || 0;
+              return (
+                <div className="mb-3">
+                  <span className="me-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <i key={i} className={`bi ${i < Math.round(avg) ? 'bi-star-fill' : 'bi-star'} text-warning me-1`} />
+                    ))}
+                  </span>
+                  <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.95rem' }}>{(avg).toFixed(1)} ({rese.length} {rese.length === 1 ? 'reseña' : 'reseñas'})</span>
+                </div>
+              );
+            })()}
+
+            <p className="lead mb-4" style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', lineHeight: '1.6' }}>
+              {producto?.desc || producto?.productName}
+            </p>
+
+            <div className={styles.priceCard}>
+              <div className={styles.priceLabel}>Precio</div>
+              <div className={styles.priceValue}>
+                {formatCLP(producto.price)}
+              </div>
+            </div>
+
+            <div className="mb-4" style={{
+              background: 'rgba(255, 255, 255, 0.6)',
+              borderRadius: '12px',
+              padding: '1rem',
+              border: '1px solid rgba(0, 0, 0, 0.06)'
+            }}>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span style={{ fontWeight: '600', color: '#1d1d1f' }}>Stock:</span>
+                <span className="badge" style={{
+                  background: stock > 5 ? 'var(--accent-main)' : stock > 0 ? 'rgba(var(--accent-main-rgb), 0.7)' : 'var(--accent-dark)',
+                  color: '#fff',
+                  borderRadius: '8px',
+                  padding: '0.35rem 0.8rem',
+                  fontSize: '0.85rem'
+                }}>{stock > 0 ? `${stock} disponibles` : 'Agotado'}</span>
+              </div>
+              <div className="d-flex justify-content-between align-items-center">
+                <span style={{ fontWeight: '600', color: '#1d1d1f' }}>Código:</span>
+                <span style={{ color: '#6e6e73' }}>{producto.code}</span>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="form-label" style={{ fontWeight: '600', color: '#1d1d1f', fontSize: '0.95rem' }}>Cantidad:</label>
+              <div className="input-group" style={{ maxWidth: '200px' }}>
+                <button className="btn" style={{
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  border: '1.5px solid rgba(0, 0, 0, 0.1)',
+                  borderRadius: '12px 0 0 12px',
+                  color: 'var(--accent-main)',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }} onClick={() => setQty(Math.max(1, qty - 1))} disabled={qty <= 1}>−</button>
+                <input type="number" className="form-control text-center" style={{
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  border: '1.5px solid rgba(0, 0, 0, 0.1)',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  fontWeight: '600',
+                  color: '#1d1d1f'
+                }} value={qty} onChange={(e) => setQty(Math.max(1, Math.min(producto?.stock || 1, Number(e.target.value))))} min={1} max={producto?.stock} />
+                <button className="btn" style={{
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  border: '1.5px solid rgba(0, 0, 0, 0.1)',
+                  borderRadius: '0 12px 12px 0',
+                  color: 'var(--accent-main)',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }} onClick={() => setQty(Math.min((producto?.stock || 1), qty + 1))} disabled={qty >= (producto?.stock || 0)}>+</button>
+              </div>
+            </div>
+
+            <div className="d-grid gap-2">
+              <button
+                className="btn btn-lg"
+                style={{
+                  background: 'var(--accent-main)',
+                  color: '#fff',
+                  borderRadius: '12px',
+                  padding: '0.8rem 1.5rem',
+                  fontWeight: '600',
+                  fontSize: '1.05rem',
+                  border: 'none',
+                  boxShadow: '0 4px 12px rgba(var(--accent-main-rgb), 0.3)'
+                }}
+                onClick={() => addToCart()}
+                disabled={!producto || stock === 0}
+                onMouseOver={(e) => {
+                  if (stock > 0) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 20px rgba(var(--accent-main-rgb), 0.4)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 12px rgba(var(--accent-main-rgb), 0.3)';
+                }}
+              >
+                <i className="bi bi-bag-plus me-2" />{stock === 0 ? 'Producto Agotado' : 'Agregar al Carrito'}
               </button>
             </div>
-            <div className="mt-4">
-              <div className="mb-2 small text-muted"><i className="bi bi-shield-check text-success me-1" />Compra protegida y garantizada</div>
-              <div className="mb-2 small text-muted"><i className="bi bi-truck text-primary me-1" />Envíos a todo Chile</div>
-              <div className="mb-2 small text-muted"><i className="bi bi-credit-card-2-front text-warning me-1" />Aceptamos tarjetas y transferencias</div>
-              <div className="mb-2 small text-muted"><i className="bi bi-clock-history text-info me-1" />Atención personalizada</div>
-            </div>
+
+            
+
           </div>
         </div>
       </div>
-      {/* Ratings section: placed below personalization/add-to-cart and above related products */}
-      <div className="container">
-        <RatingsSection productCode={producto.code} />
-      </div>
+          <div className="container mt-3">
+            <div className="row">
+              <div className="col-12">
+                <div className="mb-2 small text-muted"><i className="bi bi-shield-check text-success me-1" />Compra protegida y garantizada</div>
+                <div className="mb-2 small text-muted"><i className="bi bi-truck text-primary me-1" />Envíos a todo Chile</div>
+                <div className="mb-2 small text-muted"><i className="bi bi-credit-card-2-front text-warning me-1" />Aceptamos tarjetas y transferencias</div>
+                <div className="mb-2 small text-muted"><i className="bi bi-clock-history text-info me-1" />Atención personalizada</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Ratings section: placed below personalization/add-to-cart and above related products */}
+          <div className={`container my-4 ${styles.commentsWrapper}`}>
+            <div className={styles.commentsCard}>
+              <RatingsSection productCode={producto.code} />
+            </div>
+          </div>
 
           {/* Productos relacionados */}
       <div className="container my-5">

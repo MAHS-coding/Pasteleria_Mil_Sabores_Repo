@@ -122,7 +122,7 @@ const Testimonials: React.FC = () => {
 
                 return (
                   <>
-                    <div className="bg-success rounded-circle d-flex align-items-center justify-content-center text-white fw-semibold" style={{ width: '45px', height: '45px' }}>{initials}</div>
+                    <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-semibold" style={{ width: '45px', height: '45px', background: 'var(--accent-main)' }}>{initials}</div>
                     <div className="ms-3"><h6 className="mb-0 fw-semibold">{displayName || (r.userName || r.userEmail || '')}</h6></div>
                   </>
                 );
@@ -164,24 +164,24 @@ const Home: React.FC = () => {
 
                     <div className="row mt-4">
                         <div className="col-12">
-                            <div className="position-relative">
-                                <video
-                                    className="img-fluid rounded-3 shadow-lg embedded-video w-100"
-                                    src="/videos/home/video_section.mp4"
-                                    autoPlay
-                                    muted
-                                    loop
-                                    playsInline
-                                    aria-label="Video de productos"
-                                />
-                                <div className="position-absolute top-0 start-0 w-100 h-100 bg-success bg-opacity-10 rounded-3"></div>
-                            </div>
+              <div className="position-relative">
+                <video
+                  className="img-fluid rounded-3 shadow-lg embedded-video w-100"
+                  src="/videos/home/video_section.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  aria-label="Video de productos"
+                />
+                <div className="position-absolute top-0 start-0 w-100 h-100 rounded-3" style={{ background: 'rgba(var(--accent-main-rgb), 0.08)' }}></div>
+              </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section className="py-5">
+      <section className="py-5">
                 <div className="container">
                     <div className="text-center mb-5">
                         <h2 className="h3" style={{ color: '#2d3748' }}>
@@ -190,21 +190,21 @@ const Home: React.FC = () => {
                         <p className="text-muted">Cifras que reflejan nuestro compromiso</p>
                     </div>
                     <div className="row g-4">
-                        <div className="col-lg-4 col-md-6 text-center">
-                            <div className="display-4 fw-bold text-success mb-2">50+</div>
-                            <h5 className="fw-semibold mb-2">Años de Experiencia</h5>
-                            <p className="text-muted small">Sabores que perduran</p>
-                        </div>
-                        <div className="col-lg-4 col-md-6 text-center">
-                            <div className="display-4 fw-bold text-success mb-2">5000+</div>
-                            <h5 className="fw-semibold mb-2">Clientes felices</h5>
-                            <p className="text-muted small">Recomendaciones reales</p>
-                        </div>
-                        <div className="col-lg-4 col-md-6 text-center">
-                            <div className="display-4 fw-bold text-success mb-2">100%</div>
-                            <h5 className="fw-semibold mb-2">Ingredientes seleccionados</h5>
-                            <p className="text-muted small">Calidad garantizada</p>
-                        </div>
+            <div className="col-lg-4 col-md-6 text-center">
+              <div className="display-4 fw-bold mb-2" style={{ color: 'var(--accent-main)' }}>50+</div>
+              <h5 className="fw-semibold mb-2">Años de Experiencia</h5>
+              <p className="text-muted small">Sabores que perduran</p>
+            </div>
+            <div className="col-lg-4 col-md-6 text-center">
+              <div className="display-4 fw-bold mb-2" style={{ color: 'var(--accent-main)' }}>5000+</div>
+              <h5 className="fw-semibold mb-2">Clientes felices</h5>
+              <p className="text-muted small">Recomendaciones reales</p>
+            </div>
+            <div className="col-lg-4 col-md-6 text-center">
+              <div className="display-4 fw-bold mb-2" style={{ color: 'var(--accent-main)' }}>100%</div>
+              <h5 className="fw-semibold mb-2">Ingredientes seleccionados</h5>
+              <p className="text-muted small">Calidad garantizada</p>
+            </div>
                     </div>
                 </div>
             </section>
@@ -228,26 +228,26 @@ const Home: React.FC = () => {
                             <div className="text-center">
                                 <h2 className="h3 mb-4" style={{ color: '#2d3748' }}>¿Listo para endulzar tu día?</h2>
                                 <p className="text-muted mb-5 lh-lg">Únete a miles de clientes que disfrutan de nuestras recetas artesanales.</p>
-                                <div className="d-flex gap-3 justify-content-center flex-wrap">
-                                    {user ? (
-                                        isAdmin ? (
-                                            <>
-                                                <Link to="/admin" className="btn btn-warning btn-lg px-5 py-3 rounded-3"><i className="bi bi-speedometer2 me-2"></i> Dashboard Admin</Link>
-                                                <Link to="/productos" className="btn btn-success btn-lg px-5 py-3 rounded-3"><i className="bi bi-basket me-2"></i> Ver Productos</Link>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Link to="/productos" className="btn btn-success btn-lg px-5 py-3 rounded-3"><i className="bi bi-basket me-2"></i> Ver Productos</Link>
-                                                <Link to="/perfil" className="btn btn-outline-success btn-lg px-5 py-3 rounded-3"><i className="bi bi-person me-2"></i> Mi Perfil</Link>
-                                            </>
-                                        )
-                                    ) : (
-                                        <>
-                                            <Link to="/productos" className="btn btn-success btn-lg px-5 py-3 rounded-3"><i className="bi bi-basket me-2"></i> Hacer mi Primer Pedido</Link>
-                                            <Link to="/registro" className="btn btn-outline-success btn-lg px-5 py-3 rounded-3"><i className="bi bi-person-plus me-2"></i> Crear Cuenta</Link>
-                                        </>
-                                    )}
-                                </div>
+                <div className="d-flex gap-3 justify-content-center flex-wrap">
+                  {user ? (
+                    isAdmin ? (
+                      <>
+                        <Link to="/admin" className="btn btn-warning btn-lg px-5 py-3 rounded-3"><i className="bi bi-speedometer2 me-2"></i> Dashboard Admin</Link>
+                        <Link to="/productos" className="btn btn-lg px-5 py-3 rounded-3" style={{ background: 'var(--accent-main)', color: '#fff', border: 'none' }}><i className="bi bi-basket me-2"></i> Ver Productos</Link>
+                      </>
+                    ) : (
+                      <>
+                        <Link to="/productos" className="btn btn-lg px-5 py-3 rounded-3" style={{ background: 'var(--accent-main)', color: '#fff', border: 'none' }}><i className="bi bi-basket me-2"></i> Ver Productos</Link>
+                        <Link to="/perfil" className="btn btn-lg px-5 py-3 rounded-3" style={{ background: 'transparent', border: '1px solid var(--accent-main)', color: 'var(--accent-main)' }}><i className="bi bi-person me-2"></i> Mi Perfil</Link>
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <Link to="/productos" className="btn btn-lg px-5 py-3 rounded-3" style={{ background: 'var(--accent-main)', color: '#fff', border: 'none' }}><i className="bi bi-basket me-2"></i> Hacer mi Primer Pedido</Link>
+                      <Link to="/registro" className="btn btn-lg px-5 py-3 rounded-3" style={{ background: 'transparent', border: '1px solid var(--accent-main)', color: 'var(--accent-main)' }}><i className="bi bi-person-plus me-2"></i> Crear Cuenta</Link>
+                    </>
+                  )}
+                </div>
                             </div>
                         </div>
                     </div>

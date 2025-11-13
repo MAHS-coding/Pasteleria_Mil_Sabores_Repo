@@ -51,13 +51,10 @@
     color: var(--color-background, #fff) !important;
 }
 
-/* --- DESPLIEGUE AUTOMÁTICO DEL MENÚ EN ESCRITORIO --- */
-@media (min-width: 992px) {
-    /* Permite que el menú se abra al pasar el mouse (sin click) */
-    .navbar-nav .dropdown:hover > .dropdown-menu {
-        display: block;
-    }
-}
+/* --- DESPLIEGUE DEL MENÚ EN ESCRITORIO (click-only) --- */
+/* Se removió el despliegue por :hover para que los dropdowns abran sólo al hacer click.
+   Bootstrap ya maneja la apertura por click con data-bs-toggle="dropdown", por lo que
+   evitamos que el menú se active con hover en pantallas grandes. */
 
 /* Si el collapse del navbar está abierto (típico en móvil), usamos :has para
    quitar temporariamente el comportamiento sticky del header y que el menú
