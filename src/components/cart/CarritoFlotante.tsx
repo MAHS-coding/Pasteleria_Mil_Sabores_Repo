@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { getProductByCode } from '../../utils/products';
 import { formatCLP } from '../../utils/currency';
-import './CarritoFlotante.css';
+import styles from './CarritoFlotante.module.css';
 
 export const CarritoFlotante: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,8 +27,184 @@ export const CarritoFlotante: React.FC = () => {
     };
   }, [isOpen]);
 
+  // Listen for a global event to open the cart from other components
+  // Listen for a global event to open the cart from other components
+  useEffect(() => {
+    const onOpenCart = () => setIsOpen(true);
+    window.addEventListener('open-cart', onOpenCart as EventListener);
+    return () => window.removeEventListener('open-cart', onOpenCart as EventListener);
+  }, []);
+
+  // Ref to the aside so we can detect clicks inside the cart
+  const asideRef = useRef<HTMLElement | null>(null);
+  // Track touch start Y for touchmove edge handling
+  const touchStartY = useRef<number | null>(null);
+
+  // When the cart is open, prevent navigation by blocking clicks on
+  // anchor (<a>) elements that are outside the cart. This stops user
+  // from navigating away while the cart overlay is active. We use
+  // capture phase to intercept before React Router handles the click.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const clickHandler = (e: Event) => {
+      try {
+        const me = e as MouseEvent;
+        const target = me.target as HTMLElement | null;
+        if (!target) return;
+        const anchor = target.closest('a');
+        if (anchor && asideRef.current && !asideRef.current.contains(anchor)) {
+          // Prevent navigation/clicks to links outside the cart
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    const keyHandler = (e: KeyboardEvent) => {
+      try {
+        if (e.key === 'Enter') {
+          const active = document.activeElement as HTMLElement | null;
+          if (active) {
+            const anchor = active.closest && active.closest('a');
+            if (anchor && asideRef.current && !asideRef.current.contains(anchor)) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }
+        }
+      } catch {}
+    };
+
+    document.addEventListener('click', clickHandler, true);
+    document.addEventListener('keydown', keyHandler, true);
+    return () => {
+      document.removeEventListener('click', clickHandler, true);
+      document.removeEventListener('keydown', keyHandler, true);
+    };
+  }, [isOpen]);
+
   const openCart = () => setIsOpen(true);
-  const closeCart = () => setIsOpen(false);
+  const closeCart = () => {
+    setIsOpen(false);
+    try {
+      // Clean up any temporary history marker we may have pushed when opening the cart
+      window.history.replaceState(null, document.title, window.location.href);
+    } catch {
+      // ignore
+    }
+  };
+
+  // Prevent browser back/forward while cart is open and disable scroll outside the aside
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const marker = { cartOpen: true };
+    try {
+      window.history.pushState(marker, document.title, window.location.href);
+    } catch {}
+
+    const onPop = () => {
+      try {
+        // Re-push the marker to avoid navigating away while cart is open
+        window.history.pushState(marker, document.title, window.location.href);
+      } catch {}
+    };
+
+    const wheelHandler = (e: WheelEvent) => {
+      try {
+        const target = e.target as Node | null;
+        if (asideRef.current && target && !asideRef.current.contains(target)) {
+          e.preventDefault();
+        }
+      } catch {}
+    };
+
+    const touchHandler = (e: TouchEvent) => {
+      try {
+        const target = e.target as Node | null;
+        if (asideRef.current && target && !asideRef.current.contains(target)) {
+          e.preventDefault();
+        }
+      } catch {}
+    };
+
+    window.addEventListener('popstate', onPop);
+    document.addEventListener('wheel', wheelHandler, { passive: false });
+    document.addEventListener('touchmove', touchHandler, { passive: false });
+
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      document.removeEventListener('wheel', wheelHandler);
+      document.removeEventListener('touchmove', touchHandler);
+      try { window.history.replaceState(null, document.title, window.location.href); } catch {}
+    };
+  }, [isOpen]);
+
+  // Prevent overscroll from propagating to the page when scrolling the aside.
+  // When the aside reaches its top or bottom, consume the wheel/touchmove so the
+  // underlying page does not start scrolling.
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = asideRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      try {
+        const delta = e.deltaY;
+        const scrollTop = el.scrollTop;
+        const scrollHeight = el.scrollHeight;
+        const clientHeight = el.clientHeight;
+
+        const atTop = scrollTop <= 0;
+        const atBottom = scrollTop + clientHeight >= scrollHeight - 1; // tolerance
+
+        if ((delta < 0 && atTop) || (delta > 0 && atBottom)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      } catch {}
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      try {
+        touchStartY.current = e.touches && e.touches.length ? e.touches[0].clientY : null;
+      } catch {}
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      try {
+        const startY = touchStartY.current;
+        if (startY == null) return;
+        const currentY = e.touches && e.touches.length ? e.touches[0].clientY : startY;
+        const delta = startY - currentY; // positive = scroll up
+
+        const scrollTop = el.scrollTop;
+        const scrollHeight = el.scrollHeight;
+        const clientHeight = el.clientHeight;
+        const atTop = scrollTop <= 0;
+        const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+        if ((delta < 0 && atTop) || (delta > 0 && atBottom)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      } catch {}
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onTouchStart as any);
+      el.removeEventListener('touchmove', onTouchMove as any);
+      touchStartY.current = null;
+    };
+  }, [isOpen]);
 
   const total = items.reduce((s, it) => s + ((it.price || 0) * (it.cantidad || 0)), 0);
 
@@ -36,20 +212,20 @@ export const CarritoFlotante: React.FC = () => {
     <>
       <button
         onClick={openCart}
-        className="floating-cart-btn"
+        className={styles['floating-cart-btn']}
         aria-label="Abrir carrito"
       >
-        <div className="cart-icon">
+        <div className={styles['cart-icon']}>
           <i className="bi bi-basket-fill"></i>
           {count > 0 && (
-            <span className="cart-badge">{count > 99 ? '99+' : count}</span>
+            <span className={styles['cart-badge']}>{count > 99 ? '99+' : count}</span>
           )}
         </div>
       </button>
 
-      <div className={`cart-overlay ${isOpen ? 'active' : ''}`} onClick={closeCart} />
+  <div className={`${styles['cart-overlay']} ${isOpen ? styles['overlayActive'] : ''}`} onClick={closeCart} />
 
-      <aside className={`cart-sidebar ${isOpen ? 'active' : ''}`} aria-hidden={!isOpen}>
+  <aside ref={(el) => { asideRef.current = el; }} style={{ overflowY: 'auto', maxHeight: '100vh', overscrollBehavior: 'contain' }} className={`${styles['cart-sidebar']} ${isOpen ? styles['sidebarActive'] : ''}`} aria-hidden={!isOpen}>
         <div className="cart-header">
             <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
             <h5 className="mb-0 fw-bold text-white">
@@ -79,9 +255,9 @@ export const CarritoFlotante: React.FC = () => {
                 const subtotal = (item.price || 0) * (item.cantidad || 0);
 
                 return (
-                  <div key={`${item.code}::${item.mensaje || ''}`} className="cart-item mb-3 p-2 border rounded">
+                  <div key={`${item.code}::${item.mensaje || ''}`} className={`${styles['cart-item']} mb-3 p-2 border rounded`}>
                     <div className="d-flex gap-3">
-                      <img src={item.img || '/images/placeholder.png'} alt={item.productName} className="cart-item-image" />
+                      <img src={item.img || '/images/placeholder.png'} alt={item.productName} className={styles['cart-item-image']} />
                       <div className="flex-grow-1">
                         <h6 className="mb-1">{item.productName}</h6>
                         <p className="fw-bold mb-2" style={{ color: 'var(--accent-main)' }}>{formatCLP(item.price || 0)}</p>
@@ -127,7 +303,7 @@ export const CarritoFlotante: React.FC = () => {
               })}
 
               {items.length > 0 && (
-                <button onClick={() => clear()} className="btn btn-outline-danger btn-sm w-100 mt-2">
+                  <button onClick={() => clear()} className="btn btn-outline-danger btn-sm w-100 mt-2">
                   <i className="bi bi-trash-fill me-2"></i> Vaciar Carrito
                 </button>
               )}
@@ -136,7 +312,7 @@ export const CarritoFlotante: React.FC = () => {
         </div>
 
         {items.length > 0 && (
-          <div className="cart-footer p-3 border-top">
+            <div className={`${styles['cart-footer']} p-3 border-top`}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <span className="fw-bold">Total:</span>
               <span className="h5 mb-0 fw-bold" style={{ color: 'var(--accent-main)' }}>{formatCLP(total)}</span>

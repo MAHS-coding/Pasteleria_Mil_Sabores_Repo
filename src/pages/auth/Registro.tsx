@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { formatearRun, validarRun, emailDominioValido } from "../../utils/validation";
 import { createUser } from "../../utils/registro";
@@ -11,7 +11,10 @@ import styles from "./Registro.module.css";
 
 const Registro: React.FC = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, user } = useAuth();
+
+    // If already logged in, prevent access to registration page
+    if (user) return <Navigate to="/" replace />;
 
     const [run, setRun] = useState("");
     const [name, setName] = useState("");

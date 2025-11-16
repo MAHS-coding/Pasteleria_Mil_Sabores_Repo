@@ -1,5 +1,5 @@
 import React from "react";
-import "./Footer.css"; // Importa los estilos específicos del footer
+import styles from "./Footer.module.css"; // Importa estilos del footer como módulo
 
 // Componente funcional Footer (define el pie de página del sitio)
 const Footer: React.FC = () => {
@@ -8,7 +8,7 @@ const Footer: React.FC = () => {
 
     return (
         // Contenedor principal del footer con clases de Bootstrap y personalizadas
-        <footer className="site-footer mt-auto">
+    <footer className={`${styles['site-footer']} mt-auto`}>
             <div className="container py-4">
                 {/* --- Sección superior: columnas principales --- */}
                 <div className="row gy-4 align-items-start">
@@ -24,14 +24,14 @@ const Footer: React.FC = () => {
                                 src="/images/logos/logo_titulo.png"
                                 alt="Pastelería Mil Sabores"
                                 height={44}
-                                className="footer-logo"
+                                className={styles['footer-logo']}
                             />
                         </a>
 
                         {/* Enlaces a redes sociales */}
                         <div className="d-flex align-items-center gap-2 mt-2">
                             <span>Síguenos en:</span>
-                            <div className="d-flex gap-3 social-icons">
+                            <div className={`d-flex gap-3 ${styles['social-icons']}`}>
                                 <a href="#" aria-label="WhatsApp">
                                     <i className="bi bi-whatsapp"></i>
                                 </a>
@@ -47,8 +47,8 @@ const Footer: React.FC = () => {
 
                     {/* Columna 2: Enlaces de Pastelería */}
                     <div className="col-6 col-md-2">
-                        <div className="footer-col-title">PASTELERÍA</div>
-                        <ul className="list-unstyled footer-links">
+                        <div className={styles['footer-col-title']}>PASTELERÍA</div>
+                        <ul className={`list-unstyled ${styles['footer-links']}`}>
                             <li><a href="#">Nosotros</a></li>
                             <li><a href="#">Blog</a></li>
                             <li><a href="#">Catálogo</a></li>
@@ -58,8 +58,8 @@ const Footer: React.FC = () => {
 
                     {/* Columna 3: Enlaces de Ayuda */}
                     <div className="col-6 col-md-2">
-                        <div className="footer-col-title">AYUDA</div>
-                        <ul className="list-unstyled footer-links">
+                        <div className={styles['footer-col-title']}>AYUDA</div>
+                        <ul className={`list-unstyled ${styles['footer-links']}`}>
                             <li><a href="#">Contacto</a></li>
                             <li><a href="#">Mis pedidos</a></li>
                         </ul>
@@ -67,8 +67,8 @@ const Footer: React.FC = () => {
 
                     {/* Columna 4: Enlaces de Menú */}
                     <div className="col-6 col-md-2">
-                        <div className="footer-col-title">MENÚ</div>
-                        <ul className="list-unstyled footer-links">
+                        <div className={styles['footer-col-title']}>MENÚ</div>
+                        <ul className={`list-unstyled ${styles['footer-links']}`}>
                             <li><a href="#">Tortas Cuadradas</a></li>
                             <li><a href="#">Tortas Circulares</a></li>
                             <li><a href="#">Postres Individuales</a></li>
@@ -79,8 +79,8 @@ const Footer: React.FC = () => {
 
                     {/* Columna 5: Enlaces legales */}
                     <div className="col-6 col-md-3">
-                        <div className="footer-col-title">LEGAL</div>
-                        <ul className="list-unstyled footer-links">
+                        <div className={styles['footer-col-title']}>LEGAL</div>
+                        <ul className={`list-unstyled ${styles['footer-links']}`}>
                             <li><a href="#">Términos y Condiciones</a></li>
                             <li><a href="#">Política de Privacidad</a></li>
                         </ul>

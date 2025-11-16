@@ -47,6 +47,7 @@ const Detalle: React.FC = () => {
   if (producto === null) return <div className="container py-5"><p className="text-danger">Producto no encontrado</p></div>;
 
   const stock = producto?.stock ?? 0;
+  const stockBadgeClass = stock > 5 ? styles.stockBadgeHigh : stock > 0 ? styles.stockBadgeLow : styles.stockBadgeEmpty;
 
   function buildInitialMessages(count: number) {
     return Array.from({ length: count }, (_, idx) => (idx === 0 ? mensaje : ""));
@@ -187,7 +188,13 @@ const Detalle: React.FC = () => {
 
   function goToCart() {
     setShowAddedConfirm(false);
-    navigate("/carrito");
+    // Instead of navigating to /carrito, open the floating cart if present
+    try {
+      window.dispatchEvent(new CustomEvent('open-cart'));
+    } catch (e) {
+      // Fallback: navigate to the cart page if dispatch isn't supported
+      navigate('/carrito');
+    }
   }
 
   function handleWizardCancel() {
@@ -212,7 +219,6 @@ const Detalle: React.FC = () => {
     <main className={`container py-4 ${styles.detallePage}`}>
       <div className="mb-3">
         <button className={styles.backButton} onClick={() => {
-          // go back if possible, otherwise go to catalog
           try {
             if (window.history && window.history.length > 1) navigate(-1);
             else navigate('/productos');
@@ -223,38 +229,21 @@ const Detalle: React.FC = () => {
           <i className="bi bi-arrow-left me-2"></i>Volver
         </button>
       </div>
-      <div className="row mb-5 align-items-stretch">
+      <div className="row mb-5 align-items-start">
         <div className="col-lg-6 mb-4">
-          <div className="product-image-container h-100 d-flex align-items-center justify-content-center" style={{
-            background: 'rgba(255, 255, 255, 0.8)',
-            backdropFilter: 'blur(20px)',
-            borderRadius: '20px',
-            padding: '1rem',
-            border: 'var(--border-soft)',
-            boxShadow: 'var(--shadow-soft)',
-            height: '100%'
-          }}>
+          <div className={styles.imageCard}>
             <img
               src={producto?.img}
               alt={producto?.productName}
               className="img-fluid"
-              style={{ width: '100%', height: '100%', minHeight: '360px', objectFit: 'cover', borderRadius: '16px' }}
               onError={(e) => { e.currentTarget.src = '/img/default.jpg'; }}
             />
           </div>
         </div>
 
-        <div className="col-lg-6">
+        <div className="col-lg-6 d-flex">
           {/* details */}
-          <div className="product-details h-100" style={{
-            background: 'rgba(255, 255, 255, 0.8)',
-            backdropFilter: 'blur(20px)',
-            borderRadius: '20px',
-            padding: '2rem',
-            border: '1px solid rgba(0, 0, 0, 0.06)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-            height: '100%'
-          }}>
+          <div className={`product-details h-100 flex-fill ${styles.detailsCard}`}>
             <div className="mb-2">
               {isPersonalizable(producto.code) && (
                 <span className="badge text-bg-info me-1">Personalizable</span>
@@ -266,11 +255,11 @@ const Detalle: React.FC = () => {
                 <span className="badge text-bg-warning me-1">Sin gluten</span>
               )}
               {(producto.category === 'productos-veganos' || (producto.category || '').includes('vegan')) && (
-                <span className="badge" style={{ background: 'var(--accent-green)', color: '#fff' }}>Vegano</span>
+                <span className={`badge ${styles.badgeVegano}`}>Vegano</span>
               )}
             </div>
             
-            <h1 className="display-5 fw-bold mb-3" style={{ color: 'var(--color-text-primary)', letterSpacing: '-0.5px' }}>
+            <h1 className={`display-5 fw-bold mb-3 ${styles.title}`}>
               {producto?.productName}
             </h1>
 
@@ -285,99 +274,49 @@ const Detalle: React.FC = () => {
                       <i key={i} className={`bi ${i < Math.round(avg) ? 'bi-star-fill' : 'bi-star'} text-warning me-1`} />
                     ))}
                   </span>
-                  <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.95rem' }}>{(avg).toFixed(1)} ({rese.length} {rese.length === 1 ? 'reseña' : 'reseñas'})</span>
+                  <span className={styles.ratingMeta}>{(avg).toFixed(1)} ({rese.length} {rese.length === 1 ? 'reseña' : 'reseñas'})</span>
                 </div>
               );
             })()}
 
-            <p className="lead mb-4" style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', lineHeight: '1.6' }}>
+            <p className={`lead mb-4 ${styles.descripcion}`}>
               {producto?.desc || producto?.productName}
             </p>
 
-            <div className={styles.priceCard}>
+            <div className={`${styles.priceCard} ${styles.uniformCard}`}>
               <div className={styles.priceLabel}>Precio</div>
               <div className={styles.priceValue}>
                 {formatCLP(producto.price)}
               </div>
             </div>
 
-            <div className="mb-4" style={{
-              background: 'rgba(255, 255, 255, 0.6)',
-              borderRadius: '12px',
-              padding: '1rem',
-              border: '1px solid rgba(0, 0, 0, 0.06)'
-            }}>
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <span style={{ fontWeight: '600', color: '#1d1d1f' }}>Stock:</span>
-                <span className="badge" style={{
-                  background: stock > 5 ? 'var(--accent-main)' : stock > 0 ? 'rgba(var(--accent-main-rgb), 0.7)' : 'var(--accent-dark)',
-                  color: '#fff',
-                  borderRadius: '8px',
-                  padding: '0.35rem 0.8rem',
-                  fontSize: '0.85rem'
-                }}>{stock > 0 ? `${stock} disponibles` : 'Agotado'}</span>
-              </div>
-              <div className="d-flex justify-content-between align-items-center">
-                <span style={{ fontWeight: '600', color: '#1d1d1f' }}>Código:</span>
-                <span style={{ color: '#6e6e73' }}>{producto.code}</span>
+            <div className="mb-4">
+              <div className={`${styles.metaBox} ${styles.uniformCard}`}>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className={styles.qtyLabel}>Stock:</span>
+                  <span className={`badge ${stockBadgeClass}`}>{stock > 0 ? `${stock} disponibles` : 'Agotado'}</span>
+                </div>
+                <div className="d-flex justify-content-between align-items-center">
+                  <span className={styles.qtyLabel}>Código:</span>
+                  <span className={styles.codeText}>{producto.code}</span>
+                </div>
               </div>
             </div>
 
             <div className="mb-4">
-              <label className="form-label" style={{ fontWeight: '600', color: '#1d1d1f', fontSize: '0.95rem' }}>Cantidad:</label>
-              <div className="input-group" style={{ maxWidth: '200px' }}>
-                <button className="btn" style={{
-                  background: 'rgba(255, 255, 255, 0.8)',
-                  border: '1.5px solid rgba(0, 0, 0, 0.1)',
-                  borderRadius: '12px 0 0 12px',
-                  color: 'var(--accent-main)',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease'
-                }} onClick={() => setQty(Math.max(1, qty - 1))} disabled={qty <= 1}>−</button>
-                <input type="number" className="form-control text-center" style={{
-                  background: 'rgba(255, 255, 255, 0.8)',
-                  border: '1.5px solid rgba(0, 0, 0, 0.1)',
-                  borderLeft: 'none',
-                  borderRight: 'none',
-                  fontWeight: '600',
-                  color: '#1d1d1f'
-                }} value={qty} onChange={(e) => setQty(Math.max(1, Math.min(producto?.stock || 1, Number(e.target.value))))} min={1} max={producto?.stock} />
-                <button className="btn" style={{
-                  background: 'rgba(255, 255, 255, 0.8)',
-                  border: '1.5px solid rgba(0, 0, 0, 0.1)',
-                  borderRadius: '0 12px 12px 0',
-                  color: 'var(--accent-main)',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease'
-                }} onClick={() => setQty(Math.min((producto?.stock || 1), qty + 1))} disabled={qty >= (producto?.stock || 0)}>+</button>
+              <label className={`form-label ${styles.qtyLabel}`}>Cantidad:</label>
+              <div className={`input-group ${styles.qtyGroup}`}>
+                <button className={`btn ${styles.qtyBtn}`} onClick={() => setQty(Math.max(1, qty - 1))} disabled={qty <= 1}>−</button>
+                <input type="number" className={`form-control text-center ${styles.qtyInput}`} value={qty} onChange={(e) => setQty(Math.max(1, Math.min(producto?.stock || 1, Number(e.target.value))))} min={1} max={producto?.stock} />
+                <button className={`btn ${styles.qtyBtn}`} onClick={() => setQty(Math.min((producto?.stock || 1), qty + 1))} disabled={qty >= (producto?.stock || 0)}>+</button>
               </div>
             </div>
 
             <div className="d-grid gap-2">
               <button
-                className="btn btn-lg"
-                style={{
-                  background: 'var(--accent-main)',
-                  color: '#fff',
-                  borderRadius: '12px',
-                  padding: '0.8rem 1.5rem',
-                  fontWeight: '600',
-                  fontSize: '1.05rem',
-                  border: 'none',
-                  boxShadow: '0 4px 12px rgba(var(--accent-main-rgb), 0.3)'
-                }}
+                className={`btn btn-lg ${styles.addBtn}`}
                 onClick={() => addToCart()}
                 disabled={!producto || stock === 0}
-                onMouseOver={(e) => {
-                  if (stock > 0) {
-                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 20px rgba(var(--accent-main-rgb), 0.4)';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 12px rgba(var(--accent-main-rgb), 0.3)';
-                }}
               >
                 <i className="bi bi-bag-plus me-2" />{stock === 0 ? 'Producto Agotado' : 'Agregar al Carrito'}
               </button>
@@ -390,18 +329,25 @@ const Detalle: React.FC = () => {
       </div>
           <div className="container mt-3">
             <div className="row">
-              <div className="col-12">
-                <div className="mb-2 small text-muted"><i className="bi bi-shield-check text-success me-1" />Compra protegida y garantizada</div>
-                <div className="mb-2 small text-muted"><i className="bi bi-truck text-primary me-1" />Envíos a todo Chile</div>
-                <div className="mb-2 small text-muted"><i className="bi bi-credit-card-2-front text-warning me-1" />Aceptamos tarjetas y transferencias</div>
-                <div className="mb-2 small text-muted"><i className="bi bi-clock-history text-info me-1" />Atención personalizada</div>
+                <div className="col-12">
+                <div className={`card shadow-sm ${styles.uniformCard}`}>
+                  <div className="card-body">
+                    <h5 className="card-title mb-3">Servicios</h5>
+                    <ul className="list-unstyled mb-0">
+                      <li className="mb-2 small text-muted"><i className="bi bi-shield-check text-success me-2" />Compra protegida y garantizada</li>
+                      <li className="mb-2 small text-muted"><i className="bi bi-truck text-primary me-2" />Envíos a todo Chile</li>
+                      <li className="mb-2 small text-muted"><i className="bi bi-credit-card-2-front text-warning me-2" />Aceptamos tarjetas y transferencias</li>
+                      <li className="small text-muted"><i className="bi bi-clock-history text-info me-2" />Atención personalizada</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Ratings section: placed below personalization/add-to-cart and above related products */}
-          <div className={`container my-4 ${styles.commentsWrapper}`}>
-            <div className={styles.commentsCard}>
+            <div className={`container my-4 ${styles.commentsWrapper}`}>
+            <div className={`${styles.commentsCard} ${styles.uniformCard}`}>
               <RatingsSection productCode={producto.code} />
             </div>
           </div>
@@ -441,7 +387,6 @@ const Detalle: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Confirmation when product added */}
       <Modal
         show={showAddedConfirm}
         title="Producto agregado"

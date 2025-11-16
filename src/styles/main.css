@@ -34,9 +34,6 @@ h1, h2, h3, h4 {
 }
 
 
-
-/* ===== Layout: sticky footer con Bootstrap =====
-   (Si App usa .d-flex.flex-column.min-vh-100, igual sirve como refuerzo) */
 .app-shell {
     min-height: 100vh;
     display: flex;
@@ -126,8 +123,6 @@ h1, h2, h3, h4 {
     }
 }
 
-/* Evita que la página se desplace horizontalmente cuando cambia la altura
-   (forzar la scrollbar vertical siempre visible para prevenir layout shift) */
 html {
     overflow-y: scroll;
 }
@@ -137,3 +132,6 @@ html {
     scroll-behavior: smooth;
 }
 
+body::-webkit-scrollbar {
+    display: none;
+}

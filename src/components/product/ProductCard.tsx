@@ -100,7 +100,12 @@ export const ProductCard: React.FC<Props> = ({ p, onPersonalize }) => {
 
     function viewCart() {
         setShowAdded(false);
-        navigate("/carrito");
+        try {
+            const ev = new CustomEvent("open-cart");
+            window.dispatchEvent(ev);
+        } catch (err) {
+            navigate("/carrito");
+        }
     }
 
     function closeAddedModal() {

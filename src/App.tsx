@@ -2,10 +2,9 @@ import Home from "./pages/home/Home";
 import Productos from "./pages/productos/Productos";
 import Detalle from "./pages/productos/Detalle";
 import Registro from "./pages/auth/Registro";
-import Header from "./components/header/Navbar";
+import Header from "./components/header/Header";
 import Footer from "./components/footer/Footer";
 import CarritoFlotante from "./components/cart/CarritoFlotante";
-import Carrito from "./pages/cart/Carrito";
 import Checkout from "./pages/checkout/Checkout";
 import Perfil from "./pages/account/Perfil";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -36,7 +35,6 @@ export function App() {
                 <Route path = '/blog/:id' element = {<Receta/>} />
                 <Route path = '/nosotros' element = {<Nosotros/>} />
                 <Route path = '/contacto' element = {<Contacto/>} />
-                <Route path = '/carrito' element = {<ProtectedRoute><Carrito/></ProtectedRoute>} />
                 <Route path = '/checkout' element = {<ProtectedRoute><Checkout/></ProtectedRoute>} />
                 <Route path = '/perfil' element = {<ProtectedRoute><Perfil/></ProtectedRoute>} />
                 {/* Common typo alias */}

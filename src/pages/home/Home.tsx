@@ -3,137 +3,10 @@ import ParallaxHero from "../../components/parallaxHero/ParallaxHero";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { isAdminEmail } from "../../utils/roles";
-import "./Home.css";
-import { getRatings } from "../../utils/ratings";
-import { products as seedProducts } from "../../utils/dataLoaders";
-import usersData from "../../data/users/users.json";
+import styles from "./Home.module.css";
+import Testimonials from "../../components/home/Testimonials";
 
-const Testimonials: React.FC = () => {
-  const [items, setItems] = React.useState<any[]>([]);
 
-  React.useEffect(() => {
-    try {
-      const all: any[] = [];
-      for (const p of (seedProducts || [])) {
-        const rs = getRatings(p.code);
-        for (const r of rs) {
-          if (r && r.stars === 5) {
-            all.push({ ...r, productCode: p.code });
-          }
-        }
-      }
-      // shuffle
-      for (let i = all.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [all[i], all[j]] = [all[j], all[i]];
-      }
-      setItems(all.slice(0, 3));
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
-  if (!items || items.length === 0) return <div className="row g-4"><div className="col-12 text-center text-muted">Aún no hay reseñas destacadas.</div></div>;
-
-  return (
-    <div className="row g-4">
-      {items.map((r, idx) => (
-        <div className="col-lg-4" key={idx}>
-          <div className="bg-white p-4 rounded-3 shadow-sm h-100 border-0 d-flex flex-column">
-            <div className="text-warning mb-3">★★★★★</div>
-            <p className="text-muted mb-4 lh-lg">"{r.comment}"</p>
-            <div className="d-flex align-items-center mt-auto">
-              {(() => {
-                const users = (usersData as any[]) || [];
-
-                // Helpers
-                const takeFirst = (s?: string) => (s || '').trim().split(/\s+/).filter(Boolean)[0] || '';
-                const splitLocal = (local: string) => String(local || '').split(/[._\-]/).filter(Boolean);
-
-                // Try to find a user by exact email
-                const found = users.find(u => String(u.correo).toLowerCase() === String(r.userEmail).toLowerCase());
-
-                let firstName = '';
-                let firstSurname = '';
-
-                if (found) {
-                  firstName = takeFirst(found.nombre);
-                  firstSurname = takeFirst(found.apellidos);
-                } else if (r.userName) {
-                  // userName may contain full name or a local-part; try space split first
-                  const nameTokens = String(r.userName).trim().split(/\s+/).filter(Boolean);
-                  if (nameTokens.length >= 2) {
-                    firstName = nameTokens[0];
-                    firstSurname = nameTokens[1];
-                  } else {
-                    // try splitting by common separators (for local-part like 'claudia.fernandez')
-                    const local = String(r.userName).split('@')[0];
-                    const parts = splitLocal(local);
-                    if (parts.length >= 2) {
-                      firstName = parts[0];
-                      firstSurname = parts[1];
-                    } else {
-                      firstName = parts[0] || nameTokens[0] || '';
-                    }
-                  }
-                } else if (r.userEmail) {
-                  // fallback: use email local-part
-                  const local = String(r.userEmail).split('@')[0];
-                  const parts = splitLocal(local);
-                  if (parts.length >= 2) {
-                    firstName = parts[0];
-                    firstSurname = parts[1];
-                  } else {
-                    firstName = parts[0] || '';
-                  }
-                }
-
-                // If surname missing, try additional fallbacks: match by email local-part or use tokens from other fields
-                if (!firstSurname) {
-                  try {
-                    if (r.userEmail) {
-                      const local = String(r.userEmail).split('@')[0].toLowerCase();
-                      const byLocal = users.find(u => String(u.correo).toLowerCase().startsWith(local));
-                      if (byLocal) firstSurname = takeFirst(byLocal.apellidos) || firstSurname;
-                    }
-                    // sometimes surname might be present in the nombre field (bad data) — take its second token
-                    if (!firstSurname && found) {
-                      const nombreTokens = String(found.nombre || '').trim().split(/\s+/).filter(Boolean);
-                      if (nombreTokens.length >= 2) firstSurname = nombreTokens[1];
-                    }
-                    // try r.userName second token or local-part separators
-                    if (!firstSurname && r.userName) {
-                      const nameTokens = String(r.userName).trim().split(/\s+/).filter(Boolean);
-                      if (nameTokens.length >= 2) firstSurname = nameTokens[1];
-                      else {
-                        const parts = splitLocal(String(r.userName).split('@')[0]);
-                        if (parts.length >= 2) firstSurname = parts[1];
-                      }
-                    }
-                  } catch (e) {
-                    // ignore fallback errors
-                  }
-                }
-
-                const displayName = (firstName + (firstSurname ? ' ' + firstSurname : '')).trim();
-
-                // initials: first letter of firstName + first letter of firstSurname (or second letter of firstName as fallback)
-                const initials = ((firstName[0] || '') + (firstSurname[0] || firstName[1] || '')).toUpperCase();
-
-                return (
-                  <>
-                    <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-semibold" style={{ width: '45px', height: '45px', background: 'var(--accent-main)' }}>{initials}</div>
-                    <div className="ms-3"><h6 className="mb-0 fw-semibold">{displayName || (r.userName || r.userEmail || '')}</h6></div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
 
 const Home: React.FC = () => {
     const { user } = useAuth();
@@ -141,10 +14,10 @@ const Home: React.FC = () => {
 
     return (
         <main className="home flex-grow-1">
-            <ParallaxHero image="/images/background/fondo.jpg" arrowToId="presentacion">
-                <h1 className="display-5 fw-bold titulo-home">Postres y momentos dulces</h1>
-                <p className="lead subtitulo-home">Sabores que celebran cada ocasión</p>
-            </ParallaxHero>
+      <ParallaxHero image="/images/background/fondo.jpg" arrowToId="presentacion">
+        <h1 className={`display-5 fw-bold ${styles['titulo-home']}`}>Postres y momentos dulces</h1>
+        <p className={`lead ${styles['subtitulo-home']}`}>Sabores que celebran cada ocasión</p>
+      </ParallaxHero>
 
             <section id="presentacion" className="py-5">
                 <div className="container">
@@ -164,9 +37,9 @@ const Home: React.FC = () => {
 
                     <div className="row mt-4">
                         <div className="col-12">
-              <div className="position-relative">
+                <div className="position-relative">
                 <video
-                  className="img-fluid rounded-3 shadow-lg embedded-video w-100"
+                  className={`img-fluid rounded-3 shadow-lg ${styles['embedded-video']} w-100`}
                   src="/videos/home/video_section.mp4"
                   autoPlay
                   muted

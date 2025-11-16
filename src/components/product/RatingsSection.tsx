@@ -82,7 +82,7 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
       <h3 className="h5">Calificaciones</h3>
       <div className={`${styles.ratingsCard} mt-2`}> 
         <div className={styles.headerRow}>
-          <div className={styles.avgValue}>{avg.count > 0 ? avg.avg.toFixed(1) : '—'}</div>
+          <div className={styles.avgValue}>{avg.count > 0 ? avg.avg.toFixed(1) : '0.0'}</div>
           <div className={`${styles.starsInline}`}>
             {Array.from({ length: 5 }).map((_, i) => (
               <i key={i} className={`bi ${i < Math.round(avg.avg) ? 'bi-star-fill' : 'bi-star'} me-1`} />
@@ -107,19 +107,25 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
             </div>
           </div>
 
-          <div className="mb-2">
-            <textarea className="form-control" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Escribe un comentario (obligatorio)" rows={3} />
-          </div>
+            <div className="mb-2">
+              <textarea
+                className={`form-control ${styles.fixedTextarea}`}
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Escribe un comentario (obligatorio)"
+                rows={3}
+                aria-label="Comentario sobre el producto"
+              />
+            </div>
 
           <div className={styles.submitRow}>
-            <button className="btn btn-sm btn-primary" type="submit">Enviar</button>
+            <button className={`btn btn-sm ${styles.publishBtn}`} type="submit"><i className="bi bi-send-fill me-2" />Publicar calificación</button>
             <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setNewStars(0); setNewComment(''); }}>Limpiar</button>
           </div>
         </form>
 
         {ratings.length > 0 && (
           <div className="mt-3">
-            <h4 className="h6">Reseñas</h4>
             {ratings.map((r, idx) => (
               <div key={idx} className={`mb-3 ${styles.reviewItem}`}>
                 <div className={styles.avatar}>{(r.userName || r.userEmail || '').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}</div>
@@ -133,7 +139,7 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
                     </div>
                   </div>
                   <div className={styles.reviewMeta}>{new Date(r.date).toLocaleString()}</div>
-                  <div className="mt-1">{r.comment}</div>
+                  <div className={`mt-1 ${styles.reviewText}`}>{r.comment}</div>
                 </div>
               </div>
             ))}

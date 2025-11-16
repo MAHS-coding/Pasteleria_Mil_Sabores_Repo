@@ -1,0 +1,55 @@
+/* Footer styles as CSS Module */
+.site-footer {
+    background: var(--color-background, #fff); /* Fondo blanco por defecto */
+    border-top: var(--border-soft, 1px solid rgba(0, 0, 0, 0.1)); /* Borde superior sutil */
+    font-size: 0.95rem; /* Tamaño base de texto */
+}
+
+.footer-col-title {
+    font-weight: 600; /* Negrita moderada */
+    font-size: 0.9rem;
+    text-transform: uppercase; /* Texto en mayúsculas */
+    letter-spacing: 0.5px; /* Espaciado de letras */
+    margin-bottom: 0.75rem; /* Separación del listado */
+    color: var(--color-text-primary, #1a1a1a);
+}
+
+.footer-links a {
+    display: block; /* Cada enlace ocupa una línea completa */
+    padding: 2px 0;
+    color: var(--color-text-secondary, #555);
+    text-decoration: none; /* Quita el subrayado */
+    transition: color 0.2s ease; /* Efecto suave en hover */
+}
+
+.footer-links a:hover {
+    color: var(--accent-main, #b08d57); /* Color dorado de marca */
+}
+
+.footer-logo {
+    max-height: 44px; /* Altura uniforme */
+    width: auto; /* Mantiene proporción */
+}
+
+.social-icons a {
+    color: var(--accent-main, #b08d57); /* Color dorado inicial */
+    font-size: 1.2rem;
+    transition: color 0.25s, transform 0.25s;
+}
+
+.social-icons a:hover {
+    color: var(--accent-dark, #6b3e26);
+    transform: translateY(-2px);
+}
+
+.footer-bottom {
+    text-align: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 1rem;
+}
+
+@media (max-width: 575.98px) {
+    .footer-col-title {
+        margin-top: 1.25rem; /* Añade espacio entre columnas en móviles */
+    }
+}

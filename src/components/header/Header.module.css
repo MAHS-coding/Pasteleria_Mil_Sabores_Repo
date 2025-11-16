@@ -1,0 +1,133 @@
+/* Header styles converted to CSS Module */
+
+/* --- LOGO PRINCIPAL --- */
+.brand-logo {
+    display: block;
+    height: auto;
+    width: auto;
+    max-height: 40px;
+    /* Mantiene proporción del logo */
+    max-width: 180px;
+    /* Evita que se estire demasiado */
+}
+
+/* --- NAVBAR PRINCIPAL --- */
+.primary-nav {
+    background: rgba(255, 255, 255, 0.75) !important;
+    /* Fondo blanco translúcido */
+    backdrop-filter: blur(12px);
+    /* Efecto de desenfoque en el fondo */
+    border-bottom: var(--border-soft);
+    /* Línea inferior suave */
+    height: var(--nav-h);
+    /* Altura controlada mediante variable global */
+}
+
+/* --- ENLACES DE NAVEGACIÓN --- */
+.primary-nav .nav-link {
+    font-weight: 300;
+    /* Tipografía ligera */
+    font-size: 1rem;
+    color: var(--color-text-primary, #1a1a1a);
+    /* Color de texto principal */
+    transition: color var(--transition, 0.3s ease);
+    /* Suaviza el cambio de color */
+}
+
+/* Color dorado al pasar el cursor: aplica a enlaces del navbar y items del dropdown */
+.primary-nav :global(.nav-link),
+.primary-nav :global(.dropdown-item) {
+    transition: color var(--transition, 0.2s) ease, background-color var(--transition, 0.2s) ease;
+}
+
+.primary-nav :global(.nav-link):hover,
+.primary-nav :global(.nav-link):focus,
+.primary-nav :global(.dropdown-item):hover,
+.primary-nav :global(.dropdown-item):focus {
+    color: var(--accent-main, #b08d57) !important;
+    /* keep background changes handled by Bootstrap for dropdown items */
+}
+
+/* Also style action buttons inside the navbar (register/login) on hover */
+.primary-nav :global(.navbar .btn):hover {
+    color: var(--accent-main, #b08d57);
+}
+
+/* --- BOTÓN DE MENÚ (solo visible en móvil) --- */
+:global(.navbar-toggler) {
+    border: none !important;
+}
+
+/* Quita el efecto de foco azul al presionar el botón */
+:global(.navbar-toggler:focus) {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* --- ELEMENTOS DE MENÚ DESPLEGABLE --- */
+:global(.dropdown-item) {
+    font-weight: 300;
+}
+
+/* Colores de fondo y texto del item activo */
+:global(.dropdown-item:focus),
+:global(.dropdown-item:active) {
+    background-color: var(--accent-main, #b08d57) !important;
+    color: var(--color-background, #fff) !important;
+}
+
+:global(header:has(.navbar-collapse.show)) {
+    position: static !important;
+}
+
+:global(header:has(.navbar-collapse.show)) .navbar {
+    position: relative !important;
+}
+
+/* Add extra spacing between navbar items for better readability */
+:global(.navbar-nav .nav-item) {
+    margin-left: 0.5rem;
+    /* space between items */
+    margin-right: 0.5rem;
+}
+
+/* Increase clickable area of links */
+:global(.navbar-nav .nav-link) {
+    padding: 0.5rem 0.75rem;
+}
+
+/* Space between brand and nav items on large screens */
+@media (min-width: 992px) {
+    :global(.navbar .navbar-brand) {
+        margin-right: 1.25rem;
+    }
+}
+
+/* Slightly increase spacing for action buttons (register/login) */
+:global(.navbar .btn.btn-success) {
+    margin-left: 0.5rem;
+}
+
+/* Register action styled with brand accent */
+.btn-register {
+    background: var(--accent-main);
+    color: var(--color-background, #fff);
+    border: 1px solid var(--accent-main);
+    padding: 0.35rem 0.8rem;
+    border-radius: 0.35rem;
+    transition: background-color var(--transition, 0.15s) ease, transform 0.08s ease, box-shadow 0.15s ease;
+}
+
+.btn-register:hover,
+.btn-register:focus {
+    filter: brightness(0.95);
+    background-color: var(--accent-dark);
+    color: var(--color-background, #fff);
+    text-decoration: none;
+    box-shadow: 0 6px 14px rgba(var(--accent-main-rgb, 176,141,87), 0.12);
+}
+
+.btn-register:active {
+    transform: translateY(1px);
+    color: var(--accent-main);
+}

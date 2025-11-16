@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './Contacto.css';
+import styles from './Contacto.module.css';
 import ParallaxHero from "../../components/parallaxHero/ParallaxHero";
 
 
@@ -33,7 +33,7 @@ const Contacto: React.FC = () => {
             <section className="container my-5">
                 <div className="row g-4 align-items-stretch">
                     <div className="col-lg-5">
-                        <div className="contact-card h-100 p-4">
+                        <div className={`${styles['contact-card']} h-100 p-4`}>
                             <h2 className="h4 mb-3">Contáctanos</h2>
                             <p className="mb-4">La forma más rápida: escríbenos por WhatsApp y cuéntanos qué necesitas.</p>
 
@@ -58,7 +58,7 @@ const Contacto: React.FC = () => {
                     </div>
 
                     <div className="col-lg-7">
-                        <div className="contact-card h-100 p-4">
+                        <div className={`${styles['contact-card']} h-100 p-4`}>
                             <h2 className="h4 mb-3">¿Prefieres dejarnos un mensaje?</h2>
 
                             <form id="contactoForm" className="needs-validation" noValidate
@@ -111,8 +111,8 @@ const Contacto: React.FC = () => {
             </section>
 
             <section className="container mb-5">
-                <div className="contact-card p-2">
-                    <iframe className="w-100 map-iframe" height={360} style={{ border: 0 }} loading="lazy" title="Ubicación" allowFullScreen
+                <div className={`${styles['contact-card']} p-2`}>
+                    <iframe className={`w-100 ${styles['map-iframe']}`} height={360} style={{ border: 0 }} loading="lazy" title="Ubicación" allowFullScreen
                         referrerPolicy="no-referrer-when-downgrade"
                         src="https://www.google.com/maps?q=Duoc%20UC%20Concepci%C3%B3n&z=16&output=embed" />
                 </div>

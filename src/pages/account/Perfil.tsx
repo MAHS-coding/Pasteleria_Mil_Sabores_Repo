@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { findUserByEmail, updateUser, isDuocEmail, isBirthdayToday } from '../../utils/registro';
 import type { StoredUser } from '../../utils/registro';
@@ -35,6 +35,9 @@ const Perfil: React.FC = () => {
     const [addrComuna, setAddrComuna] = useState('');
     const [addAddressError, setAddAddressError] = useState('');
 
+    // editing mode for personal data
+    const [isEditing, setIsEditing] = useState(false);
+
     // orders
     const [orders, setOrders] = useState<Array<any>>([]);
 
@@ -59,6 +62,8 @@ const Perfil: React.FC = () => {
         setTelefono(storedUser?.phone ?? '');
         setBirthdate(storedUser?.birthdate ?? '');
         setAvatarPreview(storedUser?.avatarDataUrl ?? null);
+        // exit editing mode when stored user changes
+        setIsEditing(false);
         // load orders for this user
         try {
             const all = getJSON<any[]>('ordenes') || [];
@@ -106,7 +111,30 @@ const Perfil: React.FC = () => {
 
     function requestSaveProfile() {
         if (!user?.email) return;
+        // Prevent opening the confirm/save flow when there are no changes
+        if (!isDirty) return;
         setConfirmSaveOpen(true);
+    }
+
+    // detect if any editable field differs from stored user -> used to enable/disable Guardar
+    const isDirty = useMemo(() => {
+        if (!storedUser) return false;
+        const storedAvatar = storedUser.avatarDataUrl ?? null;
+        return (
+            nombre !== (storedUser.name ?? '') ||
+            apellido !== (storedUser.lastname ?? '') ||
+            telefono !== (storedUser.phone ?? '') ||
+            avatarPreview !== storedAvatar
+        );
+    }, [nombre, apellido, telefono, avatarPreview, storedUser]);
+
+    function cancelEdit() {
+        // revert local fields to stored values
+        setNombre(storedUser?.name ?? '');
+        setApellido(storedUser?.lastname ?? '');
+        setTelefono(storedUser?.phone ?? '');
+        setAvatarPreview(storedUser?.avatarDataUrl ?? null);
+        setIsEditing(false);
     }
 
     function confirmSaveProfile() {
@@ -268,19 +296,19 @@ const Perfil: React.FC = () => {
 
                                 <div className="col-12 col-md-6">
                                     <label className="form-label" htmlFor="telefono">Teléfono (opcional)</label>
-                                    <input id="telefono" className="form-control" placeholder="Ej: +56 9 1234 5678" value={telefono} name="telefono" onChange={(e) => setTelefono(e.target.value)} />
+                                    <input id="telefono" className="form-control" placeholder="Ej: +56 9 1234 5678" value={telefono} name="telefono" onChange={(e) => setTelefono(e.target.value)} disabled={!isEditing} />
                                 </div>
 
                                 <div className="col-12 col-md-6">
                                     <div className="mb-3">
                                         <label className="form-label" htmlFor="nombre">Nombre</label>
-                                        <input id="nombre" className="form-control" placeholder="María" value={nombre} name="nombre" onChange={(e) => setNombre(e.target.value)} />
+                                        <input id="nombre" className="form-control" placeholder="María" value={nombre} name="nombre" onChange={(e) => setNombre(e.target.value)} disabled={!isEditing} />
                                     </div>
                                 </div>
                                 <div className="col-12 col-md-6">
                                     <div className="mb-3">
                                         <label className="form-label" htmlFor="apellidos">Apellidos</label>
-                                        <input id="apellidos" className="form-control" placeholder="Pérez González" value={apellido} name="apellidos" onChange={(e) => setApellido(e.target.value)} />
+                                        <input id="apellidos" className="form-control" placeholder="Pérez González" value={apellido} name="apellidos" onChange={(e) => setApellido(e.target.value)} disabled={!isEditing} />
                                     </div>
                                 </div>
 
@@ -296,7 +324,22 @@ const Perfil: React.FC = () => {
                                 
 
                                 <div className="d-flex flex-wrap gap-2 mt-3">
-                                    <button type="button" className={`btn ${styles.saveButton}`} onClick={requestSaveProfile}><i className="bi bi-save2 me-1" /> Guardar cambios</button>
+                                    {!isEditing ? (
+                                        <button type="button" className={`btn ${styles.saveButton}`} onClick={() => setIsEditing(true)}><i className="bi bi-pencil me-1" /> Editar</button>
+                                    ) : (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className={`btn ${styles.saveButton}`}
+                                                onClick={requestSaveProfile}
+                                                disabled={!isDirty}
+                                                title={isDirty ? 'Guardar cambios' : 'No hay cambios para guardar'}
+                                            >
+                                                <i className="bi bi-save2 me-1" /> Guardar
+                                            </button>
+                                            <button type="button" className="btn btn-outline-secondary" onClick={cancelEdit}>Cancelar</button>
+                                        </>
+                                    )}
                                 </div>
                             </form>
                         </div>

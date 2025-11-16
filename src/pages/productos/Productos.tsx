@@ -152,7 +152,14 @@ const Productos: React.FC = () => {
 
     function goToCart() {
         setShowAddedConfirm(false);
-        navigate("/carrito");
+        try {
+            // Dispatch a global event so the floating cart (if present) can open.
+            // If no listener is present (or dispatch fails), fall back to navigating to the cart page.
+            const ev = new CustomEvent("open-cart");
+            window.dispatchEvent(ev);
+        } catch (e) {
+            navigate("/carrito");
+        }
     }
 
     // addToCart handled by ProductCard; personalize still opens modal via onPersonalize
