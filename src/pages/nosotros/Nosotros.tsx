@@ -5,7 +5,7 @@ import './Nosotros.css';
 const Nosotros: React.FC = () => {
     return (
         <main className="nosotros-page d-flex flex-column min-vh-100">
-            <ParallaxHeros image="/images/background/fondo.jpg" arrowToId="frescura">
+            <ParallaxHero image="/images/background/fondo.jpg" arrowToId="frescura">
                 <h1 className="display-5 fw-bold titulo-home">Postres y momentos dulces</h1>
                 <p className="lead subtitulo-home">Sabores que celebran cada ocasión</p>
             </ParallaxHero>
