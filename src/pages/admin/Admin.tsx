@@ -563,6 +563,14 @@ const Admin: React.FC = () => {
                 const [addCatMode, setAddCatMode] = useState<'existing'|'new'>("existing");
                 const [addNewCat, setAddNewCat] = useState<string>("");
 
+                // Helper: convierte File a DataURL (base64) para almacenar en localStorage
+                const fileToDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
+                    const fr = new FileReader();
+                    fr.onload = () => resolve(String(fr.result || ''));
+                    fr.onerror = () => reject(new Error('Error leyendo archivo'));
+                    fr.readAsDataURL(file);
+                });
+
                 const categories = useMemo(() => {
                     const set = new Set<string>();
                     (catalogo || []).forEach((p:any) => {
@@ -826,7 +834,18 @@ const Admin: React.FC = () => {
                                 <div className="col-md-3"><label className="form-label">Stock crítico</label><input type="number" min={0} className="form-control" value={newProd.stockCritico} onChange={(e)=>setNewProd((p:any)=>({...p, stockCritico:Number(e.target.value)}))} /></div>
                                 <div className="col-md-3"><label className="form-label">Capacidad diaria</label><input type="number" min={0} className="form-control" value={newProd.capacidadDiaria} onChange={(e)=>setNewProd((p:any)=>({...p, capacidadDiaria:Number(e.target.value)}))} /></div>
                                 <div className="col-12"><label className="form-label">Descripción</label><textarea className="form-control" rows={2} value={newProd.desc} onChange={(e)=>setNewProd((p:any)=>({...p, desc:e.target.value}))} /></div>
-                                <div className="col-12"><label className="form-label">URL imagen</label><input className="form-control" value={newProd.img} onChange={(e)=>setNewProd((p:any)=>({...p, img:e.target.value}))} /></div>
+                                <div className="col-md-6">
+                                    <label className="form-label">URL imagen (o subir archivo)</label>
+                                    <input className="form-control mb-2" placeholder="https://..." value={newProd.img} onChange={(e)=>setNewProd((p:any)=>({...p, img:e.target.value}))} />
+                                    <input type="file" accept="image/*" className="form-control" onChange={(e)=>{
+                                        const f = (e.target as HTMLInputElement).files && (e.target as HTMLInputElement).files![0];
+                                        if (!f) return;
+                                        fileToDataUrl(f).then((data) => setNewProd((p:any)=>({...p, img: data}))).catch(()=>{});
+                                    }} />
+                                    {newProd.img && (
+                                        <div className="mt-2"><img src={newProd.img} alt="Preview" style={{ maxWidth: 160, maxHeight: 120 }} /></div>
+                                    )}
+                                </div>
                                 <div className="col-12"><button className="btn btn-primary" type="submit">Agregar</button></div>
                                 {addMsg.text && <div className={`col-12 ${addMsg.ok? 'text-success':'text-danger'}`}>{addMsg.text}</div>}
                             </form>
@@ -858,7 +877,18 @@ const Admin: React.FC = () => {
                                                     </div>
                                                 )}
                                             </div>
-                                <div className="col-md-6"><label className="form-label">URL imagen</label><input className="form-control" value={editFields.img} onChange={(e)=>setEditFields((f:any)=>({...f, img:e.target.value}))} /></div>
+                                <div className="col-md-6">
+                                    <label className="form-label">URL imagen (o subir archivo)</label>
+                                    <input className="form-control mb-2" placeholder="https://..." value={editFields.img} onChange={(e)=>setEditFields((f:any)=>({...f, img:e.target.value}))} />
+                                    <input type="file" accept="image/*" className="form-control" onChange={(e)=>{
+                                        const f = (e.target as HTMLInputElement).files && (e.target as HTMLInputElement).files![0];
+                                        if (!f) return;
+                                        fileToDataUrl(f).then((data) => setEditFields((p:any)=>({...p, img: data}))).catch(()=>{});
+                                    }} />
+                                    {editFields.img && (
+                                        <div className="mt-2"><img src={editFields.img} alt="Preview" style={{ maxWidth: 160, maxHeight: 120 }} /></div>
+                                    )}
+                                </div>
                                 <div className="col-12"><label className="form-label">Descripción</label><textarea className="form-control" rows={2} value={editFields.desc} onChange={(e)=>setEditFields((f:any)=>({...f, desc:e.target.value}))} /></div>
                                 <div className="col-md-3"><label className="form-label">Precio</label><input type="number" className="form-control" min={0} value={String(editFields.price)} onChange={(e)=>setEditFields((f:any)=>({...f, price:e.target.value}))} /></div>
                                 <div className="col-md-3"><label className="form-label">Stock</label><input type="number" className="form-control" min={0} value={String(editFields.stock)} onChange={(e)=>setEditFields((f:any)=>({...f, stock:e.target.value}))} /></div>
