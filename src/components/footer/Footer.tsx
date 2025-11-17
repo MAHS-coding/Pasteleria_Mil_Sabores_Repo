@@ -1,24 +1,28 @@
 import React from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { scrollToTop } from "../../utils/scroll";
 import styles from "./Footer.module.css"; // Importa estilos del footer como módulo
 
 // Componente funcional Footer (define el pie de página del sitio)
 const Footer: React.FC = () => {
     // Obtiene el año actual dinámicamente para mostrarlo en el copyright
     const year = new Date().getFullYear();
+    const { user } = useAuth();
+
+    // usa el helper compartido
+    
 
     return (
         // Contenedor principal del footer con clases de Bootstrap y personalizadas
-    <footer className={`${styles['site-footer']} mt-auto`}>
+    <footer className={`${styles['site-footer']} mt-auto`}> 
             <div className="container py-4">
                 {/* --- Sección superior: columnas principales --- */}
                 <div className="row gy-4 align-items-start">
                     
                     {/* Columna 1: Logo y redes sociales */}
                     <div className="col-12 col-md-3">
-                        <a
-                            className="navbar-brand mb-2 d-inline-flex align-items-center"
-                            href="/"
-                        >
+                        <Link to="/" onClick={scrollToTop} className="navbar-brand mb-2 d-inline-flex align-items-center">
                             {/* Logo principal */}
                             <img
                                 src="/images/logos/logo_titulo.png"
@@ -26,19 +30,19 @@ const Footer: React.FC = () => {
                                 height={44}
                                 className={styles['footer-logo']}
                             />
-                        </a>
+                        </Link>
 
                         {/* Enlaces a redes sociales */}
                         <div className="d-flex align-items-center gap-2 mt-2">
                             <span>Síguenos en:</span>
                             <div className={`d-flex gap-3 ${styles['social-icons']}`}>
-                                <a href="#" aria-label="WhatsApp">
+                                <a href="https://wa.me/56900000000" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
                                     <i className="bi bi-whatsapp"></i>
                                 </a>
-                                <a href="#" aria-label="Instagram">
+                                <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                                     <i className="bi bi-instagram"></i>
                                 </a>
-                                <a href="#" aria-label="Facebook">
+                                <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                                     <i className="bi bi-facebook"></i>
                                 </a>
                             </div>
@@ -49,19 +53,20 @@ const Footer: React.FC = () => {
                     <div className="col-6 col-md-2">
                         <div className={styles['footer-col-title']}>PASTELERÍA</div>
                         <ul className={`list-unstyled ${styles['footer-links']}`}>
-                            <li><a href="#">Nosotros</a></li>
-                            <li><a href="#">Blog</a></li>
-                            <li><a href="#">Catálogo</a></li>
-                            <li><a href="#">Recetas</a></li>
+                            <li><Link to="/nosotros" onClick={scrollToTop}>Nosotros</Link></li>
+                            <li><Link to="/blogs" onClick={scrollToTop}>Blog</Link></li>
+                            <li><Link to="/productos" onClick={scrollToTop}>Catálogo</Link></li>
                         </ul>
                     </div>
 
                     {/* Columna 3: Enlaces de Ayuda */}
                     <div className="col-6 col-md-2">
                         <div className={styles['footer-col-title']}>AYUDA</div>
-                        <ul className={`list-unstyled ${styles['footer-links']}`}>
-                            <li><a href="#">Contacto</a></li>
-                            <li><a href="#">Mis pedidos</a></li>
+                            <ul className={`list-unstyled ${styles['footer-links']}`}>
+                            <li><Link to="/contacto" onClick={scrollToTop}>Contacto</Link></li>
+                            {user && (
+                                <li><Link to="/perfil" onClick={scrollToTop}>Mis pedidos</Link></li>
+                            )}
                         </ul>
                     </div>
 
@@ -69,11 +74,11 @@ const Footer: React.FC = () => {
                     <div className="col-6 col-md-2">
                         <div className={styles['footer-col-title']}>MENÚ</div>
                         <ul className={`list-unstyled ${styles['footer-links']}`}>
-                            <li><a href="#">Tortas Cuadradas</a></li>
-                            <li><a href="#">Tortas Circulares</a></li>
-                            <li><a href="#">Postres Individuales</a></li>
-                            <li><a href="#">Sin Azúcar</a></li>
-                            <li><a href="#">Sin Gluten</a></li>
+                            <li><Link to="/productos/tortas-cuadradas" onClick={scrollToTop}>Tortas Cuadradas</Link></li>
+                            <li><Link to="/productos/tortas-circulares" onClick={scrollToTop}>Tortas Circulares</Link></li>
+                            <li><Link to="/productos/postres-individuales" onClick={scrollToTop}>Postres Individuales</Link></li>
+                            <li><Link to="/productos/sin-azucar" onClick={scrollToTop}>Sin Azúcar</Link></li>
+                            <li><Link to="/productos/sin-gluten" onClick={scrollToTop}>Sin Gluten</Link></li>
                         </ul>
                     </div>
 
@@ -81,8 +86,8 @@ const Footer: React.FC = () => {
                     <div className="col-6 col-md-3">
                         <div className={styles['footer-col-title']}>LEGAL</div>
                         <ul className={`list-unstyled ${styles['footer-links']}`}>
-                            <li><a href="#">Términos y Condiciones</a></li>
-                            <li><a href="#">Política de Privacidad</a></li>
+                            <li><Link to="/terminos" onClick={scrollToTop}>Términos y Condiciones</Link></li>
+                            <li><Link to="/privacidad" onClick={scrollToTop}>Política de Privacidad</Link></li>
                         </ul>
                     </div>
                 </div>
@@ -95,13 +100,9 @@ const Footer: React.FC = () => {
                     <div>
                         © {year} Pastelería Mil Sabores. Todos los derechos reservados.
                     </div>
-                    <div className="d-flex gap-3">
-                        <a href="#" className="text-decoration-none text-secondary">
-                            Términos
-                        </a>
-                        <a href="#" className="text-decoration-none text-secondary">
-                            Privacidad
-                        </a>
+                        <div className="d-flex gap-3">
+                        <Link to="/terminos" onClick={scrollToTop} className="text-decoration-none text-secondary">Términos</Link>
+                        <Link to="/privacidad" onClick={scrollToTop} className="text-decoration-none text-secondary">Privacidad</Link>
                     </div>
                 </div>
             </div>

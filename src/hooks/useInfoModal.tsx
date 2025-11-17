@@ -1,16 +1,18 @@
 import React, { useCallback, useState } from "react";
 import Modal from "../components/ui/Modal";
 
-export type ShowInfo = (title: string, message: string) => void;
+export type ShowInfo = (title: string, message: string, confirmLabel?: string) => void;
 
 export function useInfoModal() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState<string>("Aviso");
   const [message, setMessage] = useState<string>("");
+  const [confirmLabel, setConfirmLabel] = useState<string>("Cerrar");
 
-  const showInfo = useCallback<ShowInfo>((t, m) => {
+  const showInfo = useCallback<ShowInfo>((t, m, label = "Cerrar") => {
     setTitle(t);
     setMessage(m);
+    setConfirmLabel(label || "Cerrar");
     setOpen(true);
   }, []);
 
@@ -20,7 +22,7 @@ export function useInfoModal() {
       title={title}
       onClose={() => setOpen(false)}
       onConfirm={() => setOpen(false)}
-      confirmLabel="Cerrar"
+      confirmLabel={confirmLabel}
     >
       <div>{message}</div>
     </Modal>

@@ -40,10 +40,6 @@ export const CarritoFlotante: React.FC = () => {
   // Track touch start Y for touchmove edge handling
   const touchStartY = useRef<number | null>(null);
 
-  // When the cart is open, prevent navigation by blocking clicks on
-  // anchor (<a>) elements that are outside the cart. This stops user
-  // from navigating away while the cart overlay is active. We use
-  // capture phase to intercept before React Router handles the click.
   useEffect(() => {
     if (!isOpen) return;
 
@@ -228,7 +224,7 @@ export const CarritoFlotante: React.FC = () => {
   <aside ref={(el) => { asideRef.current = el; }} style={{ overflowY: 'auto', maxHeight: '100vh', overscrollBehavior: 'contain' }} className={`${styles['cart-sidebar']} ${isOpen ? styles['sidebarActive'] : ''}`} aria-hidden={!isOpen}>
         <div className="cart-header">
             <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-            <h5 className="mb-0 fw-bold text-white">
+            <h5 className="mb-0 fw-bold">
               <i className="bi bi-cart3 me-2"></i>
               Mi Carrito
             </h5>

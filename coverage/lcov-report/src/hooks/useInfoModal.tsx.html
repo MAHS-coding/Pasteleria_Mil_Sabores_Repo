@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">57.14% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/12</span>
+                <span class='fraction'>8/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>0/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">40% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>2/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">57.14% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/12</span>
+                <span class='fraction'>8/14</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line medium'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -95,67 +95,73 @@
 <a name='L30'></a><a href='#L30'>30</a>
 <a name='L31'></a><a href='#L31'>31</a>
 <a name='L32'></a><a href='#L32'>32</a>
-<a name='L33'></a><a href='#L33'>33</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { useCallback, useState } from "react";
 import Modal from "../components/ui/Modal";
 &nbsp;
-export type ShowInfo = (title: string, message: string) =&gt; void;
+export type ShowInfo = (title: string, message: string, confirmLabel?: string) =&gt; void;
 &nbsp;
-export function <span class="fstat-no" title="function not covered" >useInfoModal() {</span>
-  const [open, setOpen] = <span class="cstat-no" title="statement not covered" >useState(false);</span>
-  const [title, setTitle] = <span class="cstat-no" title="statement not covered" >useState&lt;string&gt;("Aviso");</span>
-  const [message, setMessage] = <span class="cstat-no" title="statement not covered" >useState&lt;string&gt;("");</span>
+export function useInfoModal() {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState&lt;string&gt;("Aviso");
+  const [message, setMessage] = useState&lt;string&gt;("");
+  const [confirmLabel, setConfirmLabel] = useState&lt;string&gt;("Cerrar");
 &nbsp;
-  const showInfo = <span class="cstat-no" title="statement not covered" >useCallback&lt;ShowInfo&gt;(<span class="fstat-no" title="function not covered" >(t</span>, m) =&gt; {</span>
+  const showInfo = useCallback&lt;ShowInfo&gt;(<span class="fstat-no" title="function not covered" >(t</span>, m, label = <span class="branch-0 cbranch-no" title="branch not covered" >"Cerrar") =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    setTitle(t);</span>
 <span class="cstat-no" title="statement not covered" >    setMessage(m);</span>
+<span class="cstat-no" title="statement not covered" >    setConfirmLabel(label || "Cerrar");</span>
 <span class="cstat-no" title="statement not covered" >    setOpen(true);</span>
   }, []);
 &nbsp;
-  const InfoModal: React.FC = <span class="cstat-no" title="statement not covered" >useCallback(<span class="fstat-no" title="function not covered" >() =&gt; (</span></span>
-<span class="cstat-no" title="statement not covered" >    &lt;Modal</span>
+  const InfoModal: React.FC = useCallback(() =&gt; (
+    &lt;Modal
       show={open}
       title={title}
       onClose={<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >s</span>etOpen(false)}</span>
       onConfirm={<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >s</span>etOpen(false)}</span>
-      confirmLabel="Cerrar"
+      confirmLabel={confirmLabel}
     &gt;
       &lt;div&gt;{message}&lt;/div&gt;
     &lt;/Modal&gt;
   ), [open, title, message]);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return { InfoModal, showInfo } as const;</span>
+  return { InfoModal, showInfo } as const;
 }
 &nbsp;
 export default useInfoModal;
@@ -166,7 +172,7 @@ export default useInfoModal;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T22:57:14.012Z
+                at 2025-11-17T03:20:33.096Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

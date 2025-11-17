@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/100</span>
+                <span class='fraction'>0/103</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/62</span>
+                <span class='fraction'>0/64</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/65</span>
+                <span class='fraction'>0/68</span>
             </div>
         
             
@@ -275,7 +275,15 @@
 <a name='L210'></a><a href='#L210'>210</a>
 <a name='L211'></a><a href='#L211'>211</a>
 <a name='L212'></a><a href='#L212'>212</a>
-<a name='L213'></a><a href='#L213'>213</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -345,6 +353,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -352,7 +361,14 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -491,8 +507,8 @@
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { formatearRun, validarRun, emailDominioValido } from "../../utils/validation";
-import { createUser } from "../../utils/registro";
-import { sha256Hex } from "../../utils/hash";
+import authService from "../../services/authService";
+import userService from "../../services/userService";
 import Modal from "../../components/ui/Modal";
 import FieldFeedback from "../../components/ui/FieldFeedback";
 import FormField from "../../components/ui/FormField";
@@ -554,17 +570,25 @@ const Registro: React.FC = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >        setErrors(v);</span>
 <span class="cstat-no" title="statement not covered" >        if (Object.keys(v).length) <span class="cstat-no" title="statement not covered" >return;</span></span>
 &nbsp;
-        // Hash password before storing
-        const hashed = <span class="cstat-no" title="statement not covered" >await sha256Hex(password);</span>
-&nbsp;
-    const result = <span class="cstat-no" title="statement not covered" >createUser({ run, name, lastname, email, birthdate, codigo, password: hashed });</span>
+        // Register using authService which handles hashing and validation
+            const payload = <span class="cstat-no" title="statement not covered" >{ run, name, lastname, email, birthdate, codigo, passwordPlain: password };</span>
+            // authService.register currently expects a StoredUser-like shape in types while it accepts a passwordPlain at runtime.
+            // Cast to any to satisfy TypeScript until the service typing is adjusted.
+            const result = <span class="cstat-no" title="statement not covered" >await authService.register(payload as any);</span>
 <span class="cstat-no" title="statement not covered" >        if (!result.ok) {</span>
 <span class="cstat-no" title="statement not covered" >            if (result.error === 'email_exists') <span class="cstat-no" title="statement not covered" >setErrors({ email: "Ya existe una cuenta con ese correo." });</span></span>
             else <span class="cstat-no" title="statement not covered" >setErrors({ email: "No se pudo crear la cuenta." });</span>
 <span class="cstat-no" title="statement not covered" >            return;</span>
         }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >        login({ name, email });</span>
+        // Log the user in via userService to persist session, then update AuthContext
+        const loginRes = <span class="cstat-no" title="statement not covered" >await userService.login(email, password);</span>
+<span class="cstat-no" title="statement not covered" >        if (loginRes.ok) {</span>
+<span class="cstat-no" title="statement not covered" >            login({ name: loginRes.user.name, email: loginRes.user.email });</span>
+        } else {
+            // fallback: set context directly
+<span class="cstat-no" title="statement not covered" >            login({ name, email });</span>
+        }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >        setShowSuccess(true);</span>
     }
@@ -589,7 +613,7 @@ const Registro: React.FC = <span class="cstat-no" title="statement not covered" 
                         &lt;div className="row justify-content-center"&gt;
                             &lt;div className="col-11 col-md-10 col-lg-12"&gt;
                                 &lt;div className="d-flex flex-column flex-lg-row align-items-center gap-3 text-center text-lg-start p-3 p-lg-4 rounded-4 shadow-lg" style={{ background: 'rgba(31, 8, 56, 0.5)', backdropFilter: 'blur(18px)', border: '1px solid rgba(255,255,255,0.2)' }}&gt;
-                                    &lt;img alt="Pastelería Mil Sabores" width={140} className={`${styles.logo} rounded-pill shadow border border-light border-opacity-50`} src="/src/assets/images/logo_tienda.png" /&gt;
+                                    &lt;img alt="Pastelería Mil Sabores" width={140} className={`${styles.logo} rounded-pill shadow border border-light border-opacity-50`} src="/images/background/fondo.jpg" /&gt;
                                     &lt;div&gt;
                                         &lt;span className="badge text-uppercase fw-semibold mb-3 bg-white text-body-secondary px-3 py-2"&gt;Tu pastelería favorita&lt;/span&gt;
                                         &lt;h1 className="mb-2 brand-name text-white"&gt;Pastelería Mil Sabores&lt;/h1&gt;
@@ -706,7 +730,7 @@ export default Registro;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T22:57:14.012Z
+                at 2025-11-17T03:20:33.096Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

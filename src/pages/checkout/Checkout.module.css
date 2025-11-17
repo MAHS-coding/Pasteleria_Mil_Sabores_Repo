@@ -1,0 +1,97 @@
+/* Minimal CSS for checkout page: only classes used by Checkout.tsx */
+
+.checkout-form {
+    padding: 1rem;
+}
+
+.card-resumen {
+    background: linear-gradient(180deg, #fff, #fbfbfb);
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.card-resumen h5 {
+    margin-bottom: 0.75rem;
+}
+
+.confirmBtn {
+    background: var(--accent-main, #b08d57);
+    color: #fff;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    box-shadow: 0 8px 20px rgba(var(--accent-main-rgb, 176,141,87), 0.12);
+}
+.confirmBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.accentOutlineBtn {
+    background: var(--accent-main);
+    border: 1px solid var(--accent-main, #b08d57);
+    color: var(--color-background, #fff);
+}
+.accentOutlineBtn:hover {
+    background: var(--accent-dark);
+    color: #fff;
+}
+
+@media (max-width: 767px) {
+    .card-resumen {
+        margin-bottom: 1rem;
+    }
+}
+
+.cardsList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.cardItem {
+    border: 1px solid rgba(0,0,0,0.06);
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.cardMeta { font-size: 0.9rem; }
+.newCardForm { display: flex; flex-direction: column; gap: 0.5rem; }
+.smallInput { max-width: 160px; }
+
+/* Ensure action buttons inside cardItem layout nicely on small screens */
+.cardItem > div:last-child {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+@media (max-width: 575.98px) {
+    .cardItem {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    .cardItem > div:first-child {
+        width: 100%;
+    }
+    .cardItem > div:last-child {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+    .cardItem .confirmBtn,
+    .cardItem .btn-danger,
+    .cardItem .btn {
+        /* make buttons more touch-friendly and avoid overlap */
+        width: auto;
+        min-width: 0;
+    }
+}
+
+.confirmBtn:hover,
+.confirmBtn:focus {
+    background: var(--accent-dark, #9a6f3f);
+    color: #fff;
+    box-shadow: 0 14px 32px rgba(var(--accent-main-rgb, 176,141,87), 0.28);
+}

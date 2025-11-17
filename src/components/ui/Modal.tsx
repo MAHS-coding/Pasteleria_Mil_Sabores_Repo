@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import "./Modal.css";
 
 type Props = {
@@ -23,13 +24,19 @@ const Modal: React.FC<Props> = ({ show, title, children, onClose, onConfirm, con
         const handler = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose && onClose();
         };
+        // prevent page scroll when modal open
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
         window.addEventListener("keydown", handler);
-        return () => window.removeEventListener("keydown", handler);
+        return () => {
+            window.removeEventListener("keydown", handler);
+            document.body.style.overflow = prevOverflow;
+        };
     }, [show, onClose]);
 
     if (!show) return null;
 
-    return (
+    const node = (
         <>
             <div id={id} className="modal d-block" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={labelledBy} style={{ background: "rgba(0,0,0,0.4)" }}>
                 <div className={`modal-dialog modal-dialog-centered ${className || ""}`} role="document">
@@ -53,6 +60,8 @@ const Modal: React.FC<Props> = ({ show, title, children, onClose, onConfirm, con
             <div className="modal-backdrop fade show"></div>
         </>
     );
+
+    return typeof document !== 'undefined' && document.body ? createPortal(node, document.body) : node;
 };
 
 export default Modal;

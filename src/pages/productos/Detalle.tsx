@@ -5,6 +5,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { products as seedProducts } from "../../utils/dataLoaders";
 import type { Product } from "../../types/product";
 import styles from "./Detalle.module.css";
+import { scrollToTop } from "../../utils/scroll";
 import ProductCard from "../../components/product/ProductCard";
 import { useCart } from "../../context/CartContext";
 import { getRelatedProducts, isPersonalizable, getProductByCode } from "../../utils/products";
@@ -40,6 +41,15 @@ const Detalle: React.FC = () => {
       return;
     }
     setProducto(found as Product);
+  }, [code]);
+
+  // Asegura que al navegar al detalle la vista quede al inicio (importante en mobile)
+  useEffect(() => {
+    try {
+      scrollToTop();
+    } catch {
+      // no-op
+    }
   }, [code]);
 
   const related = useMemo(() => getRelatedProducts(producto, seedProducts), [producto]);

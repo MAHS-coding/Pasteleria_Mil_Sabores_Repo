@@ -6,6 +6,9 @@ import Modal from '../../components/ui/Modal';
 import FormField from '../../components/ui/FormField';
 import { regions, products as allProducts } from '../../utils/dataLoaders';
 import styles from './Perfil.module.css';
+// checkout styles are used by the shared PaymentCards component when needed
+import PaymentCards from '../../components/payments/PaymentCards';
+import { formatCardNumber, formatExpMonth, formatExpYear, normalizeHolderName, detectBrand, maskLast4 } from '../../utils/cardUtils';
 import { getJSON } from '../../utils/storage';
 import { formatCLP } from '../../utils/currency';
 
@@ -14,7 +17,6 @@ const Perfil: React.FC = () => {
     const [storedUser, setStoredUser] = useState<StoredUser | null>(null);
 
     const [showAddAddr, setShowAddAddr] = useState(false);
-    const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
     const [pendingAddressRemoval, setPendingAddressRemoval] = useState<{ id: string; label: string } | null>(null);
     const [confirmRemoveAvatarOpen, setConfirmRemoveAvatarOpen] = useState(false);
     const [confirmAvatarSaveOpen, setConfirmAvatarSaveOpen] = useState(false);
@@ -35,11 +37,14 @@ const Perfil: React.FC = () => {
     const [addrComuna, setAddrComuna] = useState('');
     const [addAddressError, setAddAddressError] = useState('');
 
+    // payment cards (managed here similarly to addresses)
+
     // editing mode for personal data
     const [isEditing, setIsEditing] = useState(false);
 
     // orders
     const [orders, setOrders] = useState<Array<any>>([]);
+    const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
 
     function productNameByCode(code?: string) {
         if (!code) return '';
@@ -111,9 +116,9 @@ const Perfil: React.FC = () => {
 
     function requestSaveProfile() {
         if (!user?.email) return;
-        // Prevent opening the confirm/save flow when there are no changes
+        // Prevent saving when there are no changes
         if (!isDirty) return;
-        setConfirmSaveOpen(true);
+        handleSaveProfile();
     }
 
     // detect if any editable field differs from stored user -> used to enable/disable Guardar
@@ -137,14 +142,7 @@ const Perfil: React.FC = () => {
         setIsEditing(false);
     }
 
-    function confirmSaveProfile() {
-        handleSaveProfile();
-        setConfirmSaveOpen(false);
-    }
-
-    function cancelSaveProfile() {
-        setConfirmSaveOpen(false);
-    }
+    
 
     function openAddAddressModal() {
         setAddrLine('');
@@ -194,6 +192,55 @@ const Perfil: React.FC = () => {
 
     function cancelRemoveAddress() {
         setPendingAddressRemoval(null);
+    }
+
+    function paymentMethodLabel(o: any) {
+        if (!o) return '—';
+        if (o.paymentMethodId) {
+            const c = storedUser?.paymentCards?.find((pc: any) => String(pc.id) === String(o.paymentMethodId));
+            return c ? `${c.brand} **** ${c.last4}` : String(o.paymentMethodId);
+        }
+        return o.paymentMethod || '—';
+    }
+
+    // --- Payment cards helpers (shared in utils/cardUtils) ---
+
+    function addCard(cardData: { number: string; holder?: string; expMonth?: string; expYear?: string }) {
+        if (!user?.email) return;
+        const last4 = maskLast4(cardData.number);
+        if (!last4) return;
+        const newCard = {
+            id: `${Date.now()}`,
+            brand: detectBrand(cardData.number),
+            last4,
+            expMonth: cardData.expMonth || undefined,
+            expYear: cardData.expYear || undefined,
+            holderName: cardData.holder || undefined,
+        } as any;
+        const existing = storedUser?.paymentCards ?? [];
+        const willSetDefault = !storedUser?.defaultPaymentCardId;
+        const updated = updateUser(user.email, { paymentCards: [...existing, newCard], defaultPaymentCardId: willSetDefault ? newCard.id : storedUser?.defaultPaymentCardId });
+        if (updated) {
+            setStoredUser(updated);
+        }
+    }
+
+    function removeCard(id: string) {
+        if (!user?.email) return;
+        const existing = storedUser?.paymentCards ?? [];
+        const remaining = existing.filter((c: any) => c.id !== id);
+        // if removed card was default, pick a new default (first remaining) or clear
+        const nextDefault = storedUser?.defaultPaymentCardId === id ? (remaining[0]?.id ?? undefined) : storedUser?.defaultPaymentCardId;
+        const updated = updateUser(user.email, { paymentCards: remaining, defaultPaymentCardId: nextDefault });
+        if (updated) {
+            setStoredUser(updated);
+        }
+    }
+
+    function setDefaultCard(id: string) {
+        if (!user?.email) return;
+        const updated = updateUser(user.email, { defaultPaymentCardId: id });
+        if (updated) setStoredUser(updated);
     }
 
     function triggerAvatarUpload() {
@@ -353,7 +400,6 @@ const Perfil: React.FC = () => {
                                     <thead>
                                         <tr>
                                             <th>Pedido #</th>
-                                            <th>Fecha</th>
                                             <th>Productos</th>
                                             <th>Total</th>
                                             <th>Estado</th>
@@ -367,28 +413,62 @@ const Perfil: React.FC = () => {
                                             </tr>
                                         ) : (
                                             orders.map((o: any) => (
-                                                <tr key={String(o.id)}>
-                                                    <td>{String(o.id)}</td>
-                                                    <td>{new Date(o.tsISO || o.fecha || Date.now()).toLocaleString()}</td>
-                                                    <td>
-                                                        {Array.isArray(o.items) && o.items.length > 0 ? (
-                                                            <ul className="list-unstyled mb-0">
-                                                                {o.items.map((it: any, idx: number) => (
-                                                                    <li key={`${String(it.code || it.productId || idx)}-${idx}`}>
-                                                                        {productNameByCode(it.code || it.productId)} <span className="text-secondary">x{Number(it.qty || it.cantidad || 0)}</span>
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                        ) : (
-                                                            <span className="text-secondary">—</span>
-                                                        )}
-                                                    </td>
-                                                    <td>{formatCLP(Number(o.total || 0))}</td>
-                                                    <td>{o.estado || 'Pendiente'}</td>
-                                                    <td className="text-end">
-                                                        {/* Placeholder for details button */}
-                                                    </td>
-                                                </tr>
+                                                <React.Fragment key={String(o.id)}>
+                                                    <tr style={{ cursor: 'pointer' }} onClick={() => {
+                                                        const id = String(o.id);
+                                                        setExpandedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+                                                    }}>
+                                                        <td>{String(o.id)}</td>
+                                                        <td>
+                                                            {Array.isArray(o.items) && o.items.length > 0 ? (
+                                                                <ul className="list-unstyled mb-0">
+                                                                    {o.items.map((it: any, idx: number) => (
+                                                                        <li key={`${String(it.code || it.productId || idx)}-${idx}`}>
+                                                                            {productNameByCode(it.code || it.productId)} <span className="text-secondary">x{Number(it.qty || it.cantidad || 0)}</span>
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            ) : (
+                                                                <span className="text-secondary">—</span>
+                                                            )}
+                                                        </td>
+                                                        <td>{formatCLP(Number(o.total || 0))}</td>
+                                                        <td>{o.estado || 'Pendiente'}</td>
+                                                        <td className="text-end"><small className="text-muted">Haz clic para ver detalles</small></td>
+                                                    </tr>
+                                                    {expandedOrders.includes(String(o.id)) ? (
+                                                        <tr className="table-active">
+                                                            <td colSpan={5}>
+                                                                <div className="row">
+                                                                    <div className="col-12 col-md-4 mb-2">
+                                                                        <div className="fw-semibold">Fecha</div>
+                                                                        <div className="small text-secondary">{new Date(o.tsISO || o.fecha || Date.now()).toLocaleString()}</div>
+                                                                    </div>
+                                                                    <div className="col-12 col-md-4 mb-2">
+                                                                        <div className="fw-semibold">Método de pago</div>
+                                                                        <div className="small text-secondary">{paymentMethodLabel(o)}</div>
+                                                                    </div>
+                                                                    <div className="col-12 col-md-4 mb-2">
+                                                                        <div className="fw-semibold">Dirección</div>
+                                                                        <div className="small text-secondary">{o.direccionEntrega || o.direccion || '—'}</div>
+                                                                    </div>
+                                                                    <div className="col-12 mt-2">
+                                                                        <div className="fw-semibold">Detalles</div>
+                                                                        <div className="small text-secondary">
+                                                                            {Array.isArray(o.items) && o.items.length > 0 ? (
+                                                                                <ul className="mb-0">
+                                                                                    {o.items.map((it: any, idx: number) => (
+                                                                                        <li key={`detail-${idx}`}>{productNameByCode(it.code || it.productId)} — x{Number(it.qty || it.cantidad || 0)} {it.price ? ` — ${formatCLP(Number(it.price))}` : ''}</li>
+                                                                                    ))}
+                                                                                </ul>
+                                                                            ) : '—'}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ) : null}
+                                                </React.Fragment>
                                             ))
                                         )}
                                     </tbody>
@@ -423,6 +503,24 @@ const Perfil: React.FC = () => {
 
                                 <div className="col-12 d-flex">
                                     <button className={`btn ${styles.addAddressButton} my-auto`} type="button" onClick={openAddAddressModal}><i className="bi bi-plus-lg"></i> Añadir Nueva Dirección</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card mb-4">
+                        <div className="card-body">
+                            <h3 className="h5 mb-3"><i className="bi bi-credit-card-2-front-fill me-2"></i>Tarjetas</h3>
+                            <div className="row g-3" id="cards-container">
+                                <div className="col-12">
+                                    <PaymentCards
+                                        mode="list"
+                                        paymentCards={storedUser?.paymentCards || []}
+                                        defaultCardId={storedUser?.defaultPaymentCardId}
+                                        onSetDefault={(id) => setDefaultCard(id)}
+                                        onRemove={(id) => removeCard(id)}
+                                        onAdd={(data) => addCard({ number: formatCardNumber(data.number), holder: normalizeHolderName(data.holder || ''), expMonth: formatExpMonth(data.expMonth || ''), expYear: formatExpYear(data.expYear || '') })}
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -484,17 +582,6 @@ const Perfil: React.FC = () => {
                     </FormField>
                     {addAddressError ? <p className="text-danger small mb-0">{addAddressError}</p> : null}
                 </div>
-            </Modal>
-
-            <Modal
-                show={confirmSaveOpen}
-                title="Confirmar cambios"
-                onClose={cancelSaveProfile}
-                onConfirm={confirmSaveProfile}
-                confirmLabel="Sí, guardar"
-                cancelLabel="Cancelar"
-            >
-                <p className="mb-0">¿Deseas guardar los cambios realizados en tu perfil?</p>
             </Modal>
 
             <Modal

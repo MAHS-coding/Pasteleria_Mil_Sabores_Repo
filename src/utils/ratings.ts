@@ -97,6 +97,22 @@ export function addRating(productCode: string, rating: Rating) {
   }
 }
 
+export function removeRating(productCode: string, index: number) {
+  const map = readStorage();
+  const list = map[productCode] ? [...map[productCode]] : [];
+  if (index < 0 || index >= list.length) return;
+  list.splice(index, 1);
+  map[productCode] = list;
+  writeStorage(map);
+  try {
+    if (typeof window !== 'undefined' && typeof CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('ratings-updated', { detail: { productCode } }));
+    }
+  } catch (err) {
+    // ignore
+  }
+}
+
 export function getAverage(productCode: string) {
   const list = getRatings(productCode);
   if (!list || list.length === 0) return { avg: 0, count: 0 };
@@ -108,4 +124,5 @@ export default {
   getRatings,
   addRating,
   getAverage,
+  removeRating,
 };

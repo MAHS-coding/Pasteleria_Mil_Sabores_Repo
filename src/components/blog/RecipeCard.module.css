@@ -1,0 +1,47 @@
+.recetasCard {
+    border: none;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.recetasCard:hover {
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+}
+
+.recetasCard img {
+    height: 220px;
+    object-fit: cover;
+    object-position: center;
+}
+
+.recetaBadge {
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.recetaTitle {
+    color: #2f2a25;
+    font-weight: 600;
+}
+
+.recetaCopy {
+    color: #6b6060;
+}
+
+.recetaBtn {
+    border-color: var(--accent-main, #b08d57);
+    background-color: var(--accent-main, #b08d57);
+    color: var(--color-background, #fff);
+    font-weight: 600;
+    padding: 0.4rem 1rem;
+}
+
+.recetaBtn:hover,
+.recetaBtn:focus {
+    background: var(--accent-dark, #6b3e26);
+    color: var(--color-background, #fff);
+    border-color: var(--accent-dark, #6b3e26);
+}

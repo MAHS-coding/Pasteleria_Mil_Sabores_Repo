@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>4/4</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">50% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>1/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
-                <span class="quiet">Branches</span>
-                <span class='fraction'>0/0</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>4/4</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -176,21 +176,23 @@
 <a name='L111'></a><a href='#L111'>111</a>
 <a name='L112'></a><a href='#L112'>112</a>
 <a name='L113'></a><a href='#L113'>113</a>
-<a name='L114'></a><a href='#L114'>114</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -290,26 +292,30 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { scrollToTop } from "../../utils/scroll";
 import styles from "./Footer.module.css"; // Importa estilos del footer como módulo
 &nbsp;
 // Componente funcional Footer (define el pie de página del sitio)
-const Footer: React.FC = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
+const Footer: React.FC = () =&gt; {
     // Obtiene el año actual dinámicamente para mostrarlo en el copyright
-    const <span class="cstat-no" title="statement not covered" >year = new Date().getFullYear();</span>
+    const year = new Date().getFullYear();
+    const { user } = useAuth();
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return (</span>
+    // usa el helper compartido
+    
+&nbsp;
+    return (
         // Contenedor principal del footer con clases de Bootstrap y personalizadas
-    &lt;footer className={`${styles['site-footer']} mt-auto`}&gt;
+    &lt;footer className={`${styles['site-footer']} mt-auto`}&gt; 
             &lt;div className="container py-4"&gt;
                 {/* --- Sección superior: columnas principales --- */}
                 &lt;div className="row gy-4 align-items-start"&gt;
                     
                     {/* Columna 1: Logo y redes sociales */}
                     &lt;div className="col-12 col-md-3"&gt;
-                        &lt;a
-                            className="navbar-brand mb-2 d-inline-flex align-items-center"
-                            href="/"
-                        &gt;
+                        &lt;Link to="/" onClick={scrollToTop} className="navbar-brand mb-2 d-inline-flex align-items-center"&gt;
                             {/* Logo principal */}
                             &lt;img
                                 src="/images/logos/logo_titulo.png"
@@ -317,19 +323,19 @@ const Footer: React.FC = <span class="cstat-no" title="statement not covered" ><
                                 height={44}
                                 className={styles['footer-logo']}
                             /&gt;
-                        &lt;/a&gt;
+                        &lt;/Link&gt;
 &nbsp;
                         {/* Enlaces a redes sociales */}
                         &lt;div className="d-flex align-items-center gap-2 mt-2"&gt;
                             &lt;span&gt;Síguenos en:&lt;/span&gt;
                             &lt;div className={`d-flex gap-3 ${styles['social-icons']}`}&gt;
-                                &lt;a href="#" aria-label="WhatsApp"&gt;
+                                &lt;a href="https://wa.me/56900000000" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"&gt;
                                     &lt;i className="bi bi-whatsapp"&gt;&lt;/i&gt;
                                 &lt;/a&gt;
-                                &lt;a href="#" aria-label="Instagram"&gt;
+                                &lt;a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"&gt;
                                     &lt;i className="bi bi-instagram"&gt;&lt;/i&gt;
                                 &lt;/a&gt;
-                                &lt;a href="#" aria-label="Facebook"&gt;
+                                &lt;a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"&gt;
                                     &lt;i className="bi bi-facebook"&gt;&lt;/i&gt;
                                 &lt;/a&gt;
                             &lt;/div&gt;
@@ -340,19 +346,20 @@ const Footer: React.FC = <span class="cstat-no" title="statement not covered" ><
                     &lt;div className="col-6 col-md-2"&gt;
                         &lt;div className={styles['footer-col-title']}&gt;PASTELERÍA&lt;/div&gt;
                         &lt;ul className={`list-unstyled ${styles['footer-links']}`}&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Nosotros&lt;/a&gt;&lt;/li&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Blog&lt;/a&gt;&lt;/li&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Catálogo&lt;/a&gt;&lt;/li&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Recetas&lt;/a&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/nosotros" onClick={scrollToTop}&gt;Nosotros&lt;/Link&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/blogs" onClick={scrollToTop}&gt;Blog&lt;/Link&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/productos" onClick={scrollToTop}&gt;Catálogo&lt;/Link&gt;&lt;/li&gt;
                         &lt;/ul&gt;
                     &lt;/div&gt;
 &nbsp;
                     {/* Columna 3: Enlaces de Ayuda */}
                     &lt;div className="col-6 col-md-2"&gt;
                         &lt;div className={styles['footer-col-title']}&gt;AYUDA&lt;/div&gt;
-                        &lt;ul className={`list-unstyled ${styles['footer-links']}`}&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Contacto&lt;/a&gt;&lt;/li&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Mis pedidos&lt;/a&gt;&lt;/li&gt;
+                            &lt;ul className={`list-unstyled ${styles['footer-links']}`}&gt;
+                            &lt;li&gt;&lt;Link to="/contacto" onClick={scrollToTop}&gt;Contacto&lt;/Link&gt;&lt;/li&gt;
+                            {user &amp;&amp; (
+<span class="branch-1 cbranch-no" title="branch not covered" >                                &lt;li&gt;&lt;Link to="/perfil" onClick={scrollToTop}&gt;Mis pedidos&lt;/Link&gt;&lt;/li&gt;</span>
+                            )}
                         &lt;/ul&gt;
                     &lt;/div&gt;
 &nbsp;
@@ -360,11 +367,11 @@ const Footer: React.FC = <span class="cstat-no" title="statement not covered" ><
                     &lt;div className="col-6 col-md-2"&gt;
                         &lt;div className={styles['footer-col-title']}&gt;MENÚ&lt;/div&gt;
                         &lt;ul className={`list-unstyled ${styles['footer-links']}`}&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Tortas Cuadradas&lt;/a&gt;&lt;/li&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Tortas Circulares&lt;/a&gt;&lt;/li&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Postres Individuales&lt;/a&gt;&lt;/li&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Sin Azúcar&lt;/a&gt;&lt;/li&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Sin Gluten&lt;/a&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/productos/tortas-cuadradas" onClick={scrollToTop}&gt;Tortas Cuadradas&lt;/Link&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/productos/tortas-circulares" onClick={scrollToTop}&gt;Tortas Circulares&lt;/Link&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/productos/postres-individuales" onClick={scrollToTop}&gt;Postres Individuales&lt;/Link&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/productos/sin-azucar" onClick={scrollToTop}&gt;Sin Azúcar&lt;/Link&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/productos/sin-gluten" onClick={scrollToTop}&gt;Sin Gluten&lt;/Link&gt;&lt;/li&gt;
                         &lt;/ul&gt;
                     &lt;/div&gt;
 &nbsp;
@@ -372,8 +379,8 @@ const Footer: React.FC = <span class="cstat-no" title="statement not covered" ><
                     &lt;div className="col-6 col-md-3"&gt;
                         &lt;div className={styles['footer-col-title']}&gt;LEGAL&lt;/div&gt;
                         &lt;ul className={`list-unstyled ${styles['footer-links']}`}&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Términos y Condiciones&lt;/a&gt;&lt;/li&gt;
-                            &lt;li&gt;&lt;a href="#"&gt;Política de Privacidad&lt;/a&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/terminos" onClick={scrollToTop}&gt;Términos y Condiciones&lt;/Link&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;Link to="/privacidad" onClick={scrollToTop}&gt;Política de Privacidad&lt;/Link&gt;&lt;/li&gt;
                         &lt;/ul&gt;
                     &lt;/div&gt;
                 &lt;/div&gt;
@@ -386,13 +393,9 @@ const Footer: React.FC = <span class="cstat-no" title="statement not covered" ><
                     &lt;div&gt;
                         © {year} Pastelería Mil Sabores. Todos los derechos reservados.
                     &lt;/div&gt;
-                    &lt;div className="d-flex gap-3"&gt;
-                        &lt;a href="#" className="text-decoration-none text-secondary"&gt;
-                            Términos
-                        &lt;/a&gt;
-                        &lt;a href="#" className="text-decoration-none text-secondary"&gt;
-                            Privacidad
-                        &lt;/a&gt;
+                        &lt;div className="d-flex gap-3"&gt;
+                        &lt;Link to="/terminos" onClick={scrollToTop} className="text-decoration-none text-secondary"&gt;Términos&lt;/Link&gt;
+                        &lt;Link to="/privacidad" onClick={scrollToTop} className="text-decoration-none text-secondary"&gt;Privacidad&lt;/Link&gt;
                     &lt;/div&gt;
                 &lt;/div&gt;
             &lt;/div&gt;
@@ -409,7 +412,7 @@ export default Footer;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T22:57:14.012Z
+                at 2025-11-17T03:20:33.096Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

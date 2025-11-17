@@ -5,7 +5,6 @@ export default defineConfig({
     globals: true,
   environment: 'jsdom',
   include: ['tests/**/*.test.ts', 'tests/**/*.spec.ts', 'tests/**/*.test.tsx', 'tests/**/*.spec.tsx'],
-  setupFiles: 'tests/setupTests.ts',
     coverage: {
       // use Istanbul provider for compatibility
       provider: 'istanbul',

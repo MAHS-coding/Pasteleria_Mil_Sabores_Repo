@@ -13,6 +13,8 @@ import Admin from "./pages/admin/Admin";
 import Blog from "./pages/blog/Blog";
 import Receta from "./pages/blog/Receta";
 import Nosotros from "./pages/nosotros/Nosotros";
+import Terminos from "./pages/terminos/Terminos";
+import Privacidad from "./pages/privacidad/Privacidad";
 import Contacto from "./pages/contacto/Contacto";
 
 
@@ -35,6 +37,8 @@ export function App() {
                 <Route path = '/blog/:id' element = {<Receta/>} />
                 <Route path = '/nosotros' element = {<Nosotros/>} />
                 <Route path = '/contacto' element = {<Contacto/>} />
+                <Route path = '/terminos' element = {<Terminos/>} />
+                <Route path = '/privacidad' element = {<Privacidad/>} />
                 <Route path = '/checkout' element = {<ProtectedRoute><Checkout/></ProtectedRoute>} />
                 <Route path = '/perfil' element = {<ProtectedRoute><Perfil/></ProtectedRoute>} />
                 {/* Common typo alias */}

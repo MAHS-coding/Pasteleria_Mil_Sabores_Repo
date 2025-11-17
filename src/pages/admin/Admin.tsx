@@ -5,6 +5,7 @@ import type { Product } from "../../types/product";
 import { getJSON, setJSON } from "../../utils/storage";
 import slugify from "../../utils/slugify";
 import { updateUser, findUserByEmail, readUsers } from "../../utils/registro";
+import './Admin.module.css';
 
 type Usuario = {
     id: number;

@@ -1,0 +1,251 @@
+/* Blog page layout aligned with Nosotros structure */
+.blog-page {
+	background: #ffffff;
+}
+
+/* Hero typography reused from home */
+.hero-title {
+	color: #1a1a1a;
+	text-shadow:
+		1px 1px 15px rgba(201, 214, 245, 0.9),
+		-1px -1px 15px rgba(201, 214, 245, 0.9);
+}
+
+.hero-subtitle {
+	color: #1a1a1a;
+	text-shadow:
+		1px 1px 15px rgba(201, 214, 245, 0.9),
+		-1px -1px 15px rgba(201, 214, 245, 0.9);
+}
+
+/* Section helpers */
+.sectionHeader {
+	max-width: 720px;
+	margin: 0 auto;
+}
+
+.sectionTitle {
+	color: #2d3748;
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+}
+
+.sectionLead {
+	color: #6b7280;
+	margin-bottom: 0;
+}
+
+.sectionBar {
+	display: block;
+	width: 64px;
+	height: 4px;
+	margin: 0.75rem auto 0;
+	border-radius: 999px;
+	background: var(--accent-main, #b08d57);
+	opacity: 0.35;
+}
+
+.justified {
+	text-align: justify;
+	text-justify: inter-word;
+}
+
+
+.recetasSection {
+	background: linear-gradient(135deg, rgba(255, 245, 233, 0.9), rgba(255, 255, 255, 0.95));
+	position: relative;
+}
+
+
+.recetasRow {
+	position: relative;
+	z-index: 1;
+}
+
+.recetasCard {
+	border: none;
+	border-radius: 1.25rem;
+	overflow: hidden;
+	background: rgba(255, 255, 255, 0.92);
+}
+
+.recetasCard:hover {
+	box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+}
+
+.recetasCard img {
+	height: 220px;
+	object-fit: cover;
+	object-position: center;
+}
+
+.recetaBadge {
+	border-radius: 999px;
+	padding: 0.35rem 0.85rem;
+	font-weight: 600;
+	font-size: 0.8rem;
+}
+
+.recetaTitle {
+	color: #2f2a25;
+	font-weight: 600;
+}
+
+.recetaCopy {
+	color: #6b6060;
+}
+
+.recetaBtn {
+	border-color: var(--accent-main, #b08d57);
+	color: var(--accent-main, #b08d57);
+	font-weight: 600;
+	border-radius: 999px;
+	padding: 0.4rem 1rem;
+	transition: all 0.18s ease;
+}
+
+.recetaBtn:hover,
+.recetaBtn:focus {
+	background: var(--accent-main, #b08d57);
+	color: var(--color-background, #fff);
+	box-shadow: 0 12px 24px rgba(var(--accent-main-rgb, 176,141,87), 0.18);
+}
+
+/* Community impact */
+.impactCard {
+	border: none;
+	border-radius: 1.25rem;
+	background: #fff;
+}
+
+.impactIcon {
+	width: 52px;
+	height: 52px;
+	border-radius: 999px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(var(--accent-main-rgb, 176,141,87), 0.12);
+	color: var(--accent-main, #b08d57);
+}
+
+.impactAlert {
+	border-radius: 1rem;
+	border-width: 0;
+	box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+/* Community chat */
+
+
+.chatWrapper {
+	background: rgba(255, 255, 255, 0.92);
+	border-radius: 1.5rem;
+	padding: 2rem;
+	box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.6);
+	backdrop-filter: blur(6px);
+}
+
+.chatForm {
+	background: rgba(255, 255, 255, 0.95);
+	border-radius: 1.25rem;
+	padding: 1.25rem 1.5rem;
+	box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.chatInputGroup {
+	gap: 0.5rem;
+}
+
+/* removed unused feature/media/card and legacy community helper rules */
+
+.chatSelect {
+	border-radius: 0.85rem;
+	border-color: rgba(176, 141, 87, 0.2);
+	box-shadow: none;
+}
+
+.chatSelect:focus {
+	border-color: var(--accent-main, #b08d57);
+	box-shadow: 0 0 0 0.2rem rgba(176, 141, 87, 0.15);
+}
+
+.chatInput {
+	border-radius: 1rem;
+	border-color: rgba(176, 141, 87, 0.2);
+}
+
+.chatInput:focus {
+	border-color: var(--accent-main, #b08d57);
+	box-shadow: 0 0 0 0.2rem rgba(176, 141, 87, 0.15);
+}
+
+.chatSubmitBtn {
+	/* Structural + visual: make this a pill-shaped accent button */
+	font-weight: 600;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.45rem 1rem;
+}
+
+/* hover/focus handled in the shared rule below */
+
+#btn-ver-mas-chat,
+.chatSubmitBtn {
+	border-radius: 999px !important;
+	border: 1px solid var(--accent-main, #b08d57) !important;
+	color: var(--accent-main, #b08d57) !important;
+	background: transparent !important;
+}
+
+#btn-ver-mas-chat:hover,
+#btn-ver-mas-chat:focus,
+.chatSubmitBtn:hover,
+.chatSubmitBtn:focus {
+	background: var(--accent-dark, #9a6f3f) !important;
+	color: var(--color-background, #fff) !important;
+	box-shadow: 0 14px 32px rgba(var(--accent-main-rgb, 176,141,87), 0.28) !important;
+}
+
+.chatCounter {
+	color: #8d8076;
+	font-weight: 600;
+}
+
+.chat-preview {
+	background: transparent;
+}
+
+.chat-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0,0,0,0.45);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1200;
+}
+
+.chat-modal {
+	width: min(720px, 96%);
+	max-height: 80vh;
+	overflow: auto;
+	background: #fff;
+	border-radius: 0.95rem;
+	padding: 1.5rem;
+	box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+}
+
+.chat-modal-body {
+	max-height: 60vh;
+	overflow:auto;
+}
+
+@media (max-width: 576px) {
+	.card-blog img.card-img-top {
+		height: 160px;
+	}
+}

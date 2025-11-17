@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">33.33% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>3/9</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">12.5% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>1/8</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">33.33% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/3</span>
+                <span class='fraction'>0/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">37.5% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>3/8</span>
+                <span class='fraction'>0/10</span>
             </div>
         
             
@@ -88,7 +88,10 @@
 <a name='L23'></a><a href='#L23'>23</a>
 <a name='L24'></a><a href='#L24'>24</a>
 <a name='L25'></a><a href='#L25'>25</a>
-<a name='L26'></a><a href='#L26'>26</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -96,12 +99,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -120,15 +126,18 @@ import { sha256Hex } from "../utils/hash";
 export type RegisterPayload = Omit&lt;StoredUser, 'createdAt'&gt; &amp; { passwordPlain?: string };
 &nbsp;
 // Try to authenticate a user by email and plain password. Returns the stored user on success.
-export async function authenticate(email: string, passwordPlain: string): Promise&lt;StoredUser | undefined&gt; {
-    const hashed = await sha256Hex(passwordPlain || <span class="branch-1 cbranch-no" title="branch not covered" >"")</span>;
-    const users = readUsers();
-    return users.find(<span class="fstat-no" title="function not covered" >u =&gt; <span class="cstat-no" title="statement not covered" >S</span>tring(u.email || '').toLowerCase() === String(email).toLowerCase() &amp;&amp; u.password === hashed)</span>;
+export async function <span class="fstat-no" title="function not covered" >authenticate(e</span>mail: string, passwordPlain: string): Promise&lt;StoredUser | undefined&gt; {
+    const normalizedEmail = <span class="cstat-no" title="statement not covered" >String(email || '').trim().toLowerCase();</span>
+    const hashed = <span class="cstat-no" title="statement not covered" >await sha256Hex(passwordPlain || "");</span>
+    const users = <span class="cstat-no" title="statement not covered" >readUsers();</span>
+<span class="cstat-no" title="statement not covered" >    return users.find(<span class="fstat-no" title="function not covered" >u =&gt; <span class="cstat-no" title="statement not covered" >S</span>tring(u.email || '').toLowerCase() === normalizedEmail &amp;&amp; u.password === hashed)</span>;</span>
 }
 &nbsp;
 // Register a new user using plain password. Returns the same shape as createUser from utils.
 export async function <span class="fstat-no" title="function not covered" >register(p</span>ayload: RegisterPayload): Promise&lt;{ ok: true; user: StoredUser } | { ok: false; error: string }&gt; {
     const payloadCopy: any = <span class="cstat-no" title="statement not covered" >{ ...payload };</span>
+    // Normalize email before creating the user
+<span class="cstat-no" title="statement not covered" >    if (payloadCopy.email) <span class="cstat-no" title="statement not covered" >payloadCopy.email = String(payloadCopy.email).trim().toLowerCase();</span></span>
     // If caller provided plain password, hash it. Otherwise assume password is already hashed.
 <span class="cstat-no" title="statement not covered" >    if (payload.passwordPlain) {</span>
 <span class="cstat-no" title="statement not covered" >        payloadCopy.password = await sha256Hex(String(payload.passwordPlain));</span>
@@ -145,7 +154,7 @@ export default { authenticate, register };
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T22:57:14.012Z
+                at 2025-11-17T03:20:33.096Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

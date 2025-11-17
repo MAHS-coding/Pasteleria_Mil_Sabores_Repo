@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>3/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/9</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>3/3</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -141,7 +141,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -156,7 +156,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -171,7 +171,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -200,22 +200,22 @@ type Props = {
   inputId?: string;
 };
 &nbsp;
-const PersonalizeMessageModal: React.FC&lt;Props&gt; = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >({</span></span>
+const PersonalizeMessageModal: React.FC&lt;Props&gt; = ({
   show,
   productName,
-  title = <span class="branch-0 cbranch-no" title="branch not covered" >&lt;&gt;Mensaje personalizado &lt;small className="text-secondary"&gt;(opcional)&lt;/small&gt;&lt;/&gt;,</span>
+  title = &lt;&gt;Mensaje personalizado &lt;small className="text-secondary"&gt;(opcional)&lt;/small&gt;&lt;/&gt;,
   value,
   onChange,
   onConfirm,
   onCancel,
-  confirmLabel = <span class="branch-0 cbranch-no" title="branch not covered" >"Agregar al carrito",</span>
-  cancelLabel = <span class="branch-0 cbranch-no" title="branch not covered" >"Cancelar",</span>
-  placeholder = <span class="branch-0 cbranch-no" title="branch not covered" >"Ej: ¡Feliz Cumpleaños, Ana! (opcional)",</span>
-  helpText = <span class="branch-0 cbranch-no" title="branch not covered" >&lt;div className="form-text mt-2"&gt;Puedes dejar este campo vacío si no deseas agregar un mensaje.&lt;/div&gt;,</span>
-  maxLength = <span class="branch-0 cbranch-no" title="branch not covered" >60,</span>
-  inputId = <span class="branch-0 cbranch-no" title="branch not covered" >"personalize-message-input",</span>
+  confirmLabel = "Agregar al carrito",
+  cancelLabel = "Cancelar",
+  placeholder = "Ej: ¡Feliz Cumpleaños, Ana! (opcional)",
+  helpText = &lt;div className="form-text mt-2"&gt;Puedes dejar este campo vacío si no deseas agregar un mensaje.&lt;/div&gt;,
+  maxLength = 60,
+  inputId = "personalize-message-input",
 }) =&gt; {
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;Modal
       show={show}
       title={title}
@@ -230,7 +230,7 @@ const PersonalizeMessageModal: React.FC&lt;Props&gt; = <span class="cstat-no" ti
         autoFocus
         maxLength={maxLength}
         value={value}
-        onChange={<span class="fstat-no" title="function not covered" >(e</span>) =&gt; <span class="cstat-no" title="statement not covered" >onChange(e.target.value)}</span>
+        onChange={(e) =&gt; onChange(e.target.value)}
         className="form-control"
         placeholder={placeholder}
       /&gt;
@@ -247,7 +247,7 @@ export default PersonalizeMessageModal;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T22:57:14.012Z
+                at 2025-11-17T03:20:33.096Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">15.49% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/71</span>
+                <span class='fraction'>11/71</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">5.71% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/70</span>
+                <span class='fraction'>4/70</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">25% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/8</span>
+                <span class='fraction'>2/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">14.75% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/61</span>
+                <span class='fraction'>9/61</span>
             </div>
         
             
@@ -203,32 +203,32 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -337,13 +337,13 @@ import { getRatings } from '../../utils/ratings';
 import usersData from '../../data/users/users.json';
 import styles from './Testimonials.module.css';
 &nbsp;
-const Testimonials: React.FC = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
-    const [items, setItems] = <span class="cstat-no" title="statement not covered" >React.useState&lt;any[]&gt;([]);</span>
+const Testimonials: React.FC = () =&gt; {
+    const [items, setItems] = React.useState&lt;any[]&gt;([]);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    React.useEffect(<span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
-<span class="cstat-no" title="statement not covered" >        try {</span>
-            const all: any[] = <span class="cstat-no" title="statement not covered" >[];</span>
-<span class="cstat-no" title="statement not covered" >            for (const p of (seedProducts || [])) {</span>
+    React.useEffect(() =&gt; {
+        try {
+            const all: any[] = [];
+            for (const p of (seedProducts || <span class="branch-1 cbranch-no" title="branch not covered" >[])) {</span>
                 const rs = <span class="cstat-no" title="statement not covered" >getRatings(p.code);</span>
 <span class="cstat-no" title="statement not covered" >                for (const r of rs) {</span>
 <span class="cstat-no" title="statement not covered" >                    if (r &amp;&amp; r.stars === 5) {</span>
@@ -352,17 +352,17 @@ const Testimonials: React.FC = <span class="cstat-no" title="statement not cover
                 }
             }
             // shuffle
-<span class="cstat-no" title="statement not covered" >            for (let i = <span class="cstat-no" title="statement not covered" >all.length - 1; i</span> &gt; 0; i--) {</span>
+            for (let i = all.length - 1; i &gt; 0; i--) {
                 const j = <span class="cstat-no" title="statement not covered" >Math.floor(Math.random() * (i + 1));</span>
 <span class="cstat-no" title="statement not covered" >                [all[i], all[j]] = [all[j], all[i]];</span>
             }
-<span class="cstat-no" title="statement not covered" >            setItems(all.slice(0, 3));</span>
+            setItems(all.slice(0, 3));
         } catch (e) {
             // ignore
         }
     }, []);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    if (!items || items.length === 0) <span class="cstat-no" title="statement not covered" >return &lt;div className="row g-4"&gt;&lt;div className="col-12 text-center text-muted"&gt;Aún no hay reseñas destacadas.&lt;/div&gt;&lt;/div&gt;;</span></span>
+    <span class="missing-if-branch" title="else path not taken" >E</span>if (!items || items.length === 0) return &lt;div className="row g-4"&gt;&lt;div className="col-12 text-center text-muted"&gt;Aún no hay reseñas destacadas.&lt;/div&gt;&lt;/div&gt;;
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    return (</span>
         &lt;div className="row g-4"&gt;
@@ -472,7 +472,7 @@ export default Testimonials;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T22:57:14.012Z
+                at 2025-11-17T03:20:33.096Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

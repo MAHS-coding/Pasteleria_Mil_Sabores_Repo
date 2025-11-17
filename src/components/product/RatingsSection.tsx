@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { getRatings, addRating, getAverage, type Rating } from "../../utils/ratings";
+import { getRatings, addRating, getAverage, removeRating, type Rating } from "../../utils/ratings";
+import Modal from "../ui/Modal";
 import { useAuth } from "../../context/AuthContext";
 import useInfoModal from "../../hooks/useInfoModal";
 import styles from "./RatingsSection.module.css";
@@ -15,6 +16,8 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
   const [newComment, setNewComment] = useState<string>("");
   const { user } = useAuth();
   const { InfoModal, showInfo } = useInfoModal();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
 
   useEffect(() => {
     setRatings(getRatings(productCode));
@@ -54,7 +57,7 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
       return;
     }
     if (!newStars || newStars < 1 || newStars > 5) {
-      showInfo('Calificación requerida', 'Por favor selecciona entre 1 y 5 estrellas.');
+      showInfo('Calificación requerida', 'Por favor selecciona entre 1 y 5 estrellas.', 'Aceptar');
       return;
     }
     const txt = (newComment || "").trim();
@@ -70,11 +73,37 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
       date: new Date().toISOString(),
     };
     addRating(productCode, r);
-    setRatings((s) => [r, ...s]);
+    // read fresh list from storage (addRating already persisted it and dispatched update)
+    setRatings(getRatings(productCode));
     setAvg(getAverage(productCode));
     setNewStars(0);
     setNewComment("");
     showInfo('Gracias', 'Tu calificación fue registrada.');
+  }
+
+  function handleDelete(idx: number) {
+    if (!user || !user.email) return;
+    const r = ratings[idx];
+    if (!r) return;
+    if (String(r.userEmail).toLowerCase() !== String(user.email).toLowerCase()) return;
+    setPendingDeleteIdx(idx);
+    setConfirmOpen(true);
+  }
+
+  function confirmDelete() {
+    const idx = pendingDeleteIdx;
+    setConfirmOpen(false);
+    setPendingDeleteIdx(null);
+    if (idx === null || idx === undefined) return;
+    removeRating(productCode, idx);
+    setRatings(getRatings(productCode));
+    setAvg(getAverage(productCode));
+    showInfo('Eliminado', 'Tu calificación fue eliminada.', 'Aceptar');
+  }
+
+  function cancelDelete() {
+    setConfirmOpen(false);
+    setPendingDeleteIdx(null);
   }
 
   return (
@@ -131,11 +160,18 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
                 <div className={styles.avatar}>{(r.userName || r.userEmail || '').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}</div>
                 <div className={styles.reviewContent}>
                   <div className="d-flex justify-content-between align-items-center">
-                    <div><strong>{r.userName ?? r.userEmail}</strong></div>
-                    <div>
+                    <div className="d-flex align-items-center">
+                      <strong className="me-2">{r.userName ?? r.userEmail}</strong>
+                    </div>
+                    <div className="d-flex align-items-center">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <i key={i} className={`bi ${i < r.stars ? 'bi-star-fill' : 'bi-star'} text-warning me-1`} />
                       ))}
+                      {user && String(user.email).toLowerCase() === String(r.userEmail).toLowerCase() ? (
+                        <button type="button" className="btn btn-sm btn-link ms-2 p-0" aria-label="Eliminar calificación" onClick={() => handleDelete(idx)}>
+                          <i className="bi bi-trash-fill text-danger" />
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   <div className={styles.reviewMeta}>{new Date(r.date).toLocaleString()}</div>
@@ -147,6 +183,16 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
         )}
       </div>
       <InfoModal />
+      <Modal
+        show={confirmOpen}
+        title="Eliminar calificación"
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+      >
+        <div>¿Eliminar tu calificación? Esta acción no se puede deshacer.</div>
+      </Modal>
     </section>
   );
 };

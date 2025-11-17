@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">47.36% </span>
+                <span class="strong">84.21% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>18/38</span>
+                <span class='fraction'>32/38</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">41.66% </span>
+                <span class="strong">62.5% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>10/24</span>
+                <span class='fraction'>15/24</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">57.14% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>16/28</span>
+                <span class='fraction'>28/28</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -120,29 +120,29 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">24x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -165,20 +165,20 @@ export function validarRun(run: string): boolean {
     <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof run !== 'string') <span class="cstat-no" title="statement not covered" >return false;</span>
     run = run.trim();
     const rutRegex = /^[0-9]{1,2}(\.[0-9]{3}){2}-[0-9Kk]{1}$/;
-    <span class="missing-if-branch" title="else path not taken" >E</span>if (!rutRegex.test(run)) return false;
-    const [cuerpo, dv] = <span class="cstat-no" title="statement not covered" >run.split('-');</span>
-    const numero = <span class="cstat-no" title="statement not covered" >cuerpo.replace(/\./g, '');</span>
-    let suma = <span class="cstat-no" title="statement not covered" >0, m</span>ultiplo = <span class="cstat-no" title="statement not covered" >2;</span>
-<span class="cstat-no" title="statement not covered" >    for (let i = <span class="cstat-no" title="statement not covered" >numero.length - 1; i</span> &gt;= 0; i--) {</span>
-<span class="cstat-no" title="statement not covered" >        suma += parseInt(numero.charAt(i), 10) * multiplo;</span>
-<span class="cstat-no" title="statement not covered" >        multiplo = multiplo === 7 ? 2 : multiplo + 1;</span>
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!rutRegex.test(run)) <span class="cstat-no" title="statement not covered" >return false;</span>
+    const [cuerpo, dv] = run.split('-');
+    const numero = cuerpo.replace(/\./g, '');
+    let suma = 0, multiplo = 2;
+    for (let i = numero.length - 1; i &gt;= 0; i--) {
+        suma += parseInt(numero.charAt(i), 10) * multiplo;
+        multiplo = multiplo === 7 ? 2 : multiplo + 1;
     }
-    const dvEsperado = <span class="cstat-no" title="statement not covered" >11 - (suma % 11);</span>
-    let dvCalc = <span class="cstat-no" title="statement not covered" >'';</span>
-<span class="cstat-no" title="statement not covered" >    if (dvEsperado === 11) <span class="cstat-no" title="statement not covered" >dvCalc = <span class="cstat-no" title="statement not covered" >'0';</span></span></span>
-    else if (dvEsperado === 10) <span class="cstat-no" title="statement not covered" >dvCalc = 'K';</span>
-    else <span class="cstat-no" title="statement not covered" >dvCalc = dvEsperado.toString();</span>
-<span class="cstat-no" title="statement not covered" >    return dv.toUpperCase() === dvCalc;</span>
+    const dvEsperado = 11 - (suma % 11);
+    let dvCalc = '';
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (dvEsperado === 11) <span class="cstat-no" title="statement not covered" >dvCalc = '0';</span>
+    else if (dvEsperado === 10) dvCalc = 'K';
+    else dvCalc = dvEsperado.toString();
+    return dv.toUpperCase() === dvCalc;
 }
 &nbsp;
 const EMAIL_DOMINIOS_PERMITIDOS = ["@duoc.cl", "@profesor.duoc.cl", "@gmail.com"];
@@ -196,7 +196,7 @@ export default { formatearRun, validarRun, emailDominioValido };
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T22:57:14.012Z
+                at 2025-11-17T03:20:33.096Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

@@ -6,7 +6,8 @@
 }
 
 .btnFilterPrimary,
-.btnFilter:hover {
+.btnFilter:hover,
+.btnFilterPrimary:hover{
     background-color: var(--accent-main, #b08d57);
     color: var(--color-background, #fff);
 }

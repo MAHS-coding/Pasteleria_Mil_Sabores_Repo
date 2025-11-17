@@ -19,8 +19,8 @@
     /* Efecto de desenfoque en el fondo */
     border-bottom: var(--border-soft);
     /* Línea inferior suave */
-    height: var(--nav-h);
-    /* Altura controlada mediante variable global */
+    min-height: var(--nav-h);
+    /* Mantiene altura mínima sin impedir la expansión en móviles */
 }
 
 /* --- ENLACES DE NAVEGACIÓN --- */
@@ -76,25 +76,41 @@
     color: var(--color-background, #fff) !important;
 }
 
-:global(header:has(.navbar-collapse.show)) {
+:global(header:has(.navbar-collapse.show)),
+:global(header:has(.navbar-collapse.collapsing)) {
     position: static !important;
 }
 
-:global(header:has(.navbar-collapse.show)) .navbar {
+:global(header:has(.navbar-collapse.show)) .navbar,
+:global(header:has(.navbar-collapse.collapsing)) .navbar {
     position: relative !important;
+}
+
+:global(header:has(.navbar-collapse.show)) .primary-nav,
+:global(header:has(.navbar-collapse.collapsing)) .primary-nav {
+    height: auto;
+    min-height: var(--nav-h);
+    padding-bottom: 0.5rem;
+}
+
+@media (max-width: 991.98px) {
+    :global(.navbar-collapse) {
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    :global(.navbar-collapse.show),
+    :global(.navbar-collapse.collapsing) {
+        padding: 0.75rem 0;
+    }
 }
 
 /* Add extra spacing between navbar items for better readability */
 :global(.navbar-nav .nav-item) {
-    margin-left: 0.5rem;
     /* space between items */
     margin-right: 0.5rem;
 }
 
-/* Increase clickable area of links */
-:global(.navbar-nav .nav-link) {
-    padding: 0.5rem 0.75rem;
-}
+
 
 /* Space between brand and nav items on large screens */
 @media (min-width: 992px) {

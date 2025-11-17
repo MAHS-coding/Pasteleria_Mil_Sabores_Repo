@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { formatearRun, validarRun, emailDominioValido } from "../../utils/validation";
-import { createUser } from "../../utils/registro";
-import { sha256Hex } from "../../utils/hash";
+import authService from "../../services/authService";
+import userService from "../../services/userService";
 import Modal from "../../components/ui/Modal";
 import FieldFeedback from "../../components/ui/FieldFeedback";
 import FormField from "../../components/ui/FormField";
@@ -65,17 +65,25 @@ const Registro: React.FC = () => {
         setErrors(v);
         if (Object.keys(v).length) return;
 
-        // Hash password before storing
-        const hashed = await sha256Hex(password);
-
-    const result = createUser({ run, name, lastname, email, birthdate, codigo, password: hashed });
+        // Register using authService which handles hashing and validation
+            const payload = { run, name, lastname, email, birthdate, codigo, passwordPlain: password };
+            // authService.register currently expects a StoredUser-like shape in types while it accepts a passwordPlain at runtime.
+            // Cast to any to satisfy TypeScript until the service typing is adjusted.
+            const result = await authService.register(payload as any);
         if (!result.ok) {
             if (result.error === 'email_exists') setErrors({ email: "Ya existe una cuenta con ese correo." });
             else setErrors({ email: "No se pudo crear la cuenta." });
             return;
         }
 
-        login({ name, email });
+        // Log the user in via userService to persist session, then update AuthContext
+        const loginRes = await userService.login(email, password);
+        if (loginRes.ok) {
+            login({ name: loginRes.user.name, email: loginRes.user.email });
+        } else {
+            // fallback: set context directly
+            login({ name, email });
+        }
 
         setShowSuccess(true);
     }
@@ -100,7 +108,7 @@ const Registro: React.FC = () => {
                         <div className="row justify-content-center">
                             <div className="col-11 col-md-10 col-lg-12">
                                 <div className="d-flex flex-column flex-lg-row align-items-center gap-3 text-center text-lg-start p-3 p-lg-4 rounded-4 shadow-lg" style={{ background: 'rgba(31, 8, 56, 0.5)', backdropFilter: 'blur(18px)', border: '1px solid rgba(255,255,255,0.2)' }}>
-                                    <img alt="Pastelería Mil Sabores" width={140} className={`${styles.logo} rounded-pill shadow border border-light border-opacity-50`} src="/src/assets/images/logo_tienda.png" />
+                                    <img alt="Pastelería Mil Sabores" width={140} className={`${styles.logo} rounded-pill shadow border border-light border-opacity-50`} src="/images/background/fondo.jpg" />
                                     <div>
                                         <span className="badge text-uppercase fw-semibold mb-3 bg-white text-body-secondary px-3 py-2">Tu pastelería favorita</span>
                                         <h1 className="mb-2 brand-name text-white">Pastelería Mil Sabores</h1>

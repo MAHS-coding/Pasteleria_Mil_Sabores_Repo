@@ -1,0 +1,61 @@
+:root {
+    --admin-accent: var(--accent-main);
+}
+
+/* Export global class names used by Admin.tsx (keeps current className strings intact) */
+:global(.stat-card) {
+    border-radius: 10px;
+    box-shadow: var(--shadow-soft);
+    padding: 0.75rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+:global(.stat-card:hover) {
+    transform: translateY(-4px);
+}
+
+:global(.stat-card .icon) {
+    font-size: 1.8rem;
+    color: var(--admin-accent);
+}
+
+:global(.dashboard-productos-card) {
+    border-left: 4px solid var(--admin-accent);
+}
+
+:global(.dashboard-stockbajo-card) {
+    border-left: 4px solid #e74c3c;
+    /* red */
+}
+
+:global(.dashboard-unidadesvendidas-card) {
+    border-left: 4px solid #2ecc71;
+    /* green */
+}
+
+:global(.dashboard-ticketpromedio-card) {
+    border-left: 4px solid #3498db;
+    /* blue */
+}
+
+:global(.dashboard-usuarios-card) {
+    border-left: 4px solid #9b59b6;
+    /* purple */
+}
+
+/* Small helpers for admin tables and panels */
+:global(.admin-panel) {
+    padding: 1rem;
+}
+
+:global(.admin-grid) {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 1rem;
+}
+
+@media (max-width: 991px) {
+    :global(.admin-grid) {
+        grid-template-columns: 1fr;
+    }
+}

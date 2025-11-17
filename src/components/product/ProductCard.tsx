@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import shared from "./productShared.module.css";
 import { useNavigate } from "react-router-dom";
+import { scrollToTop } from "../../utils/scroll";
 import { useCart } from "../../context/CartContext";
 import Modal from "../ui/Modal";
 import { isPersonalizable } from "../../utils/products";
@@ -26,6 +27,7 @@ export const ProductCard: React.FC<Props> = ({ p, onPersonalize }) => {
     const { InfoModal, showInfo } = useInfoModal();
 
     function openDetail() {
+        try { scrollToTop(); } catch {}
         navigate(`/detalle?code=${encodeURIComponent(p.code)}`);
     }
 

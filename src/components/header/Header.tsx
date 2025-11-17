@@ -4,9 +4,8 @@ import { useAuth } from "../../context/AuthContext";
 import { useEffect, useState } from "react";
 import Modal from "../ui/Modal";
 import FormField from "../ui/FormField";
-import { readUsers } from "../../utils/registro";
 import { isAdminEmail } from "../../utils/roles";
-import { sha256Hex } from "../../utils/hash";
+import userService from "../../services/userService";
 
 
 
@@ -36,17 +35,12 @@ const Navbar: React.FC = () => {
     async function handleLoginSubmit(e: React.FormEvent) {
         e.preventDefault();
         try {
-            const users = readUsers();
-            const hashed = await sha256Hex(loginPassword);
-            const found = users.find(
-                (candidate) =>
-                    String(candidate.email).toLowerCase() === String(loginEmail).toLowerCase() &&
-                    candidate.password === hashed
-            );
-            if (!found) {
+            const res = await userService.login(loginEmail, loginPassword);
+            if (!res.ok) {
                 setLoginError("Usuario o contraseña incorrectos.");
                 return;
             }
+            const found = res.user;
             login({ name: found.name || "Usuario", email: found.email });
             setShowLogin(false);
             navigate("/");

@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">83.33% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/12</span>
+                <span class='fraction'>10/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">42.85% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/7</span>
+                <span class='fraction'>3/7</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">66.66% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>2/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">83.33% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/12</span>
+                <span class='fraction'>10/12</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -88,50 +88,50 @@
 <a name='L23'></a><a href='#L23'>23</a>
 <a name='L24'></a><a href='#L24'>24</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// Centralized user-facing messages (titles and common strings)
 &nbsp;
-export const STOCK_INSUFICIENTE_TITLE = <span class="cstat-no" title="statement not covered" >"Stock insuficiente";</span>
-export const STOCK_INSUFICIENTE_MSG = <span class="cstat-no" title="statement not covered" >"No hay stock disponible para este producto.";</span>
+export const STOCK_INSUFICIENTE_TITLE = "Stock insuficiente";
+export const STOCK_INSUFICIENTE_MSG = "No hay stock disponible para este producto.";
 &nbsp;
-export const STOCK_LIMITADO_TITLE = <span class="cstat-no" title="statement not covered" >"Stock limitado";</span>
-export function <span class="fstat-no" title="function not covered" >stockLimitAdjusted(q</span>ty: number, subject = <span class="branch-0 cbranch-no" title="branch not covered" >"este producto") {</span>
-  const s = <span class="cstat-no" title="statement not covered" >qty === 1 ? "unidad" : "unidades";</span>
-<span class="cstat-no" title="statement not covered" >  return `Se ajustó ${subject} a ${qty} ${s} por disponibilidad.`;</span>
+export const STOCK_LIMITADO_TITLE = "Stock limitado";
+export function stockLimitAdjusted(qty: number, subject = "este producto") {
+  const s = qty === 1 ? <span class="branch-0 cbranch-no" title="branch not covered" >"unidad" : "</span>unidades";
+  return `Se ajustó ${subject} a ${qty} ${s} por disponibilidad.`;
 }
 &nbsp;
-export const CANTIDAD_AJUSTADA_TITLE = <span class="cstat-no" title="statement not covered" >"Cantidad ajustada por stock";</span>
-export function <span class="fstat-no" title="function not covered" >soloQuedanUnidades(q</span>ty: number) {
-  const s = <span class="cstat-no" title="statement not covered" >qty === 1 ? "unidad" : "unidades";</span>
-<span class="cstat-no" title="statement not covered" >  return `Solo quedan ${qty} ${s} disponibles.`;</span>
+export const CANTIDAD_AJUSTADA_TITLE = "Cantidad ajustada por stock";
+export function soloQuedanUnidades(qty: number) {
+  const s = qty === 1 ? "unidad" : <span class="branch-1 cbranch-no" title="branch not covered" >"unidades";</span>
+  return `Solo quedan ${qty} ${s} disponibles.`;
 }
 export function <span class="fstat-no" title="function not covered" >seSolicitaranMensajes(q</span>ty: number) {
   const s = <span class="cstat-no" title="statement not covered" >qty === 1 ? "mensaje" : "mensajes";</span>
 <span class="cstat-no" title="statement not covered" >  return `Se solicitarán ${qty} ${s}.`;</span>
 }
 &nbsp;
-export const CARRITO_VACIO_TITLE = <span class="cstat-no" title="statement not covered" >"Carrito vacío";</span>
-export const CARRITO_VACIO_MSG = <span class="cstat-no" title="statement not covered" >"No hay productos en el carrito.";</span>
+export const CARRITO_VACIO_TITLE = "Carrito vacío";
+export const CARRITO_VACIO_MSG = "No hay productos en el carrito.";
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -139,7 +139,7 @@ export const CARRITO_VACIO_MSG = <span class="cstat-no" title="statement not cov
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T22:57:14.012Z
+                at 2025-11-17T03:20:33.096Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

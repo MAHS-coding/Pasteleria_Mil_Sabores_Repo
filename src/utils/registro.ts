@@ -11,6 +11,9 @@ export type StoredUser = {
     password: string;
     phone?: string;
     addresses?: Array<{ id: string; address: string; region?: string; comuna?: string }>;
+    // stored payment cards (only store non-sensitive display info)
+    paymentCards?: Array<{ id: string; brand?: string; last4: string; expMonth?: string; expYear?: string; holderName?: string }>;
+    defaultPaymentCardId?: string;
     discountPercent?: number; // total discount percentage (age + lifetime)
     lifetimeDiscount?: boolean; // true when registered with FELICES50
     freeCakeVoucher?: boolean; // one-time free cake voucher (e.g., student birthday)

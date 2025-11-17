@@ -6,6 +6,9 @@ import { products as allProducts, regions } from "../../utils/dataLoaders";
 import { formatCLP } from "../../utils/currency";
 import Modal from "../../components/ui/Modal";
 import FormField from "../../components/ui/FormField";
+import styles from './Checkout.module.css';
+import { formatCardNumber, formatExpMonth, formatExpYear, normalizeHolderName, detectBrand, maskLast4 } from '../../utils/cardUtils';
+import PaymentCards from '../../components/payments/PaymentCards';
 import { getJSON, setJSON } from "../../utils/storage";
 import { useNavigate } from "react-router-dom";
 
@@ -22,6 +25,8 @@ export type Order = {
   fechaEntrega: string;
   direccionEntrega: string;
   estado?: string;
+  paymentMethodId?: string;
+  paymentMethod?: string;
 };
 
 function todayYYYYMMDD() {
@@ -50,8 +55,15 @@ const Checkout: React.FC = () => {
   const [addrComuna, setAddrComuna] = useState("");
   const [addAddressError, setAddAddressError] = useState("");
 
-  // delivery date
   const [fechaEntrega, setFechaEntrega] = useState<string>(todayYYYYMMDD());
+  const maxFechaEntrega = useMemo(() => {
+    const t = new Date();
+    const future = new Date(t.getFullYear(), t.getMonth() + 3, t.getDate());
+    const y = future.getFullYear();
+    const m = String(future.getMonth() + 1).padStart(2, "0");
+    const d = String(future.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, []);
 
   // confirmation modal after placing order
   const [confirmPlacedOpen, setConfirmPlacedOpen] = useState(false);
@@ -130,6 +142,33 @@ const Checkout: React.FC = () => {
     return "";
   }
 
+  // Payment cards support
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (storedUser?.paymentCards && storedUser.paymentCards.length > 0) {
+      setSelectedCardId(storedUser.defaultPaymentCardId ?? storedUser.paymentCards[0].id);
+    } else {
+      setSelectedCardId(null);
+    }
+  }, [storedUser]);
+
+  
+
+  function addCard(cardData: { number: string; holder?: string; expMonth?: string; expYear?: string }) {
+    if (!user?.email) return;
+    const last4 = maskLast4(cardData.number);
+    if (!last4) return;
+    const brand = detectBrand(cardData.number);
+    const id = `card-${Date.now()}`;
+    const card = { id, brand, last4, expMonth: cardData.expMonth, expYear: cardData.expYear, holderName: cardData.holder } as any;
+    const existing = storedUser?.paymentCards ?? [];
+    const willSetDefault = !storedUser?.defaultPaymentCardId;
+    const updated = updateUser(user.email, { paymentCards: [card, ...existing], defaultPaymentCardId: willSetDefault ? id : storedUser?.defaultPaymentCardId });
+    if (updated) setStoredUser(updated);
+    setSelectedCardId(id);
+  }
+
   function placeOrder(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) return;
@@ -140,6 +179,14 @@ const Checkout: React.FC = () => {
       // simple guard; UI already restricts min
       return;
     }
+    // guard max: cannot schedule beyond maxFechaEntrega (today + 3 months)
+    try {
+      const maxAllowed = new Date(maxFechaEntrega + "T00:00:00");
+      if (selected.getTime() > maxAllowed.getTime()) {
+        // selected date is too far in the future
+        return;
+      }
+    } catch { }
 
     let addressText = getSelectedAddressLabel();
     if (!addressText) {
@@ -159,6 +206,8 @@ const Checkout: React.FC = () => {
       fechaEntrega,
       direccionEntrega: addressText,
       estado: "Pendiente",
+      paymentMethodId: selectedCardId ?? undefined,
+      paymentMethod: selectedCardId ? (storedUser?.paymentCards?.find(pc => String(pc.id) === String(selectedCardId)) ? `${storedUser?.paymentCards?.find(pc => String(pc.id) === String(selectedCardId))?.brand} **** ${storedUser?.paymentCards?.find(pc => String(pc.id) === String(selectedCardId))?.last4}` : String(selectedCardId)) : undefined,
     };
 
     // persist into 'ordenes'
@@ -166,7 +215,7 @@ const Checkout: React.FC = () => {
       const prev: Order[] = getJSON<Order[]>("ordenes") || [];
       prev.push(order);
       setJSON("ordenes", prev as any);
-    } catch {}
+    } catch { }
 
     // decrement stock in 'catalogo'
     try {
@@ -180,14 +229,14 @@ const Checkout: React.FC = () => {
         }
       }
       setJSON("catalogo", catalogo);
-    } catch {}
+    } catch { }
 
     // mark free cake redeemed if applied
     try {
       if (applyFreeCakeVoucher && freeCakeAmount > 0 && storedUser?.email) {
         updateUser(storedUser.email, { freeCakeVoucher: false, freeCakeRedeemed: true });
       }
-    } catch {}
+    } catch { }
 
     // clear cart
     clear();
@@ -207,10 +256,10 @@ const Checkout: React.FC = () => {
 
       <div className="row g-4">
         <div className="col-12 col-lg-8 order-1 order-lg-0">
-          <form className="card p-3 shadow-sm" onSubmit={placeOrder}>
+          <form className={`card p-3 shadow-sm ${styles['checkout-form']}`} onSubmit={placeOrder}>
             <div className="mb-3">
               <label htmlFor="fechaEntrega" className="form-label">Fecha de entrega</label>
-              <input id="fechaEntrega" type="date" className="form-control" required min={todayYYYYMMDD()} value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
+              <input id="fechaEntrega" type="date" className="form-control" required min={todayYYYYMMDD()} max={maxFechaEntrega} value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
             </div>
             <div className="mb-3">
               <label htmlFor="direccionSelect" className="form-label">Dirección de entrega</label>
@@ -227,15 +276,33 @@ const Checkout: React.FC = () => {
                     </>
                   )}
                 </select>
-                <button className="btn btn-outline-primary" type="button" title="Agregar nueva dirección" onClick={openAddAddressModal}><i className="bi bi-plus-circle"></i></button>
+                <button className={`btn ${styles['accentOutlineBtn']}`} type="button" title="Agregar nueva dirección" onClick={openAddAddressModal}><i className="bi bi-plus-circle"></i></button>
               </div>
             </div>
-            <button type="submit" className="btn btn-primary w-100" disabled={items.length === 0}>Confirmar pedido</button>
+            {/* Payment methods */}
+            <div className="mb-3">
+              <label className="form-label">Método de pago</label>
+              {user ? (
+                <div>
+                  <PaymentCards
+                    mode="select"
+                    paymentCards={storedUser?.paymentCards || []}
+                    defaultCardId={storedUser?.defaultPaymentCardId}
+                    selectedId={selectedCardId}
+                    onSelectedChange={(id) => setSelectedCardId(id)}
+                    onAdd={(data) => addCard({ number: formatCardNumber(data.number), holder: normalizeHolderName(data.holder || ''), expMonth: formatExpMonth(data.expMonth || ''), expYear: formatExpYear(data.expYear || '') })}
+                  />
+                </div>
+              ) : (
+                <div className="small text-muted">Inicia sesión para guardar tarjetas</div>
+              )}
+            </div>
+            <button type="submit" className={`btn w-100 ${styles['confirmBtn']}`} disabled={items.length === 0}>Confirmar pedido</button>
           </form>
         </div>
 
         <div className="col-12 col-lg-4 order-0 order-lg-1">
-          <div id="checkout-resumen" className="card card-resumen p-3 mb-3">
+          <div id="checkout-resumen" className={`card ${styles['card-resumen']} p-3 mb-3`}>
             <h5 className="mb-3">Resumen del Pedido</h5>
             {items.length === 0 ? (
               <div className="alert alert-warning">Tu carrito está vacío.</div>

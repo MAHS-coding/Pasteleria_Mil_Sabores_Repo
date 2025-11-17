@@ -196,7 +196,9 @@
 <a name='L131'></a><a href='#L131'>131</a>
 <a name='L132'></a><a href='#L132'>132</a>
 <a name='L133'></a><a href='#L133'>133</a>
-<a name='L134'></a><a href='#L134'>134</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -336,39 +338,40 @@ import { useAuth } from "../../context/AuthContext";
 import { isAdminEmail } from "../../utils/roles";
 import styles from "./Home.module.css";
 import Testimonials from "../../components/home/Testimonials";
+import { scrollToTop } from "../../utils/scroll";
 &nbsp;
 &nbsp;
 &nbsp;
 const Home: React.FC = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
-    const { user } = <span class="cstat-no" title="statement not covered" >useAuth();</span>
-    const isAdmin = <span class="cstat-no" title="statement not covered" >isAdminEmail(user?.email);</span>
+  const { user } = <span class="cstat-no" title="statement not covered" >useAuth();</span>
+  const isAdmin = <span class="cstat-no" title="statement not covered" >isAdminEmail(user?.email);</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return (</span>
-        &lt;main className="home flex-grow-1"&gt;
+<span class="cstat-no" title="statement not covered" >  return (</span>
+    &lt;main className="home flex-grow-1"&gt;
       &lt;ParallaxHero image="/images/background/fondo.jpg" arrowToId="presentacion"&gt;
         &lt;h1 className={`display-5 fw-bold ${styles['titulo-home']}`}&gt;Postres y momentos dulces&lt;/h1&gt;
         &lt;p className={`lead ${styles['subtitulo-home']}`}&gt;Sabores que celebran cada ocasión&lt;/p&gt;
       &lt;/ParallaxHero&gt;
 &nbsp;
-            &lt;section id="presentacion" className="py-5"&gt;
-                &lt;div className="container"&gt;
-                    &lt;div className="row"&gt;
-                        &lt;div className="col-12"&gt;
-                            &lt;div className="pe-lg-4"&gt;
-                                &lt;h2 className="h3 mb-4 text-center" style={{ color: '#2d3748' }}&gt;
-                                    ¿Qué es Pastelería Mil Sabores?
-                                &lt;/h2&gt;
+      &lt;section id="presentacion" className="py-5"&gt;
+        &lt;div className="container"&gt;
+          &lt;div className="row"&gt;
+            &lt;div className="col-12"&gt;
+              &lt;div className="pe-lg-4"&gt;
+                &lt;h2 className="h3 mb-4 text-center" style={{ color: '#2d3748' }}&gt;
+                  ¿Qué es Pastelería Mil Sabores?
+                &lt;/h2&gt;
                 &lt;p className="text-muted mb-4 lh-lg text-center"&gt;
                   En Pastelería Mil Sabores elaboramos cada producto con ingredientes seleccionados y recetas artesanales que combinan tradición y modernidad. Nuestro obrador utiliza materias primas de calidad: harinas y mantequillas seleccionadas, chocolates y frutas frescas. Trabajamos con prácticas responsables con el medio ambiente.
                   Ofrecemos opciones personalizadas (tortas a medida, decoraciones y mensajes), alternativas sin azúcar y sin gluten, y un servicio de entrega confiable para particulares y eventos. Nuestro equipo de reposteros cuida la presentación y la textura en cada pieza para que tus celebraciones sean memorables.
                 &lt;/p&gt;
-                            &lt;/div&gt;
-                        &lt;/div&gt;
-                    &lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
 &nbsp;
-                    &lt;div className="row mt-4"&gt;
-                        &lt;div className="col-12"&gt;
-                &lt;div className="position-relative"&gt;
+          &lt;div className="row mt-4"&gt;
+            &lt;div className="col-12"&gt;
+              &lt;div className="position-relative"&gt;
                 &lt;video
                   className={`img-fluid rounded-3 shadow-lg ${styles['embedded-video']} w-100`}
                   src="/videos/home/video_section.mp4"
@@ -380,20 +383,20 @@ const Home: React.FC = <span class="cstat-no" title="statement not covered" ><sp
                 /&gt;
                 &lt;div className="position-absolute top-0 start-0 w-100 h-100 rounded-3" style={{ background: 'rgba(var(--accent-main-rgb), 0.08)' }}&gt;&lt;/div&gt;
               &lt;/div&gt;
-                        &lt;/div&gt;
-                    &lt;/div&gt;
-                &lt;/div&gt;
-            &lt;/section&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
 &nbsp;
       &lt;section className="py-5"&gt;
-                &lt;div className="container"&gt;
-                    &lt;div className="text-center mb-5"&gt;
-                        &lt;h2 className="h3" style={{ color: '#2d3748' }}&gt;
-                            Nuestro Impacto
-                        &lt;/h2&gt;
-                        &lt;p className="text-muted"&gt;Cifras que reflejan nuestro compromiso&lt;/p&gt;
-                    &lt;/div&gt;
-                    &lt;div className="row g-4"&gt;
+        &lt;div className="container"&gt;
+          &lt;div className="text-center mb-5"&gt;
+            &lt;h2 className="h3" style={{ color: '#2d3748' }}&gt;
+              Nuestro Impacto
+            &lt;/h2&gt;
+            &lt;p className="text-muted"&gt;Cifras que reflejan nuestro compromiso&lt;/p&gt;
+          &lt;/div&gt;
+          &lt;div className="row g-4"&gt;
             &lt;div className="col-lg-4 col-md-6 text-center"&gt;
               &lt;div className="display-4 fw-bold mb-2" style={{ color: 'var(--accent-main)' }}&gt;50+&lt;/div&gt;
               &lt;h5 className="fw-semibold mb-2"&gt;Años de Experiencia&lt;/h5&gt;
@@ -409,29 +412,29 @@ const Home: React.FC = <span class="cstat-no" title="statement not covered" ><sp
               &lt;h5 className="fw-semibold mb-2"&gt;Ingredientes seleccionados&lt;/h5&gt;
               &lt;p className="text-muted small"&gt;Calidad garantizada&lt;/p&gt;
             &lt;/div&gt;
-                    &lt;/div&gt;
-                &lt;/div&gt;
-            &lt;/section&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
 &nbsp;
-            {/* Nuestras Ubicaciones section removed per request */}
+      {/* Nuestras Ubicaciones section removed per request */}
 &nbsp;
-            &lt;section className="py-5" style={{ backgroundColor: '#fafafa' }}&gt;
-                &lt;div className="container"&gt;
-                    &lt;div className="text-center mb-5"&gt;
-                        &lt;h2 className="h3" style={{ color: '#2d3748' }}&gt;Lo que dicen nuestros clientes&lt;/h2&gt;
-                        &lt;p className="text-muted"&gt;Experiencias reales de familias satisfechas&lt;/p&gt;
-                    &lt;/div&gt;
-                    &lt;Testimonials /&gt;
-                &lt;/div&gt;
-            &lt;/section&gt;
+      &lt;section className="py-5" style={{ backgroundColor: '#fafafa' }}&gt;
+        &lt;div className="container"&gt;
+          &lt;div className="text-center mb-5"&gt;
+            &lt;h2 className="h3" style={{ color: '#2d3748' }}&gt;Lo que dicen nuestros clientes&lt;/h2&gt;
+            &lt;p className="text-muted"&gt;Experiencias reales de familias satisfechas&lt;/p&gt;
+          &lt;/div&gt;
+          &lt;Testimonials /&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
 &nbsp;
-            &lt;section className="py-5 my-5"&gt;
-                &lt;div className="container"&gt;
-                    &lt;div className="row justify-content-center"&gt;
-                        &lt;div className="col-lg-8"&gt;
-                            &lt;div className="text-center"&gt;
-                                &lt;h2 className="h3 mb-4" style={{ color: '#2d3748' }}&gt;¿Listo para endulzar tu día?&lt;/h2&gt;
-                                &lt;p className="text-muted mb-5 lh-lg"&gt;Únete a miles de clientes que disfrutan de nuestras recetas artesanales.&lt;/p&gt;
+      &lt;section className="py-5 my-5"&gt;
+        &lt;div className="container"&gt;
+          &lt;div className="row justify-content-center"&gt;
+            &lt;div className="col-lg-8"&gt;
+              &lt;div className="text-center"&gt;
+                &lt;h2 className="h3 mb-4" style={{ color: '#2d3748' }}&gt;¿Listo para endulzar tu día?&lt;/h2&gt;
+                &lt;p className="text-muted mb-5 lh-lg"&gt;Únete a miles de clientes que disfrutan de nuestras recetas artesanales.&lt;/p&gt;
                 &lt;div className="d-flex gap-3 justify-content-center flex-wrap"&gt;
                   {user ? (
                     isAdmin ? (
@@ -442,7 +445,7 @@ const Home: React.FC = <span class="cstat-no" title="statement not covered" ><sp
                     ) : (
                       &lt;&gt;
                         &lt;Link to="/productos" className="btn btn-lg px-5 py-3 rounded-3" style={{ background: 'var(--accent-main)', color: '#fff', border: 'none' }}&gt;&lt;i className="bi bi-basket me-2"&gt;&lt;/i&gt; Ver Productos&lt;/Link&gt;
-                        &lt;Link to="/perfil" className="btn btn-lg px-5 py-3 rounded-3" style={{ background: 'transparent', border: '1px solid var(--accent-main)', color: 'var(--accent-main)' }}&gt;&lt;i className="bi bi-person me-2"&gt;&lt;/i&gt; Mi Perfil&lt;/Link&gt;
+                        &lt;Link to="/perfil" onClick={scrollToTop} className="btn btn-lg px-5 py-3 rounded-3" style={{ background: 'transparent', border: '1px solid var(--accent-main)', color: 'var(--accent-main)' }}&gt;&lt;i className="bi bi-person me-2"&gt;&lt;/i&gt; Mi Perfil&lt;/Link&gt;
                       &lt;/&gt;
                     )
                   ) : (
@@ -452,13 +455,13 @@ const Home: React.FC = <span class="cstat-no" title="statement not covered" ><sp
                     &lt;/&gt;
                   )}
                 &lt;/div&gt;
-                            &lt;/div&gt;
-                        &lt;/div&gt;
-                    &lt;/div&gt;
-                &lt;/div&gt;
-            &lt;/section&gt;
-        &lt;/main&gt;
-    );
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
+    &lt;/main&gt;
+  );
 };
 &nbsp;
 export default Home;
@@ -469,7 +472,7 @@ export default Home;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T22:57:14.012Z
+                at 2025-11-17T03:20:33.096Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
