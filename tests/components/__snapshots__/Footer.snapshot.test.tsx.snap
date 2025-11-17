@@ -1,0 +1,243 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Footer snapshot > coincide con el snapshot cuando no hay usuario 1`] = `
+<DocumentFragment>
+  <footer
+    class="_site-footer_d0d8de mt-auto"
+  >
+    <div
+      class="container py-4"
+    >
+      <div
+        class="row gy-4 align-items-start"
+      >
+        <div
+          class="col-12 col-md-3"
+        >
+          <a
+            class="navbar-brand mb-2 d-inline-flex align-items-center"
+            data-discover="true"
+            href="/"
+          >
+            <img
+              alt="Pastelería Mil Sabores"
+              class="_footer-logo_d0d8de"
+              height="44"
+              src="/images/logos/logo_titulo.png"
+            />
+          </a>
+          <div
+            class="d-flex align-items-center gap-2 mt-2"
+          >
+            <span>
+              Síguenos en:
+            </span>
+            <div
+              class="d-flex gap-3 _social-icons_d0d8de"
+            >
+              <a
+                aria-label="WhatsApp"
+                href="https://wa.me/56900000000"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <i
+                  class="bi bi-whatsapp"
+                />
+              </a>
+              <a
+                aria-label="Instagram"
+                href="https://www.instagram.com/"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <i
+                  class="bi bi-instagram"
+                />
+              </a>
+              <a
+                aria-label="Facebook"
+                href="https://www.facebook.com/"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <i
+                  class="bi bi-facebook"
+                />
+              </a>
+            </div>
+          </div>
+        </div>
+        <div
+          class="col-6 col-md-2"
+        >
+          <div
+            class="_footer-col-title_d0d8de"
+          >
+            PASTELERÍA
+          </div>
+          <ul
+            class="list-unstyled _footer-links_d0d8de"
+          >
+            <li>
+              <a
+                data-discover="true"
+                href="/nosotros"
+              >
+                Nosotros
+              </a>
+            </li>
+            <li>
+              <a
+                data-discover="true"
+                href="/blogs"
+              >
+                Blog
+              </a>
+            </li>
+            <li>
+              <a
+                data-discover="true"
+                href="/productos"
+              >
+                Catálogo
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div
+          class="col-6 col-md-2"
+        >
+          <div
+            class="_footer-col-title_d0d8de"
+          >
+            AYUDA
+          </div>
+          <ul
+            class="list-unstyled _footer-links_d0d8de"
+          >
+            <li>
+              <a
+                data-discover="true"
+                href="/contacto"
+              >
+                Contacto
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div
+          class="col-6 col-md-2"
+        >
+          <div
+            class="_footer-col-title_d0d8de"
+          >
+            MENÚ
+          </div>
+          <ul
+            class="list-unstyled _footer-links_d0d8de"
+          >
+            <li>
+              <a
+                data-discover="true"
+                href="/productos/tortas-cuadradas"
+              >
+                Tortas Cuadradas
+              </a>
+            </li>
+            <li>
+              <a
+                data-discover="true"
+                href="/productos/tortas-circulares"
+              >
+                Tortas Circulares
+              </a>
+            </li>
+            <li>
+              <a
+                data-discover="true"
+                href="/productos/postres-individuales"
+              >
+                Postres Individuales
+              </a>
+            </li>
+            <li>
+              <a
+                data-discover="true"
+                href="/productos/sin-azucar"
+              >
+                Sin Azúcar
+              </a>
+            </li>
+            <li>
+              <a
+                data-discover="true"
+                href="/productos/sin-gluten"
+              >
+                Sin Gluten
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div
+          class="col-6 col-md-3"
+        >
+          <div
+            class="_footer-col-title_d0d8de"
+          >
+            LEGAL
+          </div>
+          <ul
+            class="list-unstyled _footer-links_d0d8de"
+          >
+            <li>
+              <a
+                data-discover="true"
+                href="/terminos"
+              >
+                Términos y Condiciones
+              </a>
+            </li>
+            <li>
+              <a
+                data-discover="true"
+                href="/privacidad"
+              >
+                Política de Privacidad
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <hr
+        class="my-4"
+      />
+      <div
+        class="d-flex flex-column flex-md-row justify-content-between small text-secondary"
+      >
+        <div>
+          © 2025 Pastelería Mil Sabores. Todos los derechos reservados.
+        </div>
+        <div
+          class="d-flex gap-3"
+        >
+          <a
+            class="text-decoration-none text-secondary"
+            data-discover="true"
+            href="/terminos"
+          >
+            Términos
+          </a>
+          <a
+            class="text-decoration-none text-secondary"
+            data-discover="true"
+            href="/privacidad"
+          >
+            Privacidad
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+</DocumentFragment>
+`;

@@ -1,0 +1,71 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ProductCard snapshot > coincide con el snapshot básico 1`] = `
+<DocumentFragment>
+  <div
+    class="_gridItem_5d9ab1"
+  >
+    <div
+      class="card _productCard_5d9ab1 h-100"
+      role="button"
+      tabindex="0"
+    >
+      <img
+        alt="Prueba"
+        class="_productImg_5d9ab1 card-img-top"
+        src="/x.png"
+      />
+      <div
+        class="card-body d-flex flex-column"
+      >
+        <h5
+          class="card-title _titleClamp_5d9ab1"
+        >
+          Prueba
+        </h5>
+        <div
+          class="d-flex align-items-center gap-2 mb-2"
+        >
+          <div
+            class="small"
+          >
+            <span
+              class="text-muted small"
+            >
+              Sin calificaciones
+            </span>
+          </div>
+          <div
+            class="ms-auto small text-muted"
+          />
+        </div>
+        <p
+          class="text-muted small mb-2"
+        >
+          Stock: 5
+        </p>
+        <div
+          class="d-flex align-items-center justify-content-between mb-3 mt-auto"
+        >
+          <span
+            class="_price_5d9ab1 fw-bold"
+          >
+            $1.000
+          </span>
+          <div
+            class="_badgesInline_5d9ab1"
+          />
+        </div>
+        <button
+          class="btn btn-sm w-100 _btnCart_5d9ab1"
+        >
+          <i
+            class="bi bi-cart-plus me-2"
+          />
+           Agregar al carrito
+        </button>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
