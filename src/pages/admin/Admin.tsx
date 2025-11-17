@@ -1210,6 +1210,10 @@ const Admin: React.FC = () => {
     }
 
     function SectionOrdenes() {
+        const byId = useMemo(() => new Map((catalogo || []).map((p: any) => [String(p.code), p])), [catalogo]);
+
+        const [orderDetail, setOrderDetail] = useState<Orden | null>(null);
+
         const rows = ordenes.map((o) => (
             <tr key={String(o.id)}>
                 <td>{timeHHMM((o.tsISO as string) || (o.fecha as string))}</td>
@@ -1222,12 +1226,41 @@ const Admin: React.FC = () => {
             </tr>
         ));
 
-        const [orderDetail, setOrderDetail] = useState<Orden | null>(null);
         const itemsHTML = (it: Orden["items"]) => (
-            (it || []).map((x, idx) => (
-                <li key={idx} className="list-group-item d-flex justify-content-between"><span>{x.productId ?? x.code ?? ''}</span><span>x{Number(x.qty || x.cantidad || 0)} • {CLP(Number(x.price || 0))}</span></li>
-            ))
+            (it || []).length ? (
+                <div className="table-responsive">
+                    <table className="table mb-0">
+                        <thead className="table-light"><tr><th>Producto</th><th>Código</th><th className="text-end">Cant.</th><th className="text-end">Precio u.</th><th className="text-end">Subtotal</th></tr></thead>
+                        <tbody>
+                            {(it || []).map((x, idx) => {
+                                const pid = String((x as any).productId || (x as any).code || '');
+                                const prod = byId.get(pid) as any;
+                                const nombre = prod?.productName || prod?.nombre || pid || '(desconocido)';
+                                const qty = Number((x as any).qty || (x as any).cantidad || 0);
+                                const price = Number((x as any).price || 0);
+                                const subtotal = qty * price;
+                                return (
+                                    <tr key={idx}>
+                                        <td style={{ whiteSpace: 'nowrap', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis' }}>{nombre}</td>
+                                        <td className="text-muted">{pid}</td>
+                                        <td className="text-end">{qty}</td>
+                                        <td className="text-end">{CLP(price)}</td>
+                                        <td className="text-end">{CLP(subtotal)}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div className="empty-state">No hay items</div>
+            )
         );
+
+        const calcTotal = (o: Orden) => {
+            if (Number(o.total || 0) > 0) return Number(o.total || 0);
+            return (o.items || []).reduce((a, x) => a + Number(x.qty || x.cantidad || 0) * Number(x.price || 0), 0);
+        };
 
         return (
             <>
@@ -1253,12 +1286,30 @@ const Admin: React.FC = () => {
 
                 {orderDetail && (
                     <div className="card mt-3">
-                        <div className="card-header bg-white d-flex justify-content-between">
-                            <strong>Pedido #{orderDetail.id}</strong>
-                            <span className="text-secondary small">{timeHHMM((orderDetail.tsISO as string) || (orderDetail.fecha as string))}</span>
+                        <div className="card-header bg-white d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>Pedido #{orderDetail.id}</strong>
+                                <div className="small text-secondary">{dateCL(orderDetail.tsISO || orderDetail.fecha || new Date())} • {timeHHMM(orderDetail.tsISO || orderDetail.fecha || '')}</div>
+                                <div className="small mt-1">Cliente: <strong>{orderDetail.usuarioCorreo || '—'}</strong> {orderDetail.usuarioId ? (<span className="text-muted">(ID: {orderDetail.usuarioId})</span>) : null}</div>
+                            </div>
+                            <div className="text-end">
+                                <div className="small text-secondary">Total</div>
+                                <div className="fs-5 fw-semibold">{CLP(calcTotal(orderDetail))}</div>
+                            </div>
                         </div>
-                        <ul className="list-group list-group-flush">{itemsHTML(orderDetail.items)}</ul>
-                        <div className="card-footer bg-white text-end"><strong>Total: {CLP(Number(orderDetail.total || 0))}</strong></div>
+
+                        <div className="card-body">
+                            {itemsHTML(orderDetail.items)}
+                        </div>
+
+                        <div className="card-footer bg-white text-end">
+                            <div className="small text-secondary">Resumen</div>
+                            <div className="d-flex justify-content-end gap-3 align-items-center">
+                                <div>Total unidades: <strong>{(orderDetail.items || []).reduce((a, x) => a + Number(x.qty || x.cantidad || 0), 0)}</strong></div>
+                                <div>Subtotal: <strong>{CLP((orderDetail.items || []).reduce((a, x) => a + Number(x.qty || x.cantidad || 0) * Number(x.price || 0), 0))}</strong></div>
+                                <button className="btn btn-sm btn-outline-secondary" onClick={() => setOrderDetail(null)}>Cerrar</button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </>
