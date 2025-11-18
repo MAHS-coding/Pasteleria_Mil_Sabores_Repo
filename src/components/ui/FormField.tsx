@@ -27,7 +27,7 @@ export const FormField: React.FC<Props> = ({ id, label, children, help, error, f
 
             {help && <div className="form-text">{help}</div>}
 
-            {error ? <FieldFeedback>{error}</FieldFeedback> : (feedback ? <FieldFeedback>{feedback}</FieldFeedback> : null)}
+            {error ? <FieldFeedback className="d-block">{error}</FieldFeedback> : (feedback ? <FieldFeedback>{feedback}</FieldFeedback> : null)}
         </div>
     );
 };

@@ -38,5 +38,27 @@ export function emailDominioValido(c?: string): boolean {
     return EMAIL_DOMINIOS_PERMITIDOS.some(d => s.endsWith(d));
 }
 
+// Validate a RUN string that may be formatted or unformatted (accepts both "12.345.678-5" and "123456785")
+export function validarRunInput(input?: string): boolean {
+    if (typeof input !== 'string') return false;
+    const r = String(input || '').replace(/[^0-9Kk]/g, '').toUpperCase().trim();
+    if (r.length < 2) return false;
+    const cuerpo = r.slice(0, -1);
+    const dv = r.slice(-1);
+    if (!/^\d+$/.test(cuerpo)) return false;
+    // compute DV (same algorithm used elsewhere)
+    let M = 0, S = 1;
+    let numero = Number(cuerpo);
+    for (; numero; numero = Math.floor(numero / 10)) S = (S + (numero % 10) * (9 - (M++ % 6))) % 11;
+    const dvCalc = S ? String(S - 1) : 'K';
+    return dv.toUpperCase() === dvCalc;
+}
 
-export default { formatearRun, validarRun, emailDominioValido };
+// Password validation used in registration: exactly 4 characters
+export function validarPassword(p?: string): boolean {
+    if (typeof p !== 'string') return false;
+    return p.length === 4;
+}
+
+
+export default { formatearRun, validarRun, emailDominioValido, validarRunInput, validarPassword };

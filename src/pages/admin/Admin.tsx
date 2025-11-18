@@ -29,6 +29,7 @@ type Orden = {
     usuarioCorreo?: string;
     total?: number;
     items?: Array<{ productId?: string; code?: string; qty?: number; cantidad?: number; price?: number }>;
+    discounts?: any;
 };
 
 // Helpers generales (adaptación TS)
@@ -301,7 +302,7 @@ const Admin: React.FC = () => {
     const isDuoc = (u: Usuario) => ["duoc.cl", "profesor.duoc.cl"].includes(domainOf(u.correo));
     const isMayor75 = (u: Usuario) => {
         const a = parseAge(u);
-        return a !== null && a >= 75;
+        return a !== null && a >= 50; // ahora mayores de 50
     };
     const isNormalCliente = (u: Usuario) => u.rol === ROLES.CLIENTE && !isDuoc(u) && !isMayor75(u);
 
@@ -315,13 +316,8 @@ const Admin: React.FC = () => {
             return v == null ? true : v === "true";
         } catch { return true; }
     });
-    const [qSearch, setQSearch] = useState<string>(() => {
-        try { return sessionStorage.getItem("admin.usuarios.qSearch") || ""; } catch { return ""; }
-    });
-
     useEffect(() => { try { sessionStorage.setItem("admin.usuarios.filtroTipo", String(filtroTipo)); } catch {} }, [filtroTipo]);
     useEffect(() => { try { sessionStorage.setItem("admin.usuarios.orderDesc", String(orderDesc)); } catch {} }, [orderDesc]);
-    useEffect(() => { try { sessionStorage.setItem("admin.usuarios.qSearch", String(qSearch)); } catch {} }, [qSearch]);
 
     function handleUserRoleChange(id: number, value: string) {
         const u = usuarios.find((x) => x.id === id);
@@ -501,43 +497,7 @@ const Admin: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="col-12 col-md-9">
-                        <div className="card">
-                            <div className="card-header bg-white"><b>Crear Vendedor</b> <span className="text-secondary small ms-2">(RUN sin puntos ni guión)</span></div>
-                            <div className="card-body">
-                                <form className="row g-3" onSubmit={(e) => { e.preventDefault(); crearVendedor(); }}>
-                                    <div className="col-12 col-md-3">
-                                        <label className="form-label">RUN</label>
-                                        <input type="text" className="form-control" placeholder="19011022K" value={ven.rut} onChange={(e) => setVen((p) => ({ ...p, rut: e.target.value }))} required />
-                                    </div>
-                                    <div className="col-12 col-md-3">
-                                        <label className="form-label">Nombre</label>
-                                        <input type="text" className="form-control" placeholder="Nombre vendedor" value={ven.nombre} onChange={(e) => setVen((p) => ({ ...p, nombre: e.target.value }))} required />
-                                    </div>
-                                    <div className="col-12 col-md-6">
-                                        <label className="form-label">Correo</label>
-                                        <input type="email" className="form-control" placeholder="nombre@duoc.cl / @profesor.duoc.cl / @gmail.com" value={ven.correo} onChange={(e) => setVen((p) => ({ ...p, correo: e.target.value }))} required />
-                                    </div>
-                                    <div className="col-12 col-md-4">
-                                        <label className="form-label">Contraseña</label>
-                                        <input type="password" className="form-control" placeholder="Mín. 6 caracteres" value={ven.pass} onChange={(e) => setVen((p) => ({ ...p, pass: e.target.value }))} required />
-                                    </div>
-                                    <div className="col-12 col-md-4">
-                                        <label className="form-label">Confirmar contraseña</label>
-                                        <input type="password" className="form-control" placeholder="Repite la contraseña" value={ven.pass2} onChange={(e) => setVen((p) => ({ ...p, pass2: e.target.value }))} required />
-                                    </div>
-                                    <div className="col-12 col-md-4 d-flex align-items-end gap-2">
-                                        <button type="submit" className="btn btn-primary w-100">Crear</button>
-                                    </div>
-                                    <div className="col-12">
-                                        {venMsg.text && (
-                                            <div className={`small ${venMsg.ok ? "text-success" : "text-danger"}`}>{venMsg.text}</div>
-                                        )}
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
+                    
                 </div>
             </>
         );
@@ -1080,10 +1040,7 @@ const Admin: React.FC = () => {
                 else if (filtroTipo === "mayor") list = list.filter(isMayor75);
                 // filtroTipo === 'clientes' => sin subfiltro
             }
-        if (qSearch) {
-            const q = qSearch;
-            list = list.filter((u) => String(u.nombre || "").toLowerCase().includes(q) || String(u.correo || "").toLowerCase().includes(q));
-        }
+        // No search filter: removed per request
         const ageVal = (u: Usuario) => {
             const a = parseAge(u);
             return a === null ? -1 : a;
@@ -1115,7 +1072,7 @@ const Admin: React.FC = () => {
 
         return (
             <div className="row g-3">
-                <div className="col-12 col-xl-3">
+                <div className="col-12">
                     <div className="card mb-3">
                         <div className="card-body py-3">
                             <div className="text-secondary small">Admins</div>
@@ -1126,10 +1083,44 @@ const Admin: React.FC = () => {
                             <div className="fs-5 fw-semibold">{countRoles(ROLES.CLIENTE)}</div>
                         </div>
                     </div>
-                    <div className="card">
+
+                    <div className="card mb-3">
                         <div className="card-header bg-white d-flex justify-content-between">
                             <strong>Vendedores</strong>
                             <span className="badge text-bg-light">{vendedores.length}</span>
+                        </div>
+                        <div className="card-body py-3">
+                            <div className="mb-2"><strong>Crear Vendedor</strong></div>
+                            <div className="row g-2 align-items-end">
+                                <div className="col-auto" style={{minWidth: 180}}>
+                                    <label className="form-label small mb-1">RUN</label>
+                                    <input className="form-control form-control-sm" value={ven.rut} onChange={(e) => setVen((p) => ({ ...p, rut: e.target.value }))} />
+                                </div>
+                                <div className="col-auto" style={{minWidth: 220}}>
+                                    <label className="form-label small mb-1">Nombre</label>
+                                    <input className="form-control form-control-sm" value={ven.nombre} onChange={(e) => setVen((p) => ({ ...p, nombre: e.target.value }))} />
+                                </div>
+                                <div className="col-auto" style={{minWidth: 220}}>
+                                    <label className="form-label small mb-1">Correo</label>
+                                    <input className="form-control form-control-sm" value={ven.correo} onChange={(e) => setVen((p) => ({ ...p, correo: e.target.value }))} />
+                                </div>
+                                <div className="col-auto" style={{minWidth: 140}}>
+                                    <label className="form-label small mb-1">Contraseña</label>
+                                    <input type="password" className="form-control form-control-sm" value={ven.pass} onChange={(e) => setVen((p) => ({ ...p, pass: e.target.value }))} />
+                                </div>
+                                <div className="col-auto" style={{minWidth: 140}}>
+                                    <label className="form-label small mb-1">Repetir</label>
+                                    <input type="password" className="form-control form-control-sm" value={ven.pass2} onChange={(e) => setVen((p) => ({ ...p, pass2: e.target.value }))} />
+                                </div>
+                                <div className="col-auto">
+                                    <button className="btn btn-sm btn-primary" type="button" onClick={crearVendedor}>Crear</button>
+                                </div>
+                                <div className="col-12 mt-2">
+                                    {venMsg.text ? (
+                                        <div className={venMsg.ok ? "text-success small" : "text-danger small"}>{venMsg.text}</div>
+                                    ) : null}
+                                </div>
+                            </div>
                         </div>
                         <div className="table-responsive">
                             <table className="table table-sm align-middle mb-0">
@@ -1142,19 +1133,16 @@ const Admin: React.FC = () => {
                             </table>
                         </div>
                     </div>
-                </div>
 
-                <div className="col-12 col-xl-9">
                     <div className="card">
                         <div className="card-header bg-white d-flex flex-wrap gap-2 align-items-center justify-content-between">
                             <div><strong>Usuarios</strong></div>
                             <div className="d-flex gap-2 align-items-center">
-                                <input className="form-control form-control-sm" placeholder="Buscar nombre o correo" style={{ width: 240 }} value={qSearch} onChange={(e) => setQSearch(e.target.value.trim().toLowerCase())} />
                                 <select className="form-select form-select-sm" style={{ width: 220 }} value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
                                     <option value="clientes">Clientes</option>
                                     <option value="normal">Clientes (normales)</option>
                                     <option value="duoc">Clientes (DUOC)</option>
-                                    <option value="mayor">Clientes (mayores 75)</option>
+                                    <option value="mayor">Clientes (mayores 50)</option>
                                     <option value="vendedores">Vendedores</option>
                                     <option value="admins">Admins</option>
                                     <option value="todos">Todos</option>
@@ -1258,6 +1246,35 @@ const Admin: React.FC = () => {
                             <span className="text-secondary small">{timeHHMM((orderDetail.tsISO as string) || (orderDetail.fecha as string))}</span>
                         </div>
                         <ul className="list-group list-group-flush">{itemsHTML(orderDetail.items)}</ul>
+                        {orderDetail.discounts ? (
+                            <div className="card-body">
+                                <div className="fw-semibold">Descuentos aplicados</div>
+                                <div className="small text-secondary">
+                                    <ul className="mb-0">
+                                        {orderDetail.discounts.agePercent > 0 ? (
+                                            <li>50% beneficio mayores — {CLP(Number(orderDetail.discounts.ageDiscountMoney || 0))}</li>
+                                        ) : null}
+                                        {orderDetail.discounts.codePercent > 0 ? (
+                                            <li>10% descuento de por vida (FELICES50) — {CLP(Number(orderDetail.discounts.codeDiscountMoney || 0))}</li>
+                                        ) : null}
+                                        {orderDetail.discounts.freeCakeApplied ? (
+                                            <li>Torta gratis{
+                                                orderDetail.discounts.freeCakeTortaKey ? (
+                                                    (() => {
+                                                        const key = orderDetail.discounts.freeCakeTortaKey as string;
+                                                        const parts = key.split('::');
+                                                        const code = parts[0];
+                                                        const prod = (catalogo || []).find(p => String(p.code) === String(code));
+                                                        return prod ? ` — ${prod.productName || code}` : '';
+                                                    })()
+                                                ) : ''
+                                            } — {CLP(Number(orderDetail.discounts.freeCakeMoney || 0))}</li>
+                                        ) : null}
+                                        <li className="fw-semibold mt-1">Total descuentos — {CLP(Number(orderDetail.discounts.totalDiscountMoney || 0))}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        ) : null}
                         <div className="card-footer bg-white text-end"><strong>Total: {CLP(Number(orderDetail.total || 0))}</strong></div>
                     </div>
                 )}
@@ -1386,19 +1403,7 @@ const Admin: React.FC = () => {
 
     // (Se removieron secciones independientes de agregar/eliminar stock y editar producto)
 
-    function SectionAjustes() {
-        // Reutilizamos SectionUsuarios pero con leyenda/ayudas
-        return (
-            <>
-                <h1 className="h5 mb-3">Ajustes</h1>
-                <SectionUsuarios />
-                <div className="card-footer bg-white small text-secondary mt-3">
-                    • “Bloqueado” impide comprar (pero permite navegar e iniciar sesión).<br />
-                    • La cuenta del administrador principal está marcada como “Protegido”.
-                </div>
-            </>
-        );
-    }
+    // Sección 'Ajustes' eliminada por solicitud.
 
     return (
         <div className="container py-4">
@@ -1412,7 +1417,7 @@ const Admin: React.FC = () => {
                             { id: "ordenes", label: "Órdenes", icon: "bi-receipt" },
                             { id: "reportes", label: "Reportes", icon: "bi-graph-up" },
                             
-                            { id: "ajustes", label: "Ajustes", icon: "bi-gear" },
+                            // Ajustes eliminado
                         ].map((m) => (
                             <button key={m.id} className={`list-group-item list-group-item-action d-flex align-items-center ${section === m.id ? "active" : ""}`} onClick={() => setSection(m.id)}>
                                 <i className={`bi ${m.icon} me-2`} /> {m.label}
@@ -1427,7 +1432,7 @@ const Admin: React.FC = () => {
                     {section === "ordenes" && <SectionOrdenes />}
                     {section === "reportes" && <SectionReportes />}
                     
-                    {section === "ajustes" && <SectionAjustes />}
+                    {/* Sección 'Ajustes' eliminada */}
                 </section>
             </div>
 

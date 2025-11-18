@@ -25,6 +25,8 @@ export type StoredUser = {
 
 const USERS_KEY = 'users';
 import { getJSON, setJSON } from './storage';
+import { formatearRun, validarRun, validarRunInput, emailDominioValido, validarPassword } from './validation';
+export { formatearRun, validarRun, validarRunInput, emailDominioValido, validarPassword };
 
 export function readUsers(): StoredUser[] {
     const v = getJSON<StoredUser[]>(USERS_KEY);
@@ -34,6 +36,9 @@ export function readUsers(): StoredUser[] {
 export function writeUsers(users: StoredUser[]) {
     setJSON(USERS_KEY, users);
 }
+
+// normalizeRun: remove non-digit/K characters and lowercase for stable comparisons
+export function normalizeRun(r?: string) { return String(r || '').replace(/[^0-9kK]/g, '').toLowerCase(); }
 
 export function updateUser(email: string, changes: Partial<StoredUser>): StoredUser | undefined {
     if (!email) return undefined;
@@ -80,7 +85,15 @@ export function isBirthdayToday(birthdate?: string): boolean {
 // Try to create a user. Returns { ok: true, user } on success or { ok: false, error } on failure.
 export function createUser(payload: Omit<StoredUser, 'createdAt'>): { ok: true, user: StoredUser } | { ok: false, error: string } {
     const users = readUsers();
-    if (users.find(u => String(u.email || '').toLowerCase() === String(payload.email).toLowerCase())) {
+    const normalizeEmail = (e?: string) => String(e || '').trim().toLowerCase();
+
+    // Check duplicate RUN (RUT)
+    if (payload.run && users.find(u => normalizeRun(u.run) === normalizeRun(payload.run))) {
+        return { ok: false, error: 'run_exists' };
+    }
+
+    // Check duplicate email
+    if (users.find(u => normalizeEmail(u.email) === normalizeEmail(payload.email))) {
         return { ok: false, error: 'email_exists' };
     }
     // compute perks: age-based discount, lifetime code, and student birthday free cake
@@ -89,22 +102,27 @@ export function createUser(payload: Omit<StoredUser, 'createdAt'>): { ok: true, 
     let freeCake = false;
 
     try {
-        if (payload.birthdate) {
-            const bd = new Date(payload.birthdate);
-            if (!isNaN(bd.getTime())) {
-                const today = new Date();
-                let age = today.getFullYear() - bd.getFullYear();
-                const m = today.getMonth() - bd.getMonth();
-                if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
-                if (age >= 50) discount += 50; // 50% for users >= 50 years
-                // birthday student free cake: if registering on birthday and institutional email (any subdomain of duoc.cl)
-                const isBday = bd.getDate() === today.getDate() && bd.getMonth() === today.getMonth();
-                if (isBday && isDuocEmail(payload.email)) {
-                    freeCake = true;
-                }
-            }
+        // Birthdate must be present and user must be at least 18
+        if (!payload.birthdate) {
+            return { ok: false, error: 'birthdate_required' };
         }
-    } catch (e) {}
+        const bd = new Date(payload.birthdate);
+        if (isNaN(bd.getTime())) return { ok: false, error: 'birthdate_invalid' };
+        const today = new Date();
+        let age = today.getFullYear() - bd.getFullYear();
+        const m = today.getMonth() - bd.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+        if (age < 18) return { ok: false, error: 'underage' };
+
+        if (age >= 50) discount += 50; // 50% for users >= 50 years
+        // birthday student free cake: if registering on birthday and institutional email (any subdomain of duoc.cl)
+        const isBday = bd.getDate() === today.getDate() && bd.getMonth() === today.getMonth();
+        if (isBday && isDuocEmail(payload.email)) {
+            freeCake = true;
+        }
+    } catch (e) {
+        return { ok: false, error: 'birthdate_invalid' };
+    }
 
     if (payload.codigo && String(payload.codigo).toUpperCase() === 'FELICES50') {
         lifetime = true;

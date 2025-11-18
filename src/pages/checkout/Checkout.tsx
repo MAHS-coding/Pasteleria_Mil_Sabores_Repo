@@ -27,6 +27,7 @@ export type Order = {
   estado?: string;
   paymentMethodId?: string;
   paymentMethod?: string;
+  discounts?: any;
 };
 
 function todayYYYYMMDD() {
@@ -46,6 +47,10 @@ const Checkout: React.FC = () => {
     if (!user?.email) { setStoredUser(null); return; }
     setStoredUser(findUserByEmail(user.email) ?? null);
   }, [user]);
+
+  useEffect(() => {
+    setBlockedMsg(storedUser?.blocked ? "Tu cuenta está bloqueada. Contacta al administrador para desbloquearla." : "");
+  }, [storedUser]);
 
   // address management
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
@@ -67,21 +72,43 @@ const Checkout: React.FC = () => {
 
   // confirmation modal after placing order
   const [confirmPlacedOpen, setConfirmPlacedOpen] = useState(false);
+  const [blockedMsg, setBlockedMsg] = useState<string>("");
 
   const discountPercent = storedUser?.discountPercent ?? 0;
+  // determine contributors to the discount for clearer UI
+  const ageDiscountPercent = (() => {
+    try {
+      if (!storedUser?.birthdate) return 0;
+      const bd = new Date(storedUser.birthdate);
+      if (isNaN(bd.getTime())) return 0;
+      const today = new Date();
+      let age = today.getFullYear() - bd.getFullYear();
+      const m = today.getMonth() - bd.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+      return age >= 50 ? 50 : 0;
+    } catch { return 0; }
+  })();
+  const codeDiscountPercent = storedUser?.lifetimeDiscount ? 10 : 0;
   const dynamicBirthdayVoucher = !!(storedUser && isDuocEmail(storedUser.email) && isBirthdayToday(storedUser.birthdate) && !storedUser.freeCakeRedeemed);
   const hasFreeCakeVoucher = !!(storedUser?.freeCakeVoucher && !storedUser?.freeCakeRedeemed) || dynamicBirthdayVoucher;
 
   // Respect user's choice (from Cart) to apply the birthday voucher
   const userKey = (storedUser?.email || "guest").toLowerCase();
   const PREF_KEY = `cart.useBirthdayVoucher:${userKey}`;
-  const wantsVoucher = useMemo(() => {
+  const wantsVoucherFromStorage = (() => {
     try {
       const v = sessionStorage.getItem(PREF_KEY);
       return v == null ? true : v === "true";
     } catch { return true; }
-  }, [PREF_KEY]);
-  const applyFreeCakeVoucher = hasFreeCakeVoucher && wantsVoucher;
+  })();
+
+  const [useBirthdayVoucher, setUseBirthdayVoucher] = useState<boolean>(wantsVoucherFromStorage);
+
+  useEffect(() => {
+    try { sessionStorage.setItem(PREF_KEY, String(useBirthdayVoucher)); } catch {}
+  }, [PREF_KEY, useBirthdayVoucher]);
+
+  const applyFreeCakeVoucher = hasFreeCakeVoucher && useBirthdayVoucher;
 
   const tortaItems = useMemo(() => {
     return items.filter((it) => {
@@ -90,10 +117,13 @@ const Checkout: React.FC = () => {
     });
   }, [items]);
 
-  const selectedTortaKey = useMemo(() => {
-    if (!applyFreeCakeVoucher || tortaItems.length === 0) return null;
-    const it = tortaItems[0];
-    return `${it.code}::${it.mensaje || ""}`;
+  const [selectedTortaKey, setSelectedTortaKey] = useState<string | null>(null);
+
+  // initialize selected torta when tortaItems change
+  useEffect(() => {
+    if (!applyFreeCakeVoucher || tortaItems.length === 0) { setSelectedTortaKey(null); return; }
+    const first = `${tortaItems[0].code}::${tortaItems[0].mensaje || ""}`;
+    setSelectedTortaKey((prev) => prev ?? first);
   }, [applyFreeCakeVoucher, tortaItems]);
 
   function keyOf(it: typeof items[number]) { return `${it.code}::${it.mensaje || ""}`; }
@@ -145,6 +175,8 @@ const Checkout: React.FC = () => {
   // Payment cards support
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
+  const [paymentMethodError, setPaymentMethodError] = useState<string>("");
+
   useEffect(() => {
     if (storedUser?.paymentCards && storedUser.paymentCards.length > 0) {
       setSelectedCardId(storedUser.defaultPaymentCardId ?? storedUser.paymentCards[0].id);
@@ -172,6 +204,10 @@ const Checkout: React.FC = () => {
   function placeOrder(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) return;
+    if (storedUser?.blocked) {
+      setBlockedMsg("Tu cuenta está bloqueada. Contacta al administrador para desbloquearla.");
+      return;
+    }
     if (!fechaEntrega) return;
     const today = new Date();
     const selected = new Date(fechaEntrega + "T00:00:00");
@@ -188,12 +224,28 @@ const Checkout: React.FC = () => {
       }
     } catch { }
 
+    // require a payment method to be selected
+    if (!selectedCardId) {
+      setPaymentMethodError("Selecciona un método de pago antes de confirmar el pedido.");
+      return;
+    }
+
     let addressText = getSelectedAddressLabel();
     if (!addressText) {
       // if no address saved/selected, force modal to add one
       setShowAddAddr(true);
       return;
     }
+
+    // compute discount breakdown to persist with the order
+    const agePercentApplied = ageDiscountPercent;
+    const codePercentApplied = codeDiscountPercent;
+    const ageDiscountMoney = Math.round(subtotal * (agePercentApplied / 100));
+    const codeDiscountMoney = Math.round(subtotal * (codePercentApplied / 100));
+    const discountPercentMoney = ageDiscountMoney + codeDiscountMoney;
+    const freeCakeApplied = applyFreeCakeVoucher && freeCakeAmount > 0 && !!selectedTortaKey;
+    const freeCakeMoney = freeCakeApplied ? freeCakeAmount : 0;
+    const totalDiscountMoney = discountPercentMoney + freeCakeMoney;
 
     // build order
     const order: Order = {
@@ -208,6 +260,17 @@ const Checkout: React.FC = () => {
       estado: "Pendiente",
       paymentMethodId: selectedCardId ?? undefined,
       paymentMethod: selectedCardId ? (storedUser?.paymentCards?.find(pc => String(pc.id) === String(selectedCardId)) ? `${storedUser?.paymentCards?.find(pc => String(pc.id) === String(selectedCardId))?.brand} **** ${storedUser?.paymentCards?.find(pc => String(pc.id) === String(selectedCardId))?.last4}` : String(selectedCardId)) : undefined,
+      discounts: {
+        agePercent: agePercentApplied,
+        codePercent: codePercentApplied,
+        ageDiscountMoney,
+        codeDiscountMoney,
+        discountPercentMoney,
+        freeCakeApplied,
+        freeCakeMoney,
+        freeCakeTortaKey: freeCakeApplied ? selectedTortaKey : null,
+        totalDiscountMoney,
+      },
     };
 
     // persist into 'ordenes'
@@ -289,7 +352,7 @@ const Checkout: React.FC = () => {
                     paymentCards={storedUser?.paymentCards || []}
                     defaultCardId={storedUser?.defaultPaymentCardId}
                     selectedId={selectedCardId}
-                    onSelectedChange={(id) => setSelectedCardId(id)}
+                    onSelectedChange={(id) => { setSelectedCardId(id); setPaymentMethodError(""); }}
                     onAdd={(data) => addCard({ number: formatCardNumber(data.number), holder: normalizeHolderName(data.holder || ''), expMonth: formatExpMonth(data.expMonth || ''), expYear: formatExpYear(data.expYear || '') })}
                   />
                 </div>
@@ -297,7 +360,9 @@ const Checkout: React.FC = () => {
                 <div className="small text-muted">Inicia sesión para guardar tarjetas</div>
               )}
             </div>
-            <button type="submit" className={`btn w-100 ${styles['confirmBtn']}`} disabled={items.length === 0}>Confirmar pedido</button>
+            {paymentMethodError ? <div className="alert alert-danger mb-2">{paymentMethodError}</div> : null}
+            {blockedMsg ? <div className="alert alert-danger mb-2">{blockedMsg}</div> : null}
+            <button type="submit" className={`btn w-100 ${styles['confirmBtn']}`} disabled={items.length === 0 || !!storedUser?.blocked || !selectedCardId}>Confirmar pedido</button>
           </form>
         </div>
 
@@ -316,6 +381,27 @@ const Checkout: React.FC = () => {
                     </li>
                   ))}
                 </ul>
+                {hasFreeCakeVoucher && tortaItems.length > 0 ? (
+                  <div className="mb-3">
+                    <div className="form-check mb-2">
+                      <input className="form-check-input" type="checkbox" id="useBirthdayVoucher" checked={useBirthdayVoucher} onChange={(e) => setUseBirthdayVoucher(e.target.checked)} />
+                      <label className="form-check-label" htmlFor="useBirthdayVoucher">Usar torta gratis por cumpleaños</label>
+                    </div>
+                    {useBirthdayVoucher ? (
+                      <div>
+                        <label className="form-label small mb-1">Selecciona la torta a aplicar</label>
+                        <select className="form-select form-select-sm" value={selectedTortaKey ?? ""} onChange={(e) => setSelectedTortaKey(e.target.value || null)}>
+                          {tortaItems.map((it) => {
+                            const key = `${it.code}::${it.mensaje || ""}`;
+                            const p = allProducts.find(p => p.code === it.code);
+                            const label = `${p?.productName || it.code}${it.mensaje ? ` – "${it.mensaje}"` : ''} (${formatCLP(p?.price || 0)})`;
+                            return <option key={key} value={key}>{label}</option>;
+                          })}
+                        </select>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className="d-flex justify-content-between">
                   <span>Subtotal</span>
                   <span>{formatCLP(subtotal)}</span>
@@ -325,9 +411,32 @@ const Checkout: React.FC = () => {
                   <span>{formatCLP(items.length > 0 ? SHIPPING_COST : 0)}</span>
                 </div>
                 {(discountPercent > 0 || (hasFreeCakeVoucher && freeCakeAmount > 0)) && (
-                  <div className="d-flex justify-content-between">
-                    <span>Descuentos</span>
-                    <span className="text-success">-{formatCLP((subtotal * (discountPercent / 100)) + freeCakeAmount)}</span>
+                  <div>
+                    <div className="mb-1">Descuentos aplicados:</div>
+                    <ul className="list-unstyled small mb-0">
+                      {ageDiscountPercent > 0 ? (
+                        <li className="d-flex justify-content-between text-success"> 
+                          <span>50% beneficio mayores</span>
+                          <span>-{formatCLP(Math.round(subtotal * (ageDiscountPercent / 100)))}</span>
+                        </li>
+                      ) : null}
+                      {codeDiscountPercent > 0 ? (
+                        <li className="d-flex justify-content-between text-success"> 
+                          <span>10% descuento de por vida (FELICES50)</span>
+                          <span>-{formatCLP(Math.round(subtotal * (codeDiscountPercent / 100)))}</span>
+                        </li>
+                      ) : null}
+                      {hasFreeCakeVoucher && freeCakeAmount > 0 ? (
+                        <li className="d-flex justify-content-between text-success"> 
+                          <span>Torta gratis</span>
+                          <span>-{formatCLP(freeCakeAmount)}</span>
+                        </li>
+                      ) : null}
+                      <li className="d-flex justify-content-between fw-semibold mt-1">
+                        <span>Total descuentos</span>
+                        <span>-{formatCLP(Math.round(subtotal * ((ageDiscountPercent + codeDiscountPercent) / 100) + (hasFreeCakeVoucher ? freeCakeAmount : 0)))}</span>
+                      </li>
+                    </ul>
                   </div>
                 )}
                 <hr />

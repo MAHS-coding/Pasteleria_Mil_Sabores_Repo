@@ -308,8 +308,23 @@ const Perfil: React.FC = () => {
     }
 
     const benefits = [] as string[];
-    if (storedUser?.discountPercent) benefits.push(`${storedUser.discountPercent}% de descuento`);
-    if (storedUser?.lifetimeDiscount) benefits.push('10% de descuento de por vida (FELICES50)');
+    // Show age-based benefit separately (50% for mayores de 50)
+    try {
+        if (storedUser?.birthdate) {
+            const bd = new Date(storedUser.birthdate);
+            if (!isNaN(bd.getTime())) {
+                const today = new Date();
+                let age = today.getFullYear() - bd.getFullYear();
+                const m = today.getMonth() - bd.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+                if (age >= 50) benefits.push('50% beneficio mayores');
+            }
+        }
+    } catch {}
+
+    // Show lifetime code benefit separately
+    if (storedUser?.lifetimeDiscount) benefits.push('10% descuento de por vida (FELICES50)');
+
     if (storedUser?.freeCakeVoucher && !storedUser?.freeCakeRedeemed) benefits.push('Torta gratis (voucher no canjeado)');
     // Institutional email benefit: free cake on birthday (eligibility)
     if (storedUser?.email && isDuocEmail(storedUser.email)) {
@@ -464,6 +479,25 @@ const Perfil: React.FC = () => {
                                                                             ) : '—'}
                                                                         </div>
                                                                     </div>
+                                                                    {o.discounts ? (
+                                                                        <div className="col-12 mt-3">
+                                                                            <div className="fw-semibold">Descuentos aplicados</div>
+                                                                            <div className="small text-secondary">
+                                                                                <ul className="mb-0">
+                                                                                    {o.discounts.agePercent > 0 ? (
+                                                                                        <li>50% beneficio mayores — {formatCLP(Number(o.discounts.ageDiscountMoney || 0))}</li>
+                                                                                    ) : null}
+                                                                                    {o.discounts.codePercent > 0 ? (
+                                                                                        <li>10% descuento de por vida (FELICES50) — {formatCLP(Number(o.discounts.codeDiscountMoney || 0))}</li>
+                                                                                    ) : null}
+                                                                                    {o.discounts.freeCakeApplied ? (
+                                                                                        <li>Torta gratis — {formatCLP(Number(o.discounts.freeCakeMoney || 0))}</li>
+                                                                                    ) : null}
+                                                                                    <li className="fw-semibold mt-1">Total descuentos — {formatCLP(Number(o.discounts.totalDiscountMoney || 0))}</li>
+                                                                                </ul>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : null}
                                                                 </div>
                                                             </td>
                                                         </tr>

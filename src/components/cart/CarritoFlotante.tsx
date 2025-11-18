@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import AuthContext from '../../context/AuthContext';
+import { useContext } from 'react';
 import { getProductByCode } from '../../utils/products';
 import { formatCLP } from '../../utils/currency';
 import styles from './CarritoFlotante.module.css';
@@ -8,6 +10,9 @@ import styles from './CarritoFlotante.module.css';
 export const CarritoFlotante: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { items, count, setQuantity, remove, clear } = useCart();
+  // useContext(AuthContext) returns undefined if not wrapped in provider (useAuth would throw)
+  const authCtx = useContext(AuthContext as any) as any;
+  const user = authCtx?.user || null;
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -314,7 +319,17 @@ export const CarritoFlotante: React.FC = () => {
               <span className="h5 mb-0 fw-bold" style={{ color: 'var(--accent-main)' }}>{formatCLP(total)}</span>
             </div>
 
-            <Link to="/checkout" className="btn w-100 mb-2" onClick={closeCart}>
+            <Link to="/checkout" className="btn w-100 mb-2" onClick={(e) => {
+              if (!user) {
+                // Prevent navigation and prompt login modal
+                e.preventDefault();
+                closeCart();
+                try { window.dispatchEvent(new CustomEvent('open-login')); } catch {};
+                return;
+              }
+              // allow navigation; close cart first
+              closeCart();
+            }}>
               <i className="bi bi-credit-card me-2"></i> Finalizar Compra
             </Link>
 
