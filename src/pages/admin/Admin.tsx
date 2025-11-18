@@ -4,7 +4,9 @@ import { products as seedProducts } from "../../utils/dataLoaders";
 import type { Product } from "../../types/product";
 import { getJSON, setJSON } from "../../utils/storage";
 import slugify from "../../utils/slugify";
-import { updateUser, findUserByEmail, readUsers } from "../../utils/registro";
+import { updateUser, findUserByEmail, readUsers, writeUsers } from "../../utils/registro";
+import { formatearRun } from "../../utils/validation";
+import { sha256Hex } from "../../utils/hash";
 import './Admin.module.css';
 
 type Usuario = {
@@ -249,42 +251,7 @@ const Admin: React.FC = () => {
     const countVendedores = usuarios.filter((u) => u.rol === ROLES.VENDEDOR).length;
     const countClientes = usuarios.filter((u) => u.rol === ROLES.CLIENTE).length;
 
-    // Crear vendedor form state
-    const [ven, setVen] = useState({ rut: "", nombre: "", correo: "", pass: "", pass2: "" });
-    const [venMsg, setVenMsg] = useState<{ text: string; ok: boolean | null }>({ text: "", ok: null });
 
-    function crearVendedor() {
-        setVenMsg({ text: "", ok: null });
-        const { rut, nombre, correo, pass, pass2 } = ven;
-        if (pass !== pass2) return setVenMsg({ text: "Las contraseñas no coinciden.", ok: false });
-        if (!pass || pass.length < 6) return setVenMsg({ text: "La contraseña debe tener al menos 6 caracteres.", ok: false });
-        if (!rut || !validarRut(rut)) return setVenMsg({ text: "RUN inválido. Ej: 19011022K (sin puntos ni guión).", ok: false });
-        if (!nombre || nombre.trim().length === 0 || nombre.length > 50) return setVenMsg({ text: "Nombre requerido (máx 50).", ok: false });
-        if (!correo || !validarEmailPermitido(correo)) return setVenMsg({ text: "Correo no permitido. Usa @duoc.cl, @profesor.duoc.cl o @gmail.com.", ok: false });
-        const exists = (loadUsuarios() || []).find((u) => String(u.correo || "").toLowerCase() === String(correo).toLowerCase());
-        if (exists) return setVenMsg({ text: "Ya existe un usuario con ese correo.", ok: false });
-
-        const hoy = new Date().toISOString();
-        const lista = loadUsuarios();
-        const nuevo: Usuario = {
-            id: Date.now(),
-            rut: limpiarRut(rut),
-            nombre: nombre.trim(),
-            apellido: "",
-            correo: String(correo).toLowerCase(),
-            password: String(pass),
-            fechaNacimiento: null,
-            rol: ROLES.VENDEDOR,
-            bloqueado: false,
-            creadoEn: hoy,
-            protegido: false,
-        };
-        lista.push(nuevo);
-        saveUsuarios(lista);
-        setUsuarios(ensureUsuariosConRol());
-        setVen({ rut: "", nombre: "", correo: "", pass: "", pass2: "" });
-        setVenMsg({ text: `Vendedor creado: ${nuevo.nombre} (${nuevo.correo}). Ya puede iniciar sesión.`, ok: true });
-    }
 
     // Usuarios helpers
     const parseAge = (u: Usuario) => {
@@ -557,6 +524,8 @@ const Admin: React.FC = () => {
                 if (!name) return setAddMsg({text:"Debes ingresar un nombre de producto.", ok:false});
                     if (!categoryInput) return setAddMsg({text:"Debes indicar una categoría.", ok:false});
                 if (!Number.isFinite(price) || price <= 0) return setAddMsg({text:"Precio inválido.", ok:false});
+                // Require either an image URL or an uploaded image (stored in newProd.img)
+                if (!newProd.img || String(newProd.img).trim() === "") return setAddMsg({ text: "Debes adjuntar una imagen o indicar una URL de imagen.", ok: false });
                 const productos = initCatalogLocal(seedProducts as Product[], 'catalogo');
                 if ((productos as any[]).some(p => String((p as any).code) === code)) return setAddMsg({text:"Ya existe un producto con ese código.", ok:false});
                     const category = slugify(categoryInput);
@@ -1018,6 +987,106 @@ const Admin: React.FC = () => {
                     }
 
     function SectionUsuarios() {
+        // Crear vendedor form state (moved inside SectionUsuarios to avoid parent re-renders)
+        const [ven, setVen] = useState({ rut: "", nombre: "", correo: "", pass: "", pass2: "", fechaNacimiento: "" });
+        const [venMsg, setVenMsg] = useState<{ text: string; ok: boolean | null }>({ text: "", ok: null });
+
+        // Max birthdate allowed (must be at least 18 years old)
+        const _max = new Date();
+        _max.setFullYear(_max.getFullYear() - 18);
+        const maxBirthStr = _max.toISOString().split('T')[0];
+
+        async function crearVendedor() {
+            setVenMsg({ text: "", ok: null });
+            const { rut, nombre, correo, pass, pass2, fechaNacimiento } = ven;
+            if (pass !== pass2) return setVenMsg({ text: "Las contraseñas no coinciden.", ok: false });
+            if (!pass || pass.length < 4) return setVenMsg({ text: "La contraseña debe tener al menos 4 caracteres.", ok: false });
+            if (!rut || !validarRut(rut)) return setVenMsg({ text: "RUN inválido. Ej: 19011022K (sin puntos ni guión).", ok: false });
+            if (!nombre || nombre.trim().length === 0 || nombre.length > 50) return setVenMsg({ text: "Nombre requerido (máx 50).", ok: false });
+            if (!correo || !validarEmailPermitido(correo)) return setVenMsg({ text: "Correo no permitido. Usa @duoc.cl, @profesor.duoc.cl o @gmail.com.", ok: false });
+
+            if (!fechaNacimiento) return setVenMsg({ text: "Fecha de nacimiento requerida.", ok: false });
+            // Validate age >= 18
+            try {
+                const bd = new Date(fechaNacimiento);
+                if (isNaN(bd.getTime())) return setVenMsg({ text: "Fecha de nacimiento inválida.", ok: false });
+                const today = new Date();
+                let age = today.getFullYear() - bd.getFullYear();
+                const m = today.getMonth() - bd.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+                if (age < 18) return setVenMsg({ text: "El vendedor debe ser mayor de 18 años.", ok: false });
+            } catch {
+                return setVenMsg({ text: "Fecha de nacimiento inválida.", ok: false });
+            }
+
+            const lista = loadUsuarios() || [];
+            const correoLower = String(correo || "").toLowerCase();
+            const rutNormalized = limpiarRut(rut || "");
+
+            const existsEmail = lista.find((u) => String(u.correo || "").toLowerCase() === correoLower);
+            if (existsEmail) return setVenMsg({ text: "Ya existe un usuario con ese correo.", ok: false });
+
+            const existsRut = lista.find((u) => String(u.rut || "") && String(limpiarRut(String(u.rut || ""))) === rutNormalized);
+            if (existsRut) return setVenMsg({ text: "Ya existe un usuario con ese RUN.", ok: false });
+
+            const hoy = new Date().toISOString();
+            const nuevo: Usuario = {
+                id: Date.now(),
+                rut: rutNormalized,
+                nombre: nombre.trim(),
+                apellido: "",
+                correo: correoLower,
+                password: String(pass),
+                fechaNacimiento: fechaNacimiento || null,
+                rol: ROLES.VENDEDOR,
+                bloqueado: false,
+                creadoEn: hoy,
+                protegido: false,
+            };
+            // Save in admin users list (legacy 'usuarios' key)
+            lista.push(nuevo);
+            saveUsuarios(lista);
+            setUsuarios(ensureUsuariosConRol());
+
+            // Also create an auth user record in the auth store ('users') so the vendedor can login.
+            try {
+                const authUsers = readUsers();
+                // double-check duplicates in the auth store
+                if (authUsers.find((u) => String(u.email || "").toLowerCase() === correoLower)) {
+                    return setVenMsg({ text: "Ya existe un usuario con ese correo.", ok: false });
+                }
+                if (authUsers.find((u) => String(u.run || "") && String(u.run || "").replace(/[^0-9kK]/g, '').toLowerCase() === rutNormalized)) {
+                    return setVenMsg({ text: "Ya existe un usuario con ese RUN.", ok: false });
+                }
+                const hashed = await sha256Hex(String(pass || ""));
+                const authUser: any = {
+                    run: rutNormalized,
+                    name: nombre.trim() || correoLower,
+                    lastname: "",
+                    email: correoLower,
+                    birthdate: fechaNacimiento || "1970-01-01",
+                    role: "Vendedor",
+                    codigo: "",
+                    password: hashed,
+                    createdAt: hoy,
+                };
+                authUsers.push(authUser);
+                writeUsers(authUsers);
+            } catch (err) {
+                // If auth store write fails, rollback admin store insertion to avoid inconsistency
+                try {
+                    const rollback = loadUsuarios().filter((u) => String(u.correo || "").toLowerCase() !== correoLower);
+                    saveUsuarios(rollback);
+                    setUsuarios(ensureUsuariosConRol());
+                } catch {}
+                return setVenMsg({ text: "Error creando cuenta de acceso. Intenta nuevamente.", ok: false });
+            }
+
+            // Clear form on success
+            setVen({ rut: "", nombre: "", correo: "", pass: "", pass2: "", fechaNacimiento: "" });
+            setVenMsg({ text: `Vendedor creado: ${nuevo.nombre} (${nuevo.correo}). Ya puede iniciar sesión.`, ok: true });
+        }
+
         const ADMIN_EMAIL_PROTEGIDO = "pasteleriamilsabores.fm@gmail.com";
         const isProtected = (u: Usuario) => Boolean(u.protegido) || String(u.correo || "").toLowerCase() === ADMIN_EMAIL_PROTEGIDO;
 
@@ -1094,7 +1163,14 @@ const Admin: React.FC = () => {
                             <div className="row g-2 align-items-end">
                                 <div className="col-auto" style={{minWidth: 180}}>
                                     <label className="form-label small mb-1">RUN</label>
-                                    <input className="form-control form-control-sm" value={ven.rut} onChange={(e) => setVen((p) => ({ ...p, rut: e.target.value }))} />
+                                    <input
+                                        className="form-control form-control-sm"
+                                        inputMode="numeric"
+                                        placeholder="12.345.678-9"
+                                        maxLength={12}
+                                        value={ven.rut}
+                                        onChange={(e) => setVen((p) => ({ ...p, rut: formatearRun(e.target.value) }))}
+                                    />
                                 </div>
                                 <div className="col-auto" style={{minWidth: 220}}>
                                     <label className="form-label small mb-1">Nombre</label>
@@ -1103,6 +1179,10 @@ const Admin: React.FC = () => {
                                 <div className="col-auto" style={{minWidth: 220}}>
                                     <label className="form-label small mb-1">Correo</label>
                                     <input className="form-control form-control-sm" value={ven.correo} onChange={(e) => setVen((p) => ({ ...p, correo: e.target.value }))} />
+                                </div>
+                                <div className="col-auto" style={{minWidth: 170}}>
+                                    <label className="form-label small mb-1">Fecha Nac.</label>
+                                    <input type="date" className="form-control form-control-sm" max={maxBirthStr} value={ven.fechaNacimiento} onChange={(e) => setVen((p) => ({ ...p, fechaNacimiento: e.target.value }))} />
                                 </div>
                                 <div className="col-auto" style={{minWidth: 140}}>
                                     <label className="form-label small mb-1">Contraseña</label>
@@ -1127,7 +1207,7 @@ const Admin: React.FC = () => {
                                 <thead className="table-light"><tr><th>Nombre</th><th>Correo</th><th>RUT</th></tr></thead>
                                 <tbody>
                                     {vendedores.length ? vendedores.map((u) => (
-                                        <tr key={u.id}><td>{u.nombre || ''} {u.apellido || ''}</td><td>{u.correo || ''}</td><td>{u.rut || ''}</td></tr>
+                                        <tr key={u.id}><td>{u.nombre || ''} {u.apellido || ''}</td><td>{u.correo || ''}</td><td>{formatearRun(String(u.rut || ''))}</td></tr>
                                     )) : <tr><td colSpan={3} className="text-center text-secondary">Sin registros</td></tr>}
                                 </tbody>
                             </table>
@@ -1173,7 +1253,7 @@ const Admin: React.FC = () => {
                                             <td>{i + 1}</td>
                                             <td>{u.nombre || ''} {u.apellido || ''}</td>
                                             <td>{u.correo || ''}</td>
-                                            <td>{u.rut || ''}</td>
+                                            <td>{formatearRun(String(u.rut || ''))}</td>
                                             <td>{parseAge(u) ?? ''}</td>
                                             <td style={{ minWidth: 160 }}><RoleSelect u={u} /></td>
                                             <td className="text-center">
