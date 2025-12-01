@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "../../components/ui/Modal";
+import Charts from "../../components/admin/Charts";
 import { products as seedProducts } from "../../utils/dataLoaders";
 import type { Product } from "../../types/product";
 import { getJSON, setJSON } from "../../utils/storage";
@@ -244,8 +245,16 @@ const Admin: React.FC = () => {
     const ventasMes = ventas.filter((x: any) => String(x.tsISO).slice(0, 7) === yyyymm(today));
     const totalUnidMes = ventasMes.reduce((a: number, x: any) => a + Number(x.qty || 0), 0);
     const totalCLPMes = ventasMes.reduce((a: number, x: any) => a + Number(x.qty || 0) * Number(x.price || 0), 0);
-    const ordMes = (loadOrdenes().filter((o) => String((o.tsISO || "").slice(0, 7)) === yyyymm(today)).length || ventasMes.length || 1);
-    const ticket = totalCLPMes / ordMes;
+
+    // Use `ordenes` state (if available) to compute orders and totals for the month.
+    const ordenesMes = (ordenes || []).filter((o: any) => {
+        const iso = String(o.tsISO || o.fecha || o.fechaPedido || o.fechaOrder || "");
+        return iso.slice(0, 7) === yyyymm(today);
+    });
+    const totalCLPMesFromOrders = ordenesMes.reduce((a: number, o: any) => a + Number(o.total || 0), 0);
+    const ordMes = ordenesMes.length || ventasMes.length || 1;
+    const totalCLPFinal = totalCLPMesFromOrders > 0 ? totalCLPMesFromOrders : totalCLPMes;
+    const ticket = totalCLPFinal / ordMes;
 
     const countAdmins = usuarios.filter((u) => u.rol === ROLES.ADMIN).length;
     const countVendedores = usuarios.filter((u) => u.rol === ROLES.VENDEDOR).length;
@@ -446,7 +455,11 @@ const Admin: React.FC = () => {
                     <div className="col-12 col-md-6 col-xl-3">
                         <div className="card stat-card h-100 dashboard-ticketpromedio-card" style={{ cursor: "pointer" }} onClick={() => setSection("ordenes")}>
                             <div className="card-body d-flex justify-content-between align-items-center">
-                                <div><div className="text-secondary small">Ticket promedio</div><div className="fs-5 fw-semibold">{CLP(ticket)}</div></div>
+                                <div>
+                                    <div className="text-secondary small">Ticket promedio (mes)</div>
+                                    <div className="fs-5 fw-semibold">{CLP(ticket)}</div>
+                                    <div className="small text-secondary">Basado en {ordMes} orden(es) este mes</div>
+                                </div>
                                 <i className="bi bi-receipt icon" />
                             </div>
                         </div>
@@ -466,6 +479,13 @@ const Admin: React.FC = () => {
 
                     
                 </div>
+
+                <div className="row g-3 mb-3">
+                    <div className="col-12">
+                        <Charts ventas={ventas} catalogo={catalogo} ordenes={ordenes} usuarios={usuarios} />
+                    </div>
+                </div>
+
             </>
         );
     }
@@ -1278,23 +1298,69 @@ const Admin: React.FC = () => {
     }
 
     function SectionOrdenes() {
-        const rows = ordenes.map((o) => (
-            <tr key={String(o.id)}>
-                <td>{timeHHMM((o.tsISO as string) || (o.fecha as string))}</td>
-                <td>{o.usuarioCorreo || "—"}</td>
-                <td className="text-end">{CLP(Number(o.total || 0))}</td>
-                <td className="text-end">{(o.items || []).reduce((a, x) => a + Number(x.qty || x.cantidad || 0), 0)}</td>
-                <td className="text-end">
-                    <button className="btn btn-sm btn-outline-secondary" onClick={() => setOrderDetail(o)}>Ver</button>
-                </td>
-            </tr>
-        ));
+        const byCode = new Map((catalogo || []).map((p: any) => [String(p.code), p]));
+
+        const rows = ordenes.map((o) => {
+            const names = (o.items || []).map((it: any) => {
+                const code = String(it.productId ?? it.code ?? '');
+                const p = byCode.get(code);
+                return p ? (p.productName || p.nombre || code) : code;
+            });
+            const namesShort = names.length ? names.slice(0, 2).join(', ') + (names.length > 2 ? ' …' : '') : '';
+            const totalItems = (o.items || []).reduce((a: number, x: any) => a + Number(x.qty || x.cantidad || 0), 0);
+            return (
+                <tr key={String(o.id)}>
+                    <td>{timeHHMM((o.tsISO as string) || (o.fecha as string))}</td>
+                    <td>{o.usuarioCorreo || "—"}</td>
+                    <td className="text-end">{CLP(Number(o.total || 0))}</td>
+                    <td className="text-end" title={names.join(', ')}>{totalItems}{namesShort ? <div className="small text-secondary">{namesShort}</div> : null}</td>
+                    <td className="text-center">
+                        {o.discounts ? (
+                            (() => {
+                                const parts: string[] = [];
+                                try {
+                                    if ((o.discounts as any).agePercent > 0) parts.push('Mayores');
+                                    if ((o.discounts as any).codePercent > 0) parts.push('Cupón');
+                                    if ((o.discounts as any).freeCakeApplied) parts.push('Torta');
+                                    if (((o.discounts as any).totalDiscountMoney || 0) > 0) parts.push(`${CLP(Number((o.discounts as any).totalDiscountMoney || 0))}`);
+                                } catch { }
+                                const label = parts.join(' • ') || 'Beneficio';
+                                return <span className="badge bg-success" title={label}>{parts[0] || 'Sí'}</span>;
+                            })()
+                        ) : (
+                            <span className="text-muted small">—</span>
+                        )}
+                    </td>
+                    <td className="text-end">
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => setOrderDetail(o)}>Ver</button>
+                    </td>
+                </tr>
+            );
+        });
 
         const [orderDetail, setOrderDetail] = useState<Orden | null>(null);
         const itemsHTML = (it: Orden["items"]) => (
-            (it || []).map((x, idx) => (
-                <li key={idx} className="list-group-item d-flex justify-content-between"><span>{x.productId ?? x.code ?? ''}</span><span>x{Number(x.qty || x.cantidad || 0)} • {CLP(Number(x.price || 0))}</span></li>
-            ))
+            (it || []).map((x, idx) => {
+                const code = String(x.productId ?? x.code ?? '');
+                const prod = byCode.get(code) as any;
+                const name = prod ? (prod.productName || prod.nombre || code) : (code || '(desconocido)');
+                const img = prod ? (prod.img || prod.image || prod.picture) : null;
+                const qty = Number(x.qty || x.cantidad || 0);
+                const unit = Number(x.price || 0);
+                const subtotal = qty * unit;
+                return (
+                    <li key={idx} className="list-group-item d-flex align-items-center justify-content-between">
+                        <div className="d-flex align-items-center">
+                            {img ? <img src={img} alt={name} style={{ width: 48, height: 48, objectFit: 'cover', marginRight: 12, borderRadius: 6 }} /> : <div style={{ width: 48, height: 48, marginRight: 12, background: '#f5f5f5', borderRadius: 6 }} />}
+                            <div>
+                                <div className="fw-semibold">{name}</div>
+                                <div className="small text-secondary">x{qty} • {CLP(unit)}</div>
+                            </div>
+                        </div>
+                        <div className="fw-semibold">{CLP(subtotal)}</div>
+                    </li>
+                );
+            })
         );
 
         return (
@@ -1309,11 +1375,13 @@ const Admin: React.FC = () => {
                             <thead className="table-light">
                                 <tr>
                                     <th>Hora</th><th>Cliente</th>
-                                    <th className="text-end">Total</th><th className="text-end">Items</th><th className="text-end"></th>
+                                    <th className="text-end">Total</th><th className="text-end">Items</th>
+                                    <th className="text-center">Beneficio</th>
+                                    <th className="text-end"></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.length ? rows : (<tr><td colSpan={5}><div className="empty-state">Hoy no hay órdenes.</div></td></tr>)}
+                                {rows.length ? rows : (<tr><td colSpan={6}><div className="empty-state">Hoy no hay órdenes.</div></td></tr>)}
                             </tbody>
                         </table>
                     </div>

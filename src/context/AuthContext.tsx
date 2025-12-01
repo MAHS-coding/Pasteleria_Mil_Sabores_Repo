@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 const KEY_USER = "usuario";
 
 import { getJSON, setJSON, remove } from "../utils/storage";
+import apiClient from '@/config/axiosConfig';
 
 type User = { name: string; email?: string } | null;
 
@@ -49,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             sessionStorage.removeItem("admin.usuarios.orderDesc");
             sessionStorage.removeItem("admin.usuarios.qSearch");
         } catch {}
+        try { apiClient.setToken(null); } catch {}
         setUser(null);
     }
 

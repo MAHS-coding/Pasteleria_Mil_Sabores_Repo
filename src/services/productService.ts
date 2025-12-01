@@ -1,31 +1,65 @@
 import catalogData from "../data/products/productos.json";
 import type { Catalog, Category, CatalogProduct } from "../types/product";
+import apiClient from "@/config/axiosConfig";
 
-// Lightweight product service that reads from the local JSON catalog.
-// Keeps logic centralized so components can import these helpers instead of reading JSON directly.
+// If Vite env `VITE_API_BASE` is set, the service will try to use remote
+// product-service endpoints (with JWT support). Otherwise it falls back to
+// the local JSON editorial copy so the UI keeps working without the backend.
 
-export function getCatalog(): Catalog {
+function localCatalog(): Catalog {
     return catalogData as unknown as Catalog;
 }
 
-export function getCategories(): Category[] {
-    return getCatalog().categorias || [];
+export async function getCatalog(): Promise<Catalog> {
+    if (!apiClient.hasApi()) return localCatalog();
+    try {
+        const products = await apiClient.request('/api/products');
+        // normalize to frontend catalog shape: a single category 'Todos'
+        const cat: Category = { nombre: 'Todos', productos: products } as any;
+        return { categorias: [cat] } as any;
+    } catch (e) {
+        console.warn('Remote products failed, falling back to local:', e);
+        return localCatalog();
+    }
 }
 
-export function getAllProducts(): CatalogProduct[] {
-    return getCategories().flatMap(c => c.productos || []);
+export async function getCategories(): Promise<Category[]> {
+    const c = await getCatalog();
+    return c.categorias || [];
 }
 
-export function findProductByCode(code?: string): CatalogProduct | undefined {
+export async function getAllProducts(): Promise<CatalogProduct[]> {
+    const cats = await getCategories();
+    return cats.flatMap(c => (c.productos as CatalogProduct[]) || []);
+}
+
+export async function findProductByCode(code?: string): Promise<CatalogProduct | undefined> {
     if (!code) return undefined;
     const normalized = String(code).trim();
-    return getAllProducts().find(p => String(p.codigo_producto) === normalized || String(p.nombre_producto).toLowerCase() === normalized.toLowerCase());
+    const all = await getAllProducts();
+    return all.find(p => String((p as any).codigo_producto) === normalized || String((p as any).nombre_producto).toLowerCase() === normalized.toLowerCase());
 }
 
-export function searchProducts(q?: string): CatalogProduct[] {
-    if (!q) return getAllProducts();
+export async function searchProducts(q?: string): Promise<CatalogProduct[]> {
+    const all = await getAllProducts();
+    if (!q) return all;
     const s = String(q).trim().toLowerCase();
-    return getAllProducts().filter(p => (p.nombre_producto || "").toLowerCase().includes(s) || (p.descripción_producto || "").toLowerCase().includes(s));
+    return all.filter(p => (String((p as any).nombre_producto || "").toLowerCase().includes(s) || String((p as any)['descripción_producto'] || "").toLowerCase().includes(s)));
 }
 
-export default { getCatalog, getCategories, getAllProducts, findProductByCode, searchProducts };
+// Backwards-compatible synchronous helpers that use the local JSON.
+export function getCatalogSync(): Catalog { return localCatalog(); }
+export function getCategoriesSync(): Category[] { return getCatalogSync().categorias || []; }
+export function getAllProductsSync(): CatalogProduct[] { return getCategoriesSync().flatMap(c => c.productos || []); }
+export function findProductByCodeSync(code?: string): CatalogProduct | undefined {
+    if (!code) return undefined;
+    const normalized = String(code).trim();
+    return getAllProductsSync().find(p => String((p as any).codigo_producto) === normalized || String((p as any).nombre_producto).toLowerCase() === normalized.toLowerCase());
+}
+export function searchProductsSync(q?: string): CatalogProduct[] {
+    if (!q) return getAllProductsSync();
+    const s = String(q).trim().toLowerCase();
+    return getAllProductsSync().filter(p => (String((p as any).nombre_producto || "").toLowerCase().includes(s) || String((p as any)['descripción_producto'] || "").toLowerCase().includes(s)));
+}
+
+export default { getCatalog, getCategories, getAllProducts, findProductByCode, searchProducts, getCatalogSync, getCategoriesSync, getAllProductsSync, findProductByCodeSync, searchProductsSync };

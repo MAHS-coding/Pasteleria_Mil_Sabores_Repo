@@ -136,7 +136,12 @@ const Checkout: React.FC = () => {
     const p = allProducts.find((p) => p.code === target.code);
     return p?.price || 0;
   }, [items, applyFreeCakeVoucher, selectedTortaKey]);
-  const discountAmount = useMemo(() => Math.round(subtotal * (discountPercent / 100)), [subtotal, discountPercent]);
+  // Apply free cake first (if selected), then percentage discounts over the remaining subtotal
+  const discountAmount = useMemo(() => {
+    const combinedPercent = ageDiscountPercent + codeDiscountPercent;
+    const base = Math.max(0, subtotal - (applyFreeCakeVoucher ? freeCakeAmount : 0));
+    return Math.round(base * (combinedPercent / 100));
+  }, [subtotal, ageDiscountPercent, codeDiscountPercent, freeCakeAmount, applyFreeCakeVoucher]);
   const shippingAmount = items.length > 0 ? SHIPPING_COST : 0;
   const totalBeforeShipping = Math.max(0, subtotal - discountAmount - freeCakeAmount);
   const total = totalBeforeShipping + shippingAmount;
@@ -240,11 +245,13 @@ const Checkout: React.FC = () => {
     // compute discount breakdown to persist with the order
     const agePercentApplied = ageDiscountPercent;
     const codePercentApplied = codeDiscountPercent;
-    const ageDiscountMoney = Math.round(subtotal * (agePercentApplied / 100));
-    const codeDiscountMoney = Math.round(subtotal * (codePercentApplied / 100));
-    const discountPercentMoney = ageDiscountMoney + codeDiscountMoney;
     const freeCakeApplied = applyFreeCakeVoucher && freeCakeAmount > 0 && !!selectedTortaKey;
     const freeCakeMoney = freeCakeApplied ? freeCakeAmount : 0;
+    // Apply percent discounts over the subtotal after removing free cake value
+    const baseForPercent = Math.max(0, subtotal - freeCakeMoney);
+    const ageDiscountMoney = Math.round(baseForPercent * (agePercentApplied / 100));
+    const codeDiscountMoney = Math.round(baseForPercent * (codePercentApplied / 100));
+    const discountPercentMoney = ageDiscountMoney + codeDiscountMoney;
     const totalDiscountMoney = discountPercentMoney + freeCakeMoney;
 
     // build order
@@ -417,13 +424,13 @@ const Checkout: React.FC = () => {
                       {ageDiscountPercent > 0 ? (
                         <li className="d-flex justify-content-between text-success"> 
                           <span>50% beneficio mayores</span>
-                          <span>-{formatCLP(Math.round(subtotal * (ageDiscountPercent / 100)))}</span>
+                          <span>-{formatCLP(Math.round(Math.max(0, subtotal - (hasFreeCakeVoucher ? freeCakeAmount : 0)) * (ageDiscountPercent / 100)))}</span>
                         </li>
                       ) : null}
                       {codeDiscountPercent > 0 ? (
                         <li className="d-flex justify-content-between text-success"> 
                           <span>10% descuento de por vida (FELICES50)</span>
-                          <span>-{formatCLP(Math.round(subtotal * (codeDiscountPercent / 100)))}</span>
+                          <span>-{formatCLP(Math.round(Math.max(0, subtotal - (hasFreeCakeVoucher ? freeCakeAmount : 0)) * (codeDiscountPercent / 100)))}</span>
                         </li>
                       ) : null}
                       {hasFreeCakeVoucher && freeCakeAmount > 0 ? (
@@ -434,7 +441,7 @@ const Checkout: React.FC = () => {
                       ) : null}
                       <li className="d-flex justify-content-between fw-semibold mt-1">
                         <span>Total descuentos</span>
-                        <span>-{formatCLP(Math.round(subtotal * ((ageDiscountPercent + codeDiscountPercent) / 100) + (hasFreeCakeVoucher ? freeCakeAmount : 0)))}</span>
+                        <span>-{formatCLP(Math.round(discountAmount + (hasFreeCakeVoucher ? freeCakeAmount : 0)))}</span>
                       </li>
                     </ul>
                   </div>

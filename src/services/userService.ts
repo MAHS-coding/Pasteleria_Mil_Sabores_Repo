@@ -1,5 +1,6 @@
 import { getJSON, setJSON, remove as removeJSON } from "../utils/storage";
 import { authenticate } from "./authService";
+import apiClient from '@/config/axiosConfig';
 import { readUsers, findUserByEmail, updateUser } from "../utils/registro";
 import type { StoredUser } from "../utils/registro";
 import { sha256Hex } from "../utils/hash";
@@ -28,6 +29,7 @@ export async function login(email: string, passwordPlain: string): Promise<Login
 export function logout(): void {
     try {
         removeJSON(SESSION_KEY);
+        try { apiClient.setToken(null); } catch {}
         emitAuthChanged({ user: null });
     } catch {}
 }

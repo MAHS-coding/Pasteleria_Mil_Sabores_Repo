@@ -27,7 +27,7 @@
             "nombre": "Luis Felipe",
             "apellidos": "González Fuentes",
             "correo": "luis.felipe@gmail.com",
-            "fechaNacimiento": "1985-11-20",
+            "fechaNacimiento": "1985-11-30",
             "tipoUsuario": "Administrador",
             "addresses": [
                 {
@@ -165,7 +165,7 @@
             "nombre": "Felipe Andrés",
             "apellidos": "Vega Carrasco",
             "correo": "felipe.andres@profesor.duoc.cl",
-            "fechaNacimiento": "1975-04-10",
+            "fechaNacimiento": "1975-11-3980",
             "tipoUsuario": "Cliente",
             "addresses": [
                 {
