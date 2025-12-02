@@ -1,17 +1,21 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { getProductByCode } from "../utils/products";
 import { products as seedProducts } from "../utils/dataLoaders";
+import { addCartItem, fetchCart, removeCartItem, updateCartItem } from "../services/cartService";
+import type { CartItemDto } from "../services/cartService";
 
 const KEY_CART = "carrito"; // base key; actual key will include user identifier
 
 type CartItem = {
     code: string;
+    productId?: string;
     productName: string;
     price?: number;
     img?: string;
     cantidad: number;
     mensaje?: string;
+    serverItemId?: string;
 };
 
 type CartContextValue = {
@@ -75,40 +79,94 @@ function totalQuantityForCode(items: CartItem[], code: string, excludeMessage?: 
     }, 0);
 }
 
+function cartItemKey(code: string, mensaje?: string) {
+    return `${code}::${normalizeMessage(mensaje)}`;
+}
+
+function cartItemDtoKey(code: string, mensaje?: string) {
+    return `${code}::${normalizeMessage(mensaje)}`;
+}
+
+function mapCartItemDtoToCartItem(dto: CartItemDto) {
+    if (!dto || (!dto.code && !dto.productId)) return null;
+    const code = dto.code || dto.productId || "";
+    const cantidad = typeof dto.cantidad === "number" ? dto.cantidad : typeof dto.qty === "number" ? dto.qty : 0;
+    return {
+        code,
+        productId: dto.productId,
+        productName: dto.productName || getProductByCode(code, seedProducts)?.productName || code,
+        price: typeof dto.price === "number" ? dto.price : undefined,
+        cantidad,
+        mensaje: dto.mensaje,
+        serverItemId: dto.id,
+    } as CartItem;
+}
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { user } = useAuth();
     const storageKey = useMemo(() => cartStorageKeyForUser(user as any), [user]);
     const prevKeyRef = useRef<string | null>(null);
-
-    // initialize from storage for the current user
     const [items, setItems] = useState<CartItem[]>(() => readCartForKey(storageKey));
 
-    // NOTE: persist explicitly inside state-updating functions to avoid races
-    // that can overwrite a user's cart when the storageKey changes.
+    const applyRemoteItem = useCallback((dto: CartItemDto) => {
+        const remoteItem = mapCartItemDtoToCartItem(dto);
+        if (!remoteItem) return;
+        setItems((current) => {
+            const key = cartItemKey(remoteItem.code, remoteItem.mensaje);
+            const next = [...current];
+            const idx = next.findIndex((it) => cartItemKey(it.code, it.mensaje) === key);
+            if (idx >= 0) {
+                next[idx] = { ...next[idx], ...remoteItem };
+            } else {
+                next.push(remoteItem);
+            }
+            try { writeCartForKey(storageKey, next); } catch {};
+            return next;
+        });
+    }, [storageKey]);
+
+    const syncItemWithServer = useCallback(async (code: string, mensaje?: string) => {
+        if (!user?.run) return;
+        const targetKey = cartItemKey(code, mensaje);
+        const latest = readCartForKey(storageKey);
+        const target = latest.find((it) => cartItemKey(it.code, it.mensaje) === targetKey);
+        if (!target) return;
+        const qty = Math.max(0, target.cantidad || 0);
+        if (qty <= 0) {
+            if (target.serverItemId) {
+                await removeCartItem(user.run, target.serverItemId);
+            }
+            return;
+        }
+        const payload = { qty, mensaje: target.mensaje };
+        let remote: CartItemDto | null = null;
+        if (target.serverItemId) {
+            remote = await updateCartItem(user.run, target.serverItemId, payload);
+        } else {
+            remote = await addCartItem(user.run, { productId: target.productId || target.code, qty, mensaje: target.mensaje });
+        }
+        if (remote) {
+            applyRemoteItem(remote);
+        }
+    }, [storageKey, user?.run, applyRemoteItem]);
 
     const count = useMemo(() => items.reduce((s, it) => s + (it.cantidad || 0), 0), [items]);
 
-    // watch for user changes and migrate/merge carts when needed
     useEffect(() => {
         const prevKey = prevKeyRef.current;
         if (!prevKey) {
-            // first render: ensure state reflects storage (already set by initializer)
             prevKeyRef.current = storageKey;
             return;
         }
+        if (prevKey === storageKey) return;
 
-    if (prevKey === storageKey) return; // no change
+        const prevCart = readCartForKey(prevKey);
+        const newCart = readCartForKey(storageKey);
 
-    const prevCart = readCartForKey(prevKey);
-    const newCart = readCartForKey(storageKey);
-
-        // If user is logging in (guest -> user), merge guest into user.
         const prevIsGuest = prevKey.endsWith("_guest");
         const newIsGuest = storageKey.endsWith("_guest");
 
-        // If guest -> user: merge guest into user (preserve guest items into user's cart)
         if (prevIsGuest && !newIsGuest) {
-            // merge guest into user
             const mergedMap = new Map<string, CartItem>();
             function keyOf(it: CartItem) { return `${it.code}::${it.mensaje || ""}`; }
             (newCart || []).forEach((it) => mergedMap.set(keyOf(it), { ...it }));
@@ -123,21 +181,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             const merged = Array.from(mergedMap.values());
             writeCartForKey(storageKey, merged);
-            // clear guest cart after merge
             writeCartForKey(prevKey, []);
             setItems(merged);
         } else if (!prevIsGuest && newIsGuest) {
-            // user -> guest (logout): clear the guest cart in UI (do not load previous user items)
-            // keep the user's persisted cart under their key (so it can be restored when they log back in)
-            // user -> guest (logout): clear the guest UI and persist empty guest cart
             writeCartForKey(storageKey, []);
             setItems([]);
         } else {
-            // otherwise just load the cart for the active key
             setItems(newCart || []);
         }
         prevKeyRef.current = storageKey;
     }, [storageKey]);
+
+    useEffect(() => {
+        if (!user?.run) return;
+        let active = true;
+        (async () => {
+            const remoteCart = await fetchCart(user.run);
+            if (!active || !remoteCart?.items) return;
+            remoteCart.items.forEach(applyRemoteItem);
+            const stored = readCartForKey(storageKey);
+            for (const entry of stored) {
+                if (!entry.serverItemId) {
+                    await syncItemWithServer(entry.code, entry.mensaje);
+                }
+            }
+        })();
+        return () => { active = false; };
+    }, [storageKey, user?.run, applyRemoteItem, syncItemWithServer]);
 
     function add(item: Omit<CartItem, "cantidad">): boolean {
         const limit = resolveStockLimit(item.code);
@@ -154,6 +224,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : [...items, { ...item, cantidad: increment }];
         try { writeCartForKey(storageKey, next); } catch {};
         setItems(next);
+        void syncItemWithServer(item.code, item.mensaje);
         return true;
     }
 
@@ -175,15 +246,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : [...items, { ...item, cantidad: toAdd }];
         try { writeCartForKey(storageKey, next); } catch {};
         setItems(next);
+        if (toAdd > 0) void syncItemWithServer(item.code, item.mensaje);
         return toAdd;
     }
 
     function remove(code: string, mensaje?: string) {
+        const existing = items.find((c) => c.code === code && normalizeMessage(c.mensaje) === normalizeMessage(mensaje));
+        const serverId = existing?.serverItemId;
         setItems((cur) => {
             const next = cur.filter((c) => !(c.code === code && (c.mensaje || "") === (mensaje || "")));
             try { writeCartForKey(storageKey, next); } catch {};
             return next;
         });
+        if (serverId && user?.run) {
+            void removeCartItem(user.run, serverId);
+        }
     }
 
     function setQuantity(code: string, mensaje: string | undefined, qty: number): number {
@@ -210,6 +287,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const next = items.filter((_, idx) => idx !== index);
             try { writeCartForKey(storageKey, next); } catch {};
             setItems(next);
+            void syncItemWithServer(code, mensaje);
             return 0;
         }
 
@@ -220,6 +298,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const next = items.map((c, idx) => (idx === index ? { ...c, cantidad: targetQty } : c));
         try { writeCartForKey(storageKey, next); } catch {};
         setItems(next);
+        void syncItemWithServer(code, mensaje);
         return targetQty;
     }
 
@@ -235,7 +314,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const next: CartItem[] = items.map((it) => ({ ...it }));
 
         for (let i = 0; i < canAdd; i++) {
-            // normalize message: trim and use undefined when empty
             const raw = messages[i] ?? "";
             const trimmed = String(raw).trim();
             const message: string | undefined = trimmed.length > 0 ? trimmed : undefined;
@@ -248,17 +326,29 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         }
 
-        try { writeCartForKey(storageKey, next); } catch {}
+        try { writeCartForKey(storageKey, next); } catch {};
         setItems(next);
+        const messagesToSync = new Set<string | undefined>();
+        for (let i = 0; i < canAdd; i++) {
+            const raw = messages[i] ?? "";
+            const trimmed = String(raw).trim();
+            const message: string | undefined = trimmed.length > 0 ? trimmed : undefined;
+            messagesToSync.add(message);
+        }
+        messagesToSync.forEach((msg) => void syncItemWithServer(code, msg));
         return canAdd;
     }
 
     function clear() {
+        const serverIds = items.map((it) => it.serverItemId).filter(Boolean) as string[];
         setItems(() => {
             const next: CartItem[] = [];
             try { writeCartForKey(storageKey, next); } catch {};
             return next;
         });
+        if (serverIds.length > 0 && user?.run) {
+            serverIds.forEach((id) => void removeCartItem(user.run, id));
+        }
     }
 
     const value = { items, count, add, addMultiple, addPersonalizedBatch, remove, setQuantity, clear };

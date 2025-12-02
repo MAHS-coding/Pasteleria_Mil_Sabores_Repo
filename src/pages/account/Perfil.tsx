@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { findUserByEmail, updateUser, isDuocEmail, isBirthdayToday } from '../../utils/registro';
+import { findUserByEmail, updateUser, upsertStoredUser, isDuocEmail, isBirthdayToday } from '../../utils/registro';
 import type { StoredUser } from '../../utils/registro';
+import { addUserAddress, cardDtoToStoredCard, fetchUserAddresses, fetchUserCards, fetchUserProfile, syncLocalUserProfile, type UserProfileUpdateRequest, updateUserProfile } from '../../services/userService';
+import { fetchOrders, type OrderResponse } from '../../services/pedidosService';
 import Modal from '../../components/ui/Modal';
 import FormField from '../../components/ui/FormField';
 import { regions, products as allProducts } from '../../utils/dataLoaders';
 import styles from './Perfil.module.css';
 // checkout styles are used by the shared PaymentCards component when needed
 import PaymentCards from '../../components/payments/PaymentCards';
-import { formatCardNumber, formatExpMonth, formatExpYear, normalizeHolderName, detectBrand, maskLast4 } from '../../utils/cardUtils';
+import { formatCardNumber, formatExpMonth, formatExpYear, normalizeHolderName, detectBrand, maskLast4, sanitizeCardNumber } from '../../utils/cardUtils';
 import { getJSON } from '../../utils/storage';
 import { formatCLP } from '../../utils/currency';
 
@@ -36,11 +38,14 @@ const Perfil: React.FC = () => {
     const [addrRegion, setAddrRegion] = useState('');
     const [addrComuna, setAddrComuna] = useState('');
     const [addAddressError, setAddAddressError] = useState('');
+    const [cardSaveError, setCardSaveError] = useState('');
 
     // payment cards (managed here similarly to addresses)
 
     // editing mode for personal data
     const [isEditing, setIsEditing] = useState(false);
+    const [profileSaving, setProfileSaving] = useState(false);
+    const [profileSaveError, setProfileSaveError] = useState('');
 
     // orders
     const [orders, setOrders] = useState<Array<any>>([]);
@@ -52,13 +57,99 @@ const Perfil: React.FC = () => {
         return p?.productName || String(code);
     }
 
+    function orderResponseToProfileOrder(payload: OrderResponse) {
+        const items = (payload.items || []).map((it) => ({
+            code: it.productCode ?? it.productoCodigo,
+            productId: it.productCode ?? it.productoCodigo,
+            qty: Number(it.qty ?? it.cantidad ?? 0),
+            cantidad: Number(it.cantidad ?? it.qty ?? 0),
+            price: Number(it.price ?? it.precioUnitario ?? 0),
+        }));
+        return {
+            id: payload.pedidoId || payload.id || '',
+            items,
+            total: Number(payload.total ?? payload.totalConDescuento ?? 0),
+            estado: payload.status || payload.estado || 'Pendiente',
+            tsISO: payload.createdAt || payload.tsISO || payload.fechaPedido,
+            direccionEntrega: payload.deliveryAddress || payload.direccionEntrega,
+            usuarioCorreo: payload.usuarioCorreo,
+            purchaserCorreo: payload.purchaserCorreo,
+            discounts: payload.discounts,
+            discountDescriptions: Array.isArray(payload.discountDescriptions) ? payload.discountDescriptions : undefined,
+        };
+    }
+
     useEffect(() => {
-        if (!user?.email) {
-            setStoredUser(null);
-            return;
-        }
-        setStoredUser(findUserByEmail(user.email) ?? null);
-    }, [user]);
+        let active = true;
+        const loadProfile = async () => {
+            if (!user?.run) {
+                const fallback = user?.email ? findUserByEmail(user.email) : null;
+                if (active) setStoredUser(fallback ?? null);
+                return;
+            }
+            try {
+                const raw = await fetchUserProfile(user.run);
+                if (!active) return;
+                if (!raw) {
+                    const fallback = user.email ? findUserByEmail(user.email) : null;
+                    setStoredUser(fallback ?? null);
+                    return;
+                }
+                const profileEmail = String(raw.email || raw.correo || user.email || '').trim();
+                if (!profileEmail) {
+                    setStoredUser(null);
+                    return;
+                }
+                let addresses = Array.isArray(raw.addresses) ? raw.addresses : undefined;
+                let paymentCards: StoredUser['paymentCards'] | undefined = Array.isArray(raw.paymentCards) ? raw.paymentCards as StoredUser['paymentCards'] : undefined;
+                try {
+                    const fetched = await fetchUserAddresses(user.run);
+                    if (fetched && fetched.length) {
+                        addresses = fetched;
+                    }
+                } catch {
+                    // use whatever addresses we already have
+                }
+                try {
+                    const fetchedCards = await fetchUserCards(user.run);
+                    if (fetchedCards && fetchedCards.length) {
+                        const normalized = fetchedCards
+                            .map(cardDtoToStoredCard)
+                            .filter(Boolean) as StoredUser['paymentCards'];
+                        if (normalized.length) {
+                            paymentCards = normalized;
+                        }
+                    }
+                } catch {
+                    // use existing cards
+                }
+                const updated = upsertStoredUser({
+                    run: raw.run || user.run,
+                    name: String(raw.nombre || raw.name || user.name || ''),
+                    lastname: String(raw.apellidos || raw.lastname || ''),
+                    email: profileEmail,
+                    birthdate: String(raw.fechaNacimiento || raw.birthdate || ''),
+                    role: (String(raw.tipoUsuario || raw.role || '') as StoredUser['role']) || undefined,
+                    phone: String(raw.telefono || raw.phone || '') || undefined,
+                    addresses: Array.isArray(addresses) ? addresses : undefined,
+                    paymentCards: Array.isArray(paymentCards) ? paymentCards : undefined,
+                    defaultPaymentCardId: raw.defaultPaymentCardId ?? undefined,
+                    avatarDataUrl: raw.avatarDataUrl ? String(raw.avatarDataUrl) : undefined,
+                    discountPercent: typeof raw.discountPercent === 'number' ? raw.discountPercent : undefined,
+                    lifetimeDiscount: raw.lifetimeDiscount ?? (typeof raw.lifetimeDiscountPercent === 'number' ? raw.lifetimeDiscountPercent > 0 : undefined),
+                    freeCakeVoucher: raw.freeCakeVoucher ?? raw.freeCakeEligible ?? undefined,
+                    freeCakeRedeemed: raw.freeCakeRedeemed ?? undefined,
+                });
+                setStoredUser(updated);
+            } catch {
+                if (!active) return;
+                const fallback = user.email ? findUserByEmail(user.email) : null;
+                setStoredUser(fallback ?? null);
+            }
+        };
+        loadProfile();
+        return () => { active = false; };
+    }, [user?.run, user?.email, user?.name]);
 
     // refresh local editable fields when stored changes
     useEffect(() => {
@@ -79,6 +170,26 @@ const Perfil: React.FC = () => {
     }, [storedUser]);
 
     useEffect(() => {
+        let active = true;
+        if (!storedUser?.email) return undefined;
+        (async () => {
+            try {
+                const remote = await fetchOrders();
+                if (!active) return;
+                const emailLower = String(storedUser.email).toLowerCase();
+                const normalized = remote
+                    .map(orderResponseToProfileOrder)
+                    .filter((o) => String(o.usuarioCorreo || o.purchaserCorreo || '').toLowerCase() === emailLower);
+                normalized.sort((a, b) => String(b.tsISO || '').localeCompare(String(a.tsISO || '')));
+                setOrders(normalized as any[]);
+            } catch (error) {
+                console.error('Error cargando órdenes del servidor', error);
+            }
+        })();
+        return () => { active = false; };
+    }, [storedUser?.email]);
+
+    useEffect(() => {
         function onStorage(e: StorageEvent) {
             if (e.key === 'ordenes') {
                 try {
@@ -93,32 +204,69 @@ const Perfil: React.FC = () => {
         return () => window.removeEventListener('storage', onStorage);
     }, [storedUser]);
 
-    function handleSaveProfile() {
-        if (!user?.email) return;
-        // Birthdate is read-only: do not allow updating it here
-        const changes: Partial<StoredUser> = { name: nombre, lastname: apellido, phone: telefono, avatarDataUrl: avatarPreview ?? undefined };
-        const updated = updateUser(user.email, changes);
-        if (updated) {
-            // update auth displayed name
-            login({ name: updated.name, email: updated.email });
-            setStoredUser(updated);
-        }
+    async function persistProfilePayload(payload: UserProfileUpdateRequest) {
+        if (!user?.run) return undefined;
+        const serverResponse = await updateUserProfile(user.run, payload);
+        if (!serverResponse) return undefined;
+        return syncLocalUserProfile(serverResponse, user.run);
     }
 
-    function persistAvatar(nextAvatar: string | null) {
+    async function handleSaveProfile() {
+        if (!user?.email) return;
+        // Birthdate is read-only: do not allow updating it here
+        const changes: Partial<StoredUser> = { name: nombre, lastname: apellido, phone: telefono };
+        const updated = updateUser(user.email, changes);
+        if (!updated) return false;
+        login({ name: updated.name, email: updated.email, run: updated.run });
+        setStoredUser(updated);
+
+        const payload: UserProfileUpdateRequest = {
+            nombre: updated.name,
+            apellidos: updated.lastname,
+            telefono: updated.phone ?? undefined,
+        };
+        const serverUser = await persistProfilePayload(payload);
+        if (serverUser) {
+            login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
+            setStoredUser(serverUser);
+            return true;
+        }
+        return false;
+    }
+
+    async function persistAvatar(nextAvatar: string | null) {
         if (!user?.email) return;
         const updated = updateUser(user.email, { avatarDataUrl: nextAvatar ?? undefined });
         if (updated) {
-            login({ name: updated.name, email: updated.email });
+            login({ name: updated.name, email: updated.email, run: updated.run });
             setStoredUser(updated);
+            const serverUser = await persistProfilePayload({ avatarDataUrl: nextAvatar ?? undefined });
+            if (serverUser) {
+                login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
+                setStoredUser(serverUser);
+            }
         }
     }
 
-    function requestSaveProfile() {
+    async function requestSaveProfile() {
         if (!user?.email) return;
-        // Prevent saving when there are no changes
         if (!isDirty) return;
-        handleSaveProfile();
+        setProfileSaving(true);
+        setProfileSaveError('');
+        try {
+            const saved = await handleSaveProfile();
+            if (saved) {
+                setIsEditing(false);
+                setProfileSaveError('');
+            } else {
+                setProfileSaveError('No se pudo actualizar perfil en el servidor. Intenta de nuevo.');
+            }
+        } catch (error) {
+            console.error(error);
+            setProfileSaveError('Ocurrió un error al guardar los cambios.');
+        } finally {
+            setProfileSaving(false);
+        }
     }
 
     // detect if any editable field differs from stored user -> used to enable/disable Guardar
@@ -140,6 +288,7 @@ const Perfil: React.FC = () => {
         setTelefono(storedUser?.phone ?? '');
         setAvatarPreview(storedUser?.avatarDataUrl ?? null);
         setIsEditing(false);
+        setProfileSaveError('');
     }
 
     
@@ -157,16 +306,20 @@ const Perfil: React.FC = () => {
         setAddAddressError('');
     }
 
-    function handleAddAddress() {
-        if (!user?.email) return;
+    async function handleAddAddress() {
+        if (!user?.email || !user?.run) return;
         if (!addrLine.trim() || !addrRegion || !addrComuna) {
             setAddAddressError('Completa dirección, región y comuna para guardar.');
             return;
         }
-        const id = `${Date.now()}`;
-        const addr = { id, address: addrLine, region: addrRegion, comuna: addrComuna };
+        const payload = { address: addrLine.trim(), region: addrRegion, comuna: addrComuna };
+        const created = await addUserAddress(user.run, payload);
+        if (!created) {
+            setAddAddressError('No pudimos guardar la dirección. Intenta nuevamente.');
+            return;
+        }
         const existing = storedUser?.addresses ?? [];
-        const updated = updateUser(user.email, { addresses: [...existing, addr] });
+        const updated = updateUser(user.email, { addresses: [...existing, created] });
         if (updated) setStoredUser(updated);
         setAddrLine(''); setAddrRegion(''); setAddrComuna('');
         setAddAddressError('');
@@ -205,23 +358,50 @@ const Perfil: React.FC = () => {
 
     // --- Payment cards helpers (shared in utils/cardUtils) ---
 
-    function addCard(cardData: { number: string; holder?: string; expMonth?: string; expYear?: string }) {
-        if (!user?.email) return;
-        const last4 = maskLast4(cardData.number);
-        if (!last4) return;
-        const newCard = {
-            id: `${Date.now()}`,
-            brand: detectBrand(cardData.number),
-            last4,
-            expMonth: cardData.expMonth || undefined,
-            expYear: cardData.expYear || undefined,
-            holderName: cardData.holder || undefined,
-        } as any;
-        const existing = storedUser?.paymentCards ?? [];
-        const willSetDefault = !storedUser?.defaultPaymentCardId;
-        const updated = updateUser(user.email, { paymentCards: [...existing, newCard], defaultPaymentCardId: willSetDefault ? newCard.id : storedUser?.defaultPaymentCardId });
-        if (updated) {
-            setStoredUser(updated);
+    async function addCard(cardData: { number: string; holder?: string; expMonth?: string; expYear?: string }) {
+        const runId = user?.run ?? storedUser?.run;
+        if (!user?.email || !runId) {
+            setCardSaveError('Necesitas iniciar sesión para guardar tarjetas.');
+            return;
+        }
+        setCardSaveError('');
+        const cleanNumber = sanitizeCardNumber(cardData.number);
+        if (!cleanNumber || cleanNumber.length < 12) {
+            setCardSaveError('El número de la tarjeta no es válido.');
+            return;
+        }
+        try {
+            const payload = {
+                cardNumber: cleanNumber,
+                month: cardData.expMonth || undefined,
+                year: cardData.expYear || undefined,
+                cardholderName: normalizeHolderName(cardData.holder || ''),
+            };
+            const created = await addUserCard(runId, payload);
+            if (!created) {
+                throw new Error('No se pudo guardar la tarjeta en el servidor.');
+            }
+            const storedCard = cardDtoToStoredCard(created) ?? {
+                id: created.id,
+                brand: created.brand ?? detectBrand(cleanNumber),
+                last4: cleanNumber.slice(-4),
+                expMonth: created.month ?? cardData.expMonth,
+                expYear: created.year ?? cardData.expYear,
+                holderName: created.cardholderName ?? normalizeHolderName(cardData.holder || ''),
+            };
+            const existing = storedUser?.paymentCards ?? [];
+            const willSetDefault = !storedUser?.defaultPaymentCardId;
+            const updated = updateUser(user.email, {
+                paymentCards: [...existing, storedCard],
+                defaultPaymentCardId: willSetDefault ? storedCard.id : storedUser?.defaultPaymentCardId,
+            });
+            if (updated) {
+                setStoredUser(updated);
+                setCardSaveError('');
+            }
+        } catch (error) {
+            console.error(error);
+            setCardSaveError('No fue posible guardar la tarjeta. Intenta de nuevo más tarde.');
         }
     }
 
@@ -279,7 +459,7 @@ const Perfil: React.FC = () => {
 
     function confirmAvatarRemove() {
         setAvatarPreview(null);
-        persistAvatar(null);
+        void persistAvatar(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
         setAvatarError('');
         setConfirmRemoveAvatarOpen(false);
@@ -295,7 +475,7 @@ const Perfil: React.FC = () => {
             return;
         }
         setAvatarPreview(pendingAvatarDataUrl);
-        persistAvatar(pendingAvatarDataUrl);
+        void persistAvatar(pendingAvatarDataUrl);
         if (fileInputRef.current) fileInputRef.current.value = '';
         setPendingAvatarDataUrl(null);
         setConfirmAvatarSaveOpen(false);
@@ -387,22 +567,23 @@ const Perfil: React.FC = () => {
 
                                 <div className="d-flex flex-wrap gap-2 mt-3">
                                     {!isEditing ? (
-                                        <button type="button" className={`btn ${styles.saveButton}`} onClick={() => setIsEditing(true)}><i className="bi bi-pencil me-1" /> Editar</button>
+                                        <button type="button" className={`btn ${styles.saveButton}`} onClick={() => { setProfileSaveError(''); setIsEditing(true); }}><i className="bi bi-pencil me-1" /> Editar</button>
                                     ) : (
                                         <>
                                             <button
                                                 type="button"
                                                 className={`btn ${styles.saveButton}`}
                                                 onClick={requestSaveProfile}
-                                                disabled={!isDirty}
-                                                title={isDirty ? 'Guardar cambios' : 'No hay cambios para guardar'}
+                                                disabled={!isDirty || profileSaving}
+                                                title={profileSaving ? 'Guardando cambios…' : isDirty ? 'Guardar cambios' : 'No hay cambios para guardar'}
                                             >
-                                                <i className="bi bi-save2 me-1" /> Guardar
+                                                <i className="bi bi-save2 me-1" /> {profileSaving ? 'Guardando…' : 'Guardar'}
                                             </button>
                                             <button type="button" className="btn btn-outline-secondary" onClick={cancelEdit}>Cancelar</button>
                                         </>
                                     )}
                                 </div>
+                                {profileSaveError ? <p className="text-danger small mb-0 mt-2">{profileSaveError}</p> : null}
                             </form>
                         </div>
                     </div>
@@ -555,6 +736,7 @@ const Perfil: React.FC = () => {
                                         onRemove={(id) => removeCard(id)}
                                         onAdd={(data) => addCard({ number: formatCardNumber(data.number), holder: normalizeHolderName(data.holder || ''), expMonth: formatExpMonth(data.expMonth || ''), expYear: formatExpYear(data.expYear || '') })}
                                     />
+                                    {cardSaveError ? <div className="alert alert-danger mt-2">{cardSaveError}</div> : null}
                                 </div>
                             </div>
                         </div>

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Modal from "../ui/Modal";
 import FormField from "../ui/FormField";
 import { isAdminEmail } from "../../utils/roles";
-import userService from "../../services/userService";
+import userService from "../../services/userService.ts";
 
 
 
@@ -41,7 +41,7 @@ const Navbar: React.FC = () => {
                 return;
             }
             const found = res.user;
-            login({ name: found.name || "Usuario", email: found.email });
+            login({ name: found.name || "Usuario", email: found.email, run: found.run, token: res.token });
             setShowLogin(false);
             navigate("/");
         } catch (err) {

@@ -11,6 +11,8 @@ import { formatCardNumber, formatExpMonth, formatExpYear, normalizeHolderName, d
 import PaymentCards from '../../components/payments/PaymentCards';
 import { getJSON, setJSON } from "../../utils/storage";
 import { useNavigate } from "react-router-dom";
+import { createOrder, OrderRequest } from "../../services/pedidosService";
+import { addUserAddress, addUserCard, cardDtoToStoredCard } from "../../services/userService";
 
 const SHIPPING_COST = 5000;
 
@@ -73,6 +75,7 @@ const Checkout: React.FC = () => {
   // confirmation modal after placing order
   const [confirmPlacedOpen, setConfirmPlacedOpen] = useState(false);
   const [blockedMsg, setBlockedMsg] = useState<string>("");
+  const [orderError, setOrderError] = useState<string>("");
 
   const discountPercent = storedUser?.discountPercent ?? 0;
   // determine contributors to the discount for clearer UI
@@ -154,21 +157,32 @@ const Checkout: React.FC = () => {
     setShowAddAddr(false); setAddAddressError("");
   }
 
-  function handleAddAddress() {
+  async function handleAddAddress() {
     if (!user?.email) return;
     if (!addrLine.trim() || !addrRegion || !addrComuna) {
       setAddAddressError("Completa dirección, región y comuna para guardar.");
       return;
     }
-    const id = `${Date.now()}`;
-    const addr = { id, address: addrLine, region: addrRegion, comuna: addrComuna };
-    const existing = storedUser?.addresses ?? [];
-    const updated = updateUser(user.email, { addresses: [...existing, addr] });
-    if (updated) {
-      setStoredUser(updated);
-      setSelectedAddressId(id);
+    if (!user.run) {
+      setAddAddressError("No se pudo identificar el usuario. Intenta nuevamente.");
+      return;
     }
-    setShowAddAddr(false);
+    setAddAddressError("");
+    try {
+      const added = await addUserAddress(user.run, { address: addrLine, region: addrRegion, comuna: addrComuna });
+      if (!added || !added.id) {
+        throw new Error("No se obtuvo la dirección guardada");
+      }
+      const existing = storedUser?.addresses ?? [];
+      const updated = updateUser(user.email, { addresses: [...existing, added] });
+      if (updated) {
+        setStoredUser(updated);
+        setSelectedAddressId(added.id);
+      }
+      setShowAddAddr(false);
+    } catch (error) {
+      setAddAddressError("No fue posible guardar la dirección. Intenta de nuevo más tarde.");
+    }
   }
 
   function getSelectedAddressLabel(): string {
@@ -192,21 +206,36 @@ const Checkout: React.FC = () => {
 
   
 
-  function addCard(cardData: { number: string; holder?: string; expMonth?: string; expYear?: string }) {
-    if (!user?.email) return;
+  async function addCard(cardData: { number: string; holder?: string; expMonth?: string; expYear?: string }) {
+    if (!user?.email || !user?.run) return;
+    setPaymentMethodError("");
     const last4 = maskLast4(cardData.number);
-    if (!last4) return;
-    const brand = detectBrand(cardData.number);
-    const id = `card-${Date.now()}`;
-    const card = { id, brand, last4, expMonth: cardData.expMonth, expYear: cardData.expYear, holderName: cardData.holder } as any;
-    const existing = storedUser?.paymentCards ?? [];
-    const willSetDefault = !storedUser?.defaultPaymentCardId;
-    const updated = updateUser(user.email, { paymentCards: [card, ...existing], defaultPaymentCardId: willSetDefault ? id : storedUser?.defaultPaymentCardId });
-    if (updated) setStoredUser(updated);
-    setSelectedCardId(id);
+    if (!last4) {
+      setPaymentMethodError("Número de tarjeta inválido.");
+      return;
+    }
+    try {
+      const saved = await addUserCard(user.run, {
+        cardNumber: cardData.number,
+        month: cardData.expMonth,
+        year: cardData.expYear,
+        cardholderName: cardData.holder,
+      });
+      const storedCard = cardDtoToStoredCard(saved);
+      if (!storedCard) {
+        throw new Error("No se pudo formatear la tarjeta");
+      }
+      const existing = storedUser?.paymentCards ?? [];
+      const willSetDefault = !storedUser?.defaultPaymentCardId;
+      const updated = updateUser(user.email, { paymentCards: [storedCard, ...existing], defaultPaymentCardId: willSetDefault ? storedCard.id : storedUser?.defaultPaymentCardId });
+      if (updated) setStoredUser(updated);
+      setSelectedCardId(storedCard.id);
+    } catch (error) {
+      setPaymentMethodError("No fue posible guardar la tarjeta. Intenta de nuevo más tarde.");
+    }
   }
 
-  function placeOrder(e: React.FormEvent) {
+  async function placeOrder(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) return;
     if (storedUser?.blocked) {
@@ -279,6 +308,32 @@ const Checkout: React.FC = () => {
         totalDiscountMoney,
       },
     };
+
+    const orderRequest: OrderRequest = {
+      run: user?.run,
+      correo: storedUser?.email,
+      total,
+      fechaEntrega,
+      direccionEntrega: addressText,
+      estado: order.estado,
+      paymentMethodId: order.paymentMethodId,
+      paymentMethod: order.paymentMethod,
+      items: items.map((it) => ({
+        productoCodigo: it.code,
+        cantidad: it.cantidad || 0,
+        mensaje: it.mensaje,
+        precioUnitario: it.price,
+      })),
+      discounts: order.discounts,
+    };
+
+    setOrderError("");
+    try {
+      await createOrder(orderRequest);
+    } catch (err) {
+      setOrderError("No fue posible guardar el pedido. Intenta de nuevo más tarde.");
+      return;
+    }
 
     // persist into 'ordenes'
     try {
@@ -369,6 +424,7 @@ const Checkout: React.FC = () => {
             </div>
             {paymentMethodError ? <div className="alert alert-danger mb-2">{paymentMethodError}</div> : null}
             {blockedMsg ? <div className="alert alert-danger mb-2">{blockedMsg}</div> : null}
+            {orderError ? <div className="alert alert-danger mb-2">{orderError}</div> : null}
             <button type="submit" className={`btn w-100 ${styles['confirmBtn']}`} disabled={items.length === 0 || !!storedUser?.blocked || !selectedCardId}>Confirmar pedido</button>
           </form>
         </div>
@@ -417,7 +473,7 @@ const Checkout: React.FC = () => {
                   <span>Despacho</span>
                   <span>{formatCLP(items.length > 0 ? SHIPPING_COST : 0)}</span>
                 </div>
-                {(discountPercent > 0 || (hasFreeCakeVoucher && freeCakeAmount > 0)) && (
+                {(ageDiscountPercent > 0 || codeDiscountPercent > 0 || (hasFreeCakeVoucher && freeCakeAmount > 0)) && (
                   <div>
                     <div className="mb-1">Descuentos aplicados:</div>
                     <ul className="list-unstyled small mb-0">

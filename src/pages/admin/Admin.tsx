@@ -8,6 +8,20 @@ import slugify from "../../utils/slugify";
 import { updateUser, findUserByEmail, readUsers, writeUsers } from "../../utils/registro";
 import { formatearRun } from "../../utils/validation";
 import { sha256Hex } from "../../utils/hash";
+import { useAuth } from "../../context/AuthContext";
+import { isAdminEmail } from "../../utils/roles";
+import { fetchOrders, fetchAdminOrders } from "../../services/pedidosService";
+import type { OrderResponse } from "../../services/pedidosService";
+import {
+    fetchAllProducts,
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    dtoToProduct,
+    productToDto,
+} from "../../services/productosService";
+import { fetchAllCategories } from "../../services/categoriasService.ts";
+import type { CategoryOption } from "../../services/categoriasService.ts";
 import './Admin.module.css';
 
 type Usuario = {
@@ -33,6 +47,19 @@ type Orden = {
     total?: number;
     items?: Array<{ productId?: string; code?: string; qty?: number; cantidad?: number; price?: number }>;
     discounts?: any;
+    status?: string;
+    freeCakeApplied?: boolean;
+    freeCakeAmount?: number;
+    freeCakeTortaKey?: string;
+    discountAppliedPercent?: number;
+    lifetimeDiscountAppliedPercent?: number;
+    subtotal?: number;
+    discountAmount?: number;
+    purchaserRun?: string;
+    purchaserNombre?: string;
+    purchaserApellidos?: string;
+    purchaserCorreo?: string;
+    purchaserTelefono?: string;
 };
 
 // Helpers generales (adaptación TS)
@@ -103,6 +130,46 @@ const loadUsuarios = (): Usuario[] => getJSON<Usuario[]>("usuarios") || [];
 const saveUsuarios = (arr: Usuario[]) => setJSON("usuarios", arr);
 const loadOrdenes = (): Orden[] => getJSON<Orden[]>("ordenes") || [];
 
+function adaptOrderResponse(payload: OrderResponse): Orden {
+    const baseTs = payload.createdAt || payload.tsISO || payload.fechaPedido;
+    const tsISO = baseTs || new Date().toISOString();
+    const items = (payload.items || []).map((it) => {
+        const code = String(it.productoCodigo ?? it.productCode ?? "").trim();
+        const qty = Number(it.cantidad ?? it.qty ?? 0);
+        const price = Number(it.precioUnitario ?? it.price ?? it.precio ?? 0);
+        return {
+            productId: code || undefined,
+            code: code || undefined,
+            cantidad: qty,
+            qty,
+            price,
+        };
+    });
+    const discounts = payload.discounts ? { ...payload.discounts } : undefined;
+    return {
+        id: payload.pedidoId || payload.id || "",
+        tsISO,
+        fecha: baseTs,
+        usuarioCorreo: payload.usuarioCorreo,
+        total: payload.total,
+        items,
+        discounts,
+        status: payload.status,
+        freeCakeApplied: payload.freeCakeApplied,
+        freeCakeAmount: payload.freeCakeAmount,
+        freeCakeTortaKey: payload.freeCakeTortaKey ?? (payload.discounts?.freeCakeTortaKey ?? undefined),
+        discountAppliedPercent: payload.discountAppliedPercent,
+        lifetimeDiscountAppliedPercent: payload.lifetimeDiscountAppliedPercent,
+        subtotal: payload.subtotal,
+        discountAmount: payload.discountAmount,
+        purchaserRun: payload.purchaserRun,
+        purchaserNombre: payload.purchaserNombre,
+        purchaserApellidos: payload.purchaserApellidos,
+        purchaserCorreo: payload.purchaserCorreo,
+        purchaserTelefono: payload.purchaserTelefono,
+    };
+}
+
 function loadVentas() {
     let v = getJSON<any[]>("ventas");
     if (!Array.isArray(v)) {
@@ -120,6 +187,27 @@ function loadVentas() {
         }
     }
     return v;
+}
+
+function buildVentasFromOrders(ords: Orden[]): Array<{ productId: string; qty: number; price: number; tsISO: string }> {
+    const ventas: Array<{ productId: string; qty: number; price: number; tsISO: string }> = [];
+    for (const order of ords) {
+        const ts = String(order.tsISO || order.fecha || new Date().toISOString());
+        for (const item of order.items || []) {
+            ventas.push({
+                productId: String(item.productId ?? item.code ?? ""),
+                qty: Number(item.qty || item.cantidad || 0),
+                price: Number(item.price || 0),
+                tsISO: ts,
+            });
+        }
+    }
+    return ventas;
+}
+
+function persistOrdersInStorage(ords: Orden[]) {
+    try { setJSON("ordenes", ords); } catch {}
+    try { setJSON("ventas", buildVentasFromOrders(ords)); } catch {}
 }
 
 // Merge legacy 'usuarios' store with main 'users' store so Admin sees both sources
@@ -192,9 +280,24 @@ const Admin: React.FC = () => {
     const [confirm, setConfirm] = useState<{ show: boolean; title?: string; body?: React.ReactNode; onConfirm?: () => void; confirmLabel?: string; cancelLabel?: string }>({ show: false });
 
     const [catalogo, setCatalogo] = useState<Product[]>(() => initCatalogLocal(seedProducts as Product[], "catalogo"));
+    const [catalogError, setCatalogError] = useState<string | null>(null);
+    const [catalogLoading, setCatalogLoading] = useState(false);
     const [usuarios, setUsuarios] = useState<Usuario[]>(() => ensureUsuariosConRol());
     const [ordenes, setOrdenes] = useState<Orden[]>(() => loadOrdenes());
+    const { user } = useAuth();
+    const isAdminUser = useMemo(() => isAdminEmail(user?.email), [user?.email]);
     const ventas = useMemo(() => loadVentas(), [ordenes]);
+    const persistCatalog = (items: Product[]) => {
+        try { setJSON("catalogo", items); } catch {}
+        setCatalogo(items);
+    };
+    const updateCatalog = (updater: (prev: Product[]) => Product[]) => {
+        setCatalogo((prev) => {
+            const next = updater(prev);
+            try { setJSON("catalogo", next); } catch {}
+            return next;
+        });
+    };
 
     useEffect(() => {
         // Sync on storage changes (multi-tab)
@@ -208,6 +311,44 @@ const Admin: React.FC = () => {
         window.addEventListener("storage", handler);
         return () => window.removeEventListener("storage", handler);
     }, []);
+
+    useEffect(() => {
+        if (!user?.email) return;
+        let active = true;
+        setCatalogError(null);
+        setCatalogLoading(true);
+        (async () => {
+            try {
+                const remote = await fetchAllProducts();
+                if (!active) return;
+                const mapped = remote.map(dtoToProduct);
+                persistCatalog(mapped);
+            } catch (error) {
+                console.error("No se pudieron cargar los productos desde el backend.", error);
+                if (!active) return;
+                setCatalogError("No se pudo sincronizar el catálogo.");
+            } finally {
+                if (active) setCatalogLoading(false);
+            }
+        })();
+        return () => { active = false; };
+    }, [user?.email]);
+
+    useEffect(() => {
+        let active = true;
+        (async () => {
+            try {
+                const remote = isAdminUser ? await fetchAdminOrders() : await fetchOrders();
+                if (!active) return;
+                const adapted = (remote || []).map(adaptOrderResponse);
+                setOrdenes(adapted);
+                persistOrdersInStorage(adapted);
+            } catch (error) {
+                console.error("No se pudieron cargar las órdenes desde el backend.", error);
+            }
+        })();
+        return () => { active = false; };
+    }, [isAdminUser]);
 
     // Keep admin section in URL hash and session storage so browser Back navigates within Admin
     useEffect(() => {
@@ -504,6 +645,42 @@ const Admin: React.FC = () => {
             const [editMsg, setEditMsg] = useState<{text:string; ok:boolean|null}>({text:"", ok:null});
             const [delMsg, setDelMsg] = useState<{text:string; ok:boolean|null}>({text:"", ok:null});
             const [stkMsg, setStkMsg] = useState<{text:string; ok:boolean|null}>({text:"", ok:null});
+            const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+            const [categoriesLoading, setCategoriesLoading] = useState(false);
+            const [categoriesError, setCategoriesError] = useState<string | null>(null);
+            useEffect(() => {
+                if (!user?.email) return;
+                let active = true;
+                setCategoriesError(null);
+                setCategoriesLoading(true);
+                (async () => {
+                    try {
+                        const remote = await fetchAllCategories();
+                        if (!active) return;
+                        setCategoryOptions(remote || []);
+                    } catch (error) {
+                        console.error("No se pudieron cargar las categorías desde el backend.", error);
+                        if (!active) return;
+                        setCategoriesError("No se pudo cargar la lista de categorías.");
+                    } finally {
+                        if (active) setCategoriesLoading(false);
+                    }
+                })();
+                return () => { active = false; };
+            }, [user?.email]);
+
+            const extractFriendlyError = (error: unknown): string => {
+                if (error && typeof error === "object") {
+                    const resp = (error as any).response;
+                    if (resp && resp.data) {
+                        const msg = resp.data.message || resp.data.error || resp.data.mensaje;
+                        if (msg) return String(msg);
+                    }
+                    const dataMsg = (error as any).message;
+                    if (dataMsg) return String(dataMsg);
+                }
+                return "";
+            };
 
             // Add product state
             const [newProd, setNewProd] = useState<any>({ code: "", productName: "", price: "", category: "", img: "", desc: "", stock: 0, stockCritico: 5, capacidadDiaria: 20 });
@@ -527,11 +704,44 @@ const Admin: React.FC = () => {
                     return Array.from(set).sort((a,b)=>a.localeCompare(b));
                 }, [catalogo]);
 
+                const availableCategoryOptions = useMemo(() => {
+                    const map = new Map<string, { label: string; id?: number | string }>();
+                    categoryOptions.forEach((opt) => {
+                        const slug = String(opt.slug || '').trim();
+                        if (!slug) return;
+                        map.set(slug, { label: opt.label || slug, id: opt.id });
+                    });
+                    categories.forEach((slug) => {
+                        if (!slug) return;
+                        if (!map.has(slug)) {
+                            map.set(slug, { label: slug.replace(/-/g, " ") });
+                        }
+                    });
+                    return Array.from(map.entries()).map(([slug, meta]) => ({ slug, label: meta.label, id: meta.id }));
+                }, [categoryOptions, categories]);
+
                 useEffect(() => {
-                    if ((categories || []).length === 0) {
+                    if (availableCategoryOptions.length === 0) {
                         setAddCatMode('new');
                     }
-                }, [categories]);
+                }, [availableCategoryOptions]);
+                const categorySelectPlaceholder = availableCategoryOptions.length ? 'Selecciona una categoría' : 'No hay categorías disponibles';
+                const buildCategoryPayloadMeta = (slug: string, fallbackLabel?: string) => {
+                    const normalized = String(slug || '').trim();
+                    const option = availableCategoryOptions.find((opt) => String(opt.slug || '') === normalized);
+                    let label = String(option?.label || fallbackLabel || normalized || '').trim();
+                    if (!label) label = normalized.replace(/-/g, ' ') || 'sin-categoria';
+                    let categoryId: number | undefined;
+                    if (option?.id != null) {
+                        if (typeof option.id === 'number') {
+                            categoryId = option.id;
+                        } else {
+                            const parsed = Number(option.id);
+                            if (Number.isFinite(parsed)) categoryId = parsed;
+                        }
+                    }
+                    return { categoryId, categoryLabel: label, nombreCategoria: label };
+                };
 
                 function handleAddProduct(e: React.FormEvent) {
                 e.preventDefault();
@@ -546,13 +756,17 @@ const Admin: React.FC = () => {
                 if (!Number.isFinite(price) || price <= 0) return setAddMsg({text:"Precio inválido.", ok:false});
                 // Require either an image URL or an uploaded image (stored in newProd.img)
                 if (!newProd.img || String(newProd.img).trim() === "") return setAddMsg({ text: "Debes adjuntar una imagen o indicar una URL de imagen.", ok: false });
-                const productos = initCatalogLocal(seedProducts as Product[], 'catalogo');
-                if ((productos as any[]).some(p => String((p as any).code) === code)) return setAddMsg({text:"Ya existe un producto con ese código.", ok:false});
+                if ((catalogo || []).some(p => String(p.code) === code)) return setAddMsg({text:"Ya existe un producto con ese código.", ok:false});
                     const category = slugify(categoryInput);
-                const prod: any = {
+                    const categoryMeta = buildCategoryPayloadMeta(category, categoryInput);
+                const candidate: Product = {
                     code,
                     productName: name,
                     category,
+                    categoryId: categoryMeta.categoryId,
+                    categoriaId: categoryMeta.categoryId,
+                    categoryLabel: categoryMeta.categoryLabel,
+                    nombreCategoria: categoryMeta.nombreCategoria,
                     price,
                     img: String(newProd.img || ''),
                     desc: String(newProd.desc || ''),
@@ -563,19 +777,26 @@ const Admin: React.FC = () => {
                 setConfirm({
                     show: true,
                     title: "Confirmar agregado",
-                    body: (<div>¿Agregar el producto <strong>{prod.productName}</strong> en la categoría <strong>{prod.category}</strong> por <strong>{CLP(prod.price)}</strong>?</div>),
+                    body: (<div>¿Agregar el producto <strong>{candidate.productName}</strong> en la categoría <strong>{candidate.category}</strong> por <strong>{CLP(candidate.price)}</strong>?</div>),
                     confirmLabel: "Agregar",
                     cancelLabel: "Cancelar",
-                    onConfirm: () => {
-                        const updated = [...productos as any[], prod];
-                        setJSON('catalogo', updated as any);
-                        try { setCatalogo(updated as any); } catch {}
-                        setAddMsg({text:`Producto "${prod.productName}" agregado.`, ok:true});
-                        setNewProd({ code: "", productName: "", price: "", category: "", img: "", desc: "", stock: 0, stockCritico: 5, capacidadDiaria: 20 });
-                        setAddNewCat("");
-                        setAddCatMode((categories || []).length ? 'existing' : 'new');
-                        setSub('catalogo');
-                        setConfirm({ show: false });
+                    onConfirm: async () => {
+                        try {
+                            const created = await createProduct(productToDto(candidate));
+                            const added = dtoToProduct(created);
+                            updateCatalog((prev) => [...prev, added]);
+                            setAddMsg({text:`Producto "${added.productName}" agregado.`, ok:true});
+                            setNewProd({ code: "", productName: "", price: "", category: "", img: "", desc: "", stock: 0, stockCritico: 5, capacidadDiaria: 20 });
+                            setAddNewCat("");
+                            setAddCatMode(availableCategoryOptions.length ? 'existing' : 'new');
+                            setSub('catalogo');
+                        } catch (error) {
+                            console.error("Error al crear producto", error);
+                            const detail = extractFriendlyError(error);
+                            setAddMsg({ text: `No se pudo crear el producto${detail ? `: ${detail}` : ". Intenta nuevamente."}`, ok: false });
+                        } finally {
+                            setConfirm({ show: false });
+                        }
                     },
                 });
             }
@@ -605,34 +826,46 @@ const Admin: React.FC = () => {
                 function handleSaveEdit(e: React.FormEvent) {
                 e.preventDefault();
                 setEditMsg({text:"", ok:null});
-                const productos = initCatalogLocal(seedProducts as Product[], 'catalogo');
-                const idx = (productos as any[]).findIndex((p:any) => String(p.code) === String(editCode));
-                if (idx === -1) return setEditMsg({text:"Producto no encontrado.", ok:false});
-                const p = productos[idx] as any;
-                if (editFields.productName) p.productName = editFields.productName;
-                p.desc = editFields.desc || '';
-                    const newCategoryInput = editCatMode === 'existing' ? String(editFields.category || '').trim() : String(editNewCat || '').trim();
-                    if (!newCategoryInput) return setEditMsg({text:"Debes indicar una categoría (selecciona o crea una nueva).", ok:false});
-                    const newCategorySlug = slugify(newCategoryInput);
-                // preview object could be used to show a diff; kept minimal to avoid unused vars
+                const target = (catalogo || []).find((p:any) => String(p.code) === String(editCode));
+                if (!target) return setEditMsg({text:"Producto no encontrado.", ok:false});
+                const newCategoryInput = editCatMode === 'existing' ? String(editFields.category || '').trim() : String(editNewCat || '').trim();
+                if (!newCategoryInput) return setEditMsg({text:"Debes indicar una categoría (selecciona o crea una nueva).", ok:false});
+                const newCategorySlug = slugify(newCategoryInput);
+                const categoryMeta = buildCategoryPayloadMeta(newCategorySlug, newCategoryInput);
+                const updatedProduct: Product = {
+                    ...target,
+                    productName: editFields.productName ? String(editFields.productName).trim() : target.productName,
+                    desc: editFields.desc ?? target.desc ?? '',
+                    category: newCategorySlug,
+                    categoryId: categoryMeta.categoryId,
+                    categoriaId: categoryMeta.categoryId,
+                    categoryLabel: categoryMeta.categoryLabel,
+                    nombreCategoria: categoryMeta.nombreCategoria,
+                    img: editFields.img != null ? String(editFields.img || '') : target.img,
+                    price: editFields.price !== "" ? Number(editFields.price) : target.price || 0,
+                    stock: editFields.stock !== "" ? Number(editFields.stock) : target.stock,
+                    stockCritico: editFields.stockCritico !== "" ? Number(editFields.stockCritico) : target.stockCritico,
+                    capacidadDiaria: editFields.capacidadDiaria !== "" ? Number(editFields.capacidadDiaria) : target.capacidadDiaria,
+                };
                 setConfirm({
                     show: true,
                     title: "Confirmar edición",
-                    body: (<div>¿Guardar cambios en <strong>{p.productName || p.nombre || p.code}</strong>?</div>),
+                    body: (<div>¿Guardar cambios en <strong>{updatedProduct.productName || updatedProduct.code}</strong>?</div>),
                     confirmLabel: "Guardar",
                     cancelLabel: "Cancelar",
-                    onConfirm: () => {
-                        p.category = newCategorySlug;
-                        if (editFields.img != null) p.img = String(editFields.img || '');
-                        if (editFields.price !== "") p.price = Number(editFields.price);
-                        if (editFields.stock !== "") p.stock = Number(editFields.stock);
-                        if (editFields.stockCritico !== "") p.stockCritico = Number(editFields.stockCritico);
-                        if (editFields.capacidadDiaria !== "") p.capacidadDiaria = Number(editFields.capacidadDiaria);
-                        setJSON('catalogo', productos as any);
-                        try { setCatalogo(productos as any); } catch {}
-                        setEditMsg({text:"Cambios guardados.", ok:true});
-                        setSub('catalogo');
-                        setConfirm({ show: false });
+                    onConfirm: async () => {
+                        try {
+                            const saved = await updateProduct(editCode, productToDto(updatedProduct));
+                            const synced = dtoToProduct(saved);
+                            updateCatalog((prev) => prev.map((p) => (String(p.code) === String(editCode) ? synced : p)));
+                            setEditMsg({text:"Cambios guardados.", ok:true});
+                            setSub('catalogo');
+                        } catch (error) {
+                            console.error("Error actualizando producto", error);
+                            setEditMsg({text:"No se pudo guardar el producto.", ok:false});
+                        } finally {
+                            setConfirm({ show: false });
+                        }
                     },
                 });
             }
@@ -642,24 +875,27 @@ const Admin: React.FC = () => {
             function handleDeleteProduct(e: React.FormEvent) {
                 e.preventDefault();
                 setDelMsg({text:"", ok:null});
-                const productos = initCatalogLocal(seedProducts as Product[], 'catalogo');
-                const exists = (productos as any[]).some((p:any) => String(p.code) === String(delCode));
-                if (!exists) return setDelMsg({text:"Producto no encontrado.", ok:false});
-                const prod = (productos as any[]).find((p:any)=> String(p.code) === String(delCode));
-                const nombre = prod?.productName || prod?.nombre || delCode;
+                const target = (catalogo || []).find((p:any) => String(p.code) === String(delCode));
+                if (!target) return setDelMsg({text:"Producto no encontrado.", ok:false});
+                const nombre = target.productName || target.code;
                 setConfirm({
                     show: true,
                     title: "Confirmar eliminación",
                     body: (<div>¿Eliminar el producto <strong>{nombre}</strong> ({delCode})?</div>),
                     confirmLabel: "Eliminar",
                     cancelLabel: "Cancelar",
-                    onConfirm: () => {
-                        const updated = (productos as any[]).filter((p:any) => String(p.code) !== String(delCode));
-                        setJSON('catalogo', updated as any);
-                        try { setCatalogo(updated as any); } catch {}
-                        setDelMsg({text:"Producto eliminado.", ok:true});
-                        setSub('catalogo');
-                        setConfirm({ show: false });
+                    onConfirm: async () => {
+                        try {
+                            await deleteProduct(delCode);
+                            updateCatalog((prev) => prev.filter((p) => String(p.code) !== String(delCode)));
+                            setDelMsg({text:"Producto eliminado.", ok:true});
+                            setSub('catalogo');
+                        } catch (error) {
+                            console.error("Error eliminando producto", error);
+                            setDelMsg({text:"No se pudo eliminar el producto.", ok:false});
+                        } finally {
+                            setConfirm({ show: false });
+                        }
                     },
                 });
             }
@@ -675,28 +911,33 @@ const Admin: React.FC = () => {
             function handleStockChange(e: React.FormEvent) {
                 e.preventDefault();
                 setStkMsg({text:"", ok:null});
-                const productos = initCatalogLocal(seedProducts as Product[], 'catalogo');
-                const idx = (productos as any[]).findIndex((p:any) => String(p.code) === String(stkCode));
-                if (idx === -1) return setStkMsg({text:"Producto no encontrado.", ok:false});
-                const p = productos[idx] as any;
-                const base = Number(p.stock || 0);
+                const target = (catalogo || []).find((p:any) => String(p.code) === String(stkCode));
+                if (!target) return setStkMsg({text:"Producto no encontrado.", ok:false});
+                const base = Number(target.stock || 0);
                 const q = Math.max(0, Number(stkQty || 0));
                 if (stkOp === 'remove' && q > base) return setStkMsg({text:`No puedes eliminar más de las unidades disponibles. Stock actual: ${base}`, ok:false});
                 const nuevo = stkOp === 'add' ? base + q : base - q;
-                const nombre = p.productName || p.nombre || p.code;
+                const nombre = target.productName || target.code;
                 setConfirm({
                     show: true,
                     title: "Confirmar actualización de stock",
                     body: (<div>{stkOp==='add' ? 'Agregar' : 'Eliminar'} <strong>{q}</strong> unidades de <strong>{nombre}</strong>? (Stock: {base} → {nuevo})</div>),
                     confirmLabel: "Actualizar",
                     cancelLabel: "Cancelar",
-                    onConfirm: () => {
-                        (productos[idx] as any).stock = nuevo;
-                        setJSON('catalogo', productos as any);
-                        try { setCatalogo(productos as any); } catch {}
-                        setStkMsg({text:"Stock actualizado.", ok:true});
-                        setSub('catalogo');
-                        setConfirm({ show: false });
+                    onConfirm: async () => {
+                        try {
+                            const updated = { ...target, stock: nuevo } as Product;
+                            const saved = await updateProduct(target.code, productToDto(updated));
+                            const synced = dtoToProduct(saved);
+                            updateCatalog((prev) => prev.map((p) => (String(p.code) === String(target.code) ? synced : p)));
+                            setStkMsg({text:"Stock actualizado.", ok:true});
+                            setSub('catalogo');
+                        } catch (error) {
+                            console.error("Error actualizando stock", error);
+                            setStkMsg({text:"No se pudo actualizar el stock.", ok:false});
+                        } finally {
+                            setConfirm({ show: false });
+                        }
                     },
                 });
             }
@@ -755,6 +996,10 @@ const Admin: React.FC = () => {
                         </div>
                     </div>
                     <div className="card-body">
+                        {catalogLoading && <div className="alert alert-info small mb-3">Sincronizando el catálogo con el backend…</div>}
+                        {catalogError && <div className="alert alert-danger small mb-3">{catalogError}</div>}
+                        {categoriesLoading && <div className="alert alert-info small mb-3">Cargando las categorías desde el backend…</div>}
+                        {categoriesError && <div className="alert alert-warning small mb-3">{categoriesError}</div>}
                         {sub === 'catalogo' && <CatalogTable />}
 
                                     {sub === 'agregar' && (
@@ -768,8 +1013,8 @@ const Admin: React.FC = () => {
                                                     if (v === '__new__') { setAddCatMode('new'); setNewProd((p:any)=>({...p, category:''})); }
                                                     else { setAddCatMode('existing'); setNewProd((p:any)=>({...p, category:v})); }
                                                 }} required={addCatMode==='existing'}>
-                                                    <option value="" disabled>{categories.length ? 'Selecciona una categoría' : 'No hay categorías'}</option>
-                                                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                                        <option value="" disabled>{categorySelectPlaceholder}</option>
+                                                        {availableCategoryOptions.map(opt => <option key={opt.slug} value={opt.slug}>{opt.label || opt.slug}</option>)}
                                                     <option value="__new__">+ Nueva categoría…</option>
                                                 </select>
                                                 {addCatMode==='new' && (
@@ -816,8 +1061,8 @@ const Admin: React.FC = () => {
                                                     if (v === '__new__') { setEditCatMode('new'); }
                                                     else { setEditCatMode('existing'); setEditFields((f:any)=>({...f, category:v})); }
                                                 }}>
-                                                    <option value="" disabled>Selecciona una categoría</option>
-                                                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                                    <option value="" disabled>{categorySelectPlaceholder}</option>
+                                                    {availableCategoryOptions.map(opt => <option key={opt.slug} value={opt.slug}>{opt.label || opt.slug}</option>)}
                                                     <option value="__new__">+ Nueva categoría…</option>
                                                 </select>
                                                 {editCatMode==='new' && (
@@ -924,11 +1169,10 @@ const Admin: React.FC = () => {
                             setMsg({text:"", ok:null});
                             const sel = String(selected || '').trim();
                             if (!sel) return setMsg({text:"Selecciona una categoría.", ok:false});
-                            const productos = initCatalogLocal(seedProducts as Product[], 'catalogo');
-                            const hasAny = (productos as any[]).some(p => String((p as any).category||'') === sel);
+                            const productos = (catalogo || []).slice();
+                            const hasAny = productos.some(p => String(p.category || '').trim() === sel);
                             if (!hasAny) {
-                                // Nothing to move/delete, just done
-                                        setMsg({text:"La categoría no tiene productos asociados. Se quitará de la lista automáticamente.", ok:true});
+                                setMsg({text:"La categoría no tiene productos asociados. Se quitará de la lista automáticamente.", ok:true});
                                 return;
                             }
 
@@ -937,18 +1181,11 @@ const Admin: React.FC = () => {
                                 if (!targetInput) return setMsg({text:"Debes indicar la nueva categoría.", ok:false});
                                 const targetSlug = slugify(targetInput);
                                 if (targetSlug === sel) return setMsg({text:"La nueva categoría no puede ser la misma.", ok:false});
-                                for (const p of (productos as any[])) {
-                                    if (String((p as any).category||'') === sel) (p as any).category = targetSlug;
-                                }
-                                setJSON('catalogo', productos as any);
-                                try { setCatalogo(productos as any); } catch {}
-                                        setMsg({text:`Categoría reasignada a \"${targetInput}\".`, ok:true});
+                                updateCatalog((prev) => prev.map((p) => (String(p.category || '').trim() === sel ? { ...p, category: targetSlug } : p)));
+                                setMsg({text:`Categoría reasignada a "${targetInput}".`, ok:true});
                             } else {
-                                // delete-products
-                                const updated = (productos as any[]).filter((p:any) => String((p as any).category||'') !== sel);
-                                setJSON('catalogo', updated as any);
-                                try { setCatalogo(updated as any); } catch {}
-                                        setMsg({text:"Categoría eliminada junto con sus productos.", ok:true});
+                                updateCatalog((prev) => prev.filter((p) => String(p.category || '').trim() !== sel));
+                                setMsg({text:"Categoría eliminada junto con sus productos.", ok:true});
                             }
                         }
 
@@ -1315,21 +1552,21 @@ const Admin: React.FC = () => {
                     <td className="text-end">{CLP(Number(o.total || 0))}</td>
                     <td className="text-end" title={names.join(', ')}>{totalItems}{namesShort ? <div className="small text-secondary">{namesShort}</div> : null}</td>
                     <td className="text-center">
-                        {o.discounts ? (
-                            (() => {
-                                const parts: string[] = [];
-                                try {
-                                    if ((o.discounts as any).agePercent > 0) parts.push('Mayores');
-                                    if ((o.discounts as any).codePercent > 0) parts.push('Cupón');
-                                    if ((o.discounts as any).freeCakeApplied) parts.push('Torta');
-                                    if (((o.discounts as any).totalDiscountMoney || 0) > 0) parts.push(`${CLP(Number((o.discounts as any).totalDiscountMoney || 0))}`);
-                                } catch { }
-                                const label = parts.join(' • ') || 'Beneficio';
-                                return <span className="badge bg-success" title={label}>{parts[0] || 'Sí'}</span>;
-                            })()
-                        ) : (
-                            <span className="text-muted small">—</span>
-                        )}
+                        {(() => {
+                            const parts: string[] = [];
+                            const codePercent = Number(o.discountAppliedPercent ?? (o.discounts as any)?.codePercent ?? 0);
+                            const agePercent = Number(o.lifetimeDiscountAppliedPercent ?? (o.discounts as any)?.agePercent ?? 0);
+                            const totalDiscountMoney = Number(o.discountAmount ?? (o.discounts as any)?.totalDiscountMoney ?? 0);
+                            const hasFreeCake = Boolean(o.freeCakeApplied || (o.discounts as any)?.freeCakeApplied);
+                            const freeCakeKey = o.freeCakeTortaKey ?? (o.discounts as any)?.freeCakeTortaKey;
+                            if (codePercent > 0) parts.push('Cupón');
+                            if (agePercent > 0) parts.push('Mayores');
+                            if (hasFreeCake || freeCakeKey) parts.push('Torta');
+                            if (totalDiscountMoney > 0) parts.push(`${CLP(totalDiscountMoney)}`);
+                            if (!parts.length) return <span className="text-muted small">—</span>;
+                            const label = parts.join(' • ') || 'Beneficio';
+                            return <span className="badge bg-success" title={label}>{parts[0] || 'Sí'}</span>;
+                        })()}
                     </td>
                     <td className="text-end">
                         <button className="btn btn-sm btn-outline-secondary" onClick={() => setOrderDetail(o)}>Ver</button>
@@ -1394,35 +1631,45 @@ const Admin: React.FC = () => {
                             <span className="text-secondary small">{timeHHMM((orderDetail.tsISO as string) || (orderDetail.fecha as string))}</span>
                         </div>
                         <ul className="list-group list-group-flush">{itemsHTML(orderDetail.items)}</ul>
-                        {orderDetail.discounts ? (
-                            <div className="card-body">
-                                <div className="fw-semibold">Descuentos aplicados</div>
-                                <div className="small text-secondary">
-                                    <ul className="mb-0">
-                                        {orderDetail.discounts.agePercent > 0 ? (
-                                            <li>50% beneficio mayores — {CLP(Number(orderDetail.discounts.ageDiscountMoney || 0))}</li>
-                                        ) : null}
-                                        {orderDetail.discounts.codePercent > 0 ? (
-                                            <li>10% descuento de por vida (FELICES50) — {CLP(Number(orderDetail.discounts.codeDiscountMoney || 0))}</li>
-                                        ) : null}
-                                        {orderDetail.discounts.freeCakeApplied ? (
-                                            <li>Torta gratis{
-                                                orderDetail.discounts.freeCakeTortaKey ? (
-                                                    (() => {
-                                                        const key = orderDetail.discounts.freeCakeTortaKey as string;
-                                                        const parts = key.split('::');
+                        {(() => {
+                            const totalDiscountMoney = Number(orderDetail.discountAmount ?? (orderDetail.discounts as any)?.totalDiscountMoney ?? 0);
+                            const agePercent = Number(orderDetail.lifetimeDiscountAppliedPercent ?? (orderDetail.discounts as any)?.agePercent ?? 0);
+                            const codePercent = Number(orderDetail.discountAppliedPercent ?? (orderDetail.discounts as any)?.codePercent ?? 0);
+                            const couponMoney = Number((orderDetail.discounts as any)?.codeDiscountMoney ?? totalDiscountMoney);
+                            const ageMoney = Number((orderDetail.discounts as any)?.ageDiscountMoney ?? totalDiscountMoney);
+                            const freeCakeMoney = Number(orderDetail.freeCakeAmount ?? (orderDetail.discounts as any)?.freeCakeMoney ?? 0);
+                            const freeCakeKey = orderDetail.freeCakeTortaKey ?? (orderDetail.discounts as any)?.freeCakeTortaKey;
+                            const freeCakeApplied = Boolean(orderDetail.freeCakeApplied || (orderDetail.discounts as any)?.freeCakeApplied);
+                            const hasDetails = agePercent > 0 || codePercent > 0 || freeCakeApplied || totalDiscountMoney > 0;
+                            if (!hasDetails) return null;
+                            return (
+                                <div className="card-body">
+                                    <div className="fw-semibold">Descuentos aplicados</div>
+                                    <div className="small text-secondary">
+                                        <ul className="mb-0">
+                                            {codePercent > 0 ? (
+                                                <li>{codePercent}% descuento de por vida (FELICES50) — {CLP(couponMoney)}</li>
+                                            ) : null}
+                                            {agePercent > 0 ? (
+                                                <li>{agePercent}% beneficio mayores — {CLP(ageMoney)}</li>
+                                            ) : null}
+                                            {freeCakeApplied ? (
+                                                <li>
+                                                    Torta gratis
+                                                    {freeCakeKey ? (() => {
+                                                        const parts = freeCakeKey.split('::');
                                                         const code = parts[0];
-                                                        const prod = (catalogo || []).find(p => String(p.code) === String(code));
+                                                        const prod = (catalogo || []).find((p) => String(p.code) === String(code));
                                                         return prod ? ` — ${prod.productName || code}` : '';
-                                                    })()
-                                                ) : ''
-                                            } — {CLP(Number(orderDetail.discounts.freeCakeMoney || 0))}</li>
-                                        ) : null}
-                                        <li className="fw-semibold mt-1">Total descuentos — {CLP(Number(orderDetail.discounts.totalDiscountMoney || 0))}</li>
-                                    </ul>
+                                                    })() : ''} — {CLP(freeCakeMoney)}
+                                                </li>
+                                            ) : null}
+                                            <li className="fw-semibold mt-1">Total descuentos — {CLP(totalDiscountMoney)}</li>
+                                        </ul>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : null}
+                            );
+                        })()}
                         <div className="card-footer bg-white text-end"><strong>Total: {CLP(Number(orderDetail.total || 0))}</strong></div>
                     </div>
                 )}

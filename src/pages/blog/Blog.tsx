@@ -6,9 +6,9 @@ import ParallaxHero from '../../components/parallaxHero/ParallaxHero';
 import { useAuth } from '../../context/AuthContext';
 import styles from './Blog.module.css';
 import Modal from '../../components/ui/Modal';
-import chatService, { CHAT_UPDATED_EVENT } from '../../services/chatService';
+import chatService, { CHAT_UPDATED_EVENT, type ChatMensaje } from '../../services/chatService.ts';
 
-type Mensaje = { nombre: string; texto: string; categoria?: string; receta?: string; img?: string };
+type Mensaje = ChatMensaje;
 
 const DemoMessages: Mensaje[] = [
 	{ nombre: 'Ana', texto: '¡Me encantó el cheesecake!', img: '' },
@@ -16,7 +16,11 @@ const DemoMessages: Mensaje[] = [
 	{ nombre: 'Sofía', texto: 'Recomiendo usar cacao amargo.', img: '' },
 	{ nombre: 'Carlos', texto: '¿Dónde compran los ingredientes?', img: '' },
 	{ nombre: 'Valentina', texto: 'Suban más recetas veganas!', img: '' }
-];
+].map((message, index) => ({
+	...message,
+	id: `demo-${index}`,
+	createdAt: new Date(2025, 0, 1).toISOString(),
+}));
 
 
 
@@ -68,16 +72,20 @@ const Blog: React.FC = () => {
 
 	useEffect(() => {
 		let mounted = true;
-		(async () => {
-			try {
-				const msgs = await chatService.getAllMensajes();
-				if (!mounted) return;
-				if (Array.isArray(msgs) && msgs.length > 0) {
-					setMensajes(msgs as any);
-					return;
-				}
-			} catch {}
-			if (mounted) setMensajes(DemoMessages);
+		(() => {
+			chatService
+				.getAllMensajes()
+				.then((msgList: ChatMensaje[]) => {
+					if (!mounted) return;
+					if (Array.isArray(msgList) && msgList.length > 0) {
+						setMensajes(msgList);
+						return;
+					}
+					setMensajes(DemoMessages);
+				})
+				.catch(() => {
+					if (mounted) setMensajes(DemoMessages);
+				});
 		})();
 		return () => { mounted = false; };
 	}, []);
@@ -89,7 +97,7 @@ const Blog: React.FC = () => {
 				(async () => {
 					try {
 						const msgs = await chatService.getAllMensajes();
-						if (Array.isArray(msgs)) setMensajes(msgs as any);
+						setMensajes(msgs);
 					} catch {}
 				})();
 			}
@@ -102,7 +110,7 @@ const Blog: React.FC = () => {
 				const detail = (ev as CustomEvent).detail as Mensaje[] | undefined;
 				if (!detail) {
 					// if no detail, reload full set
-					chatService.getAllMensajes().then((m) => setMensajes(m as any)).catch(() => {});
+					chatService.getAllMensajes().then((m: ChatMensaje[]) => setMensajes(m)).catch(() => {});
 					return;
 				}
 				if (Array.isArray(detail)) {
@@ -140,7 +148,7 @@ const Blog: React.FC = () => {
 			const ok = await chatService.deleteMensajeById(found.id);
 			if (ok) {
 				const msgs = await chatService.getAllMensajes();
-				setMensajes(msgs as any);
+				setMensajes(msgs);
 				setShowDeleteConfirm(false);
 				setDeleteTarget(null);
 			}
@@ -158,7 +166,7 @@ const Blog: React.FC = () => {
 		await chatService.postMensaje(payload as any);
 		// refresh list from service
 		const msgs = await chatService.getAllMensajes();
-		setMensajes(msgs as any);
+		setMensajes(msgs);
 		setTexto('');
 		setReceta('');
 	}
@@ -193,7 +201,7 @@ const Blog: React.FC = () => {
 					</div>
 
 					<div className={`row g-4 ${styles.recetasRow}`}>
-						{(recetas as any[]).slice(0, 3).map((r) => (
+						{(recetas as any[]).slice(0, 3).map((r: any) => (
 							<div className="col-md-4" key={r.id}>
 								<RecipeCard recipe={r} />
 							</div>
@@ -235,7 +243,7 @@ const Blog: React.FC = () => {
 								<div id="chat-receta-select" style={{ display: categoria === 'Recetas' ? 'block' : 'none' }} className="mt-2">
 									<select id="chat-receta" value={receta} onChange={(e) => setReceta(e.target.value)} className={`form-select form-select-sm ${styles.chatSelect}`} disabled={!user}>
 										<option value="">Selecciona una receta…</option>
-										{(recetas as any[]).map((r) => <option key={r.id} value={r.titulo}>{r.titulo}</option>)}
+										{(recetas as any[]).map((r: any) => <option key={r.id} value={r.titulo}>{r.titulo}</option>)}
 									</select>
 								</div>
 								{/* If not logged in, show prompt to log in */}

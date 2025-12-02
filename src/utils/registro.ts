@@ -28,17 +28,44 @@ import { getJSON, setJSON } from './storage';
 import { formatearRun, validarRun, validarRunInput, emailDominioValido, validarPassword } from './validation';
 export { formatearRun, validarRun, validarRunInput, emailDominioValido, validarPassword };
 
+function normalizeStoredRun(user: StoredUser): StoredUser {
+    if (!user.run) return user;
+    const formatted = formatRunForStorage(user.run);
+    if (!formatted || formatted === user.run) return user;
+    return { ...user, run: formatted };
+}
+
 export function readUsers(): StoredUser[] {
     const v = getJSON<StoredUser[]>(USERS_KEY);
-    return Array.isArray(v) ? v : [];
+    if (!Array.isArray(v)) return [];
+    const normalized = v.map(normalizeStoredRun);
+    const needsRewrite = normalized.some((user, idx) => user.run !== v[idx]?.run);
+    if (needsRewrite) {
+        try {
+            setJSON(USERS_KEY, normalized);
+        } catch {
+            // best effort, ignore
+        }
+    }
+    return normalized;
 }
 
 export function writeUsers(users: StoredUser[]) {
-    setJSON(USERS_KEY, users);
+    const normalized = users.map(normalizeStoredRun);
+    setJSON(USERS_KEY, normalized);
 }
 
 // normalizeRun: remove non-digit/K characters and lowercase for stable comparisons
 export function normalizeRun(r?: string) { return String(r || '').replace(/[^0-9kK]/g, '').toLowerCase(); }
+
+export function formatRunForStorage(run?: string): string | undefined {
+    const normalized = normalizeRun(run);
+    if (!normalized) return undefined;
+    const dv = normalized.slice(-1);
+    const cuerpo = normalized.slice(0, -1);
+    if (!cuerpo) return undefined;
+    return `${cuerpo}-${dv.toUpperCase()}`;
+}
 
 export function updateUser(email: string, changes: Partial<StoredUser>): StoredUser | undefined {
     if (!email) return undefined;
@@ -55,6 +82,45 @@ export function findUserByEmail(email?: string): StoredUser | undefined {
     if (!email) return undefined;
     const users = readUsers();
     return users.find(u => String(u.email || '').toLowerCase() === String(email).toLowerCase());
+}
+
+export function upsertStoredUser(data: Partial<StoredUser> & { email: string }): StoredUser {
+    const normalizedEmail = String(data.email || '').trim().toLowerCase();
+    if (!normalizedEmail) throw new Error('Email is required to upsert a user');
+    const users = readUsers();
+    const idx = users.findIndex(u => String(u.email || '').toLowerCase() === normalizedEmail);
+    const existing = idx >= 0 ? users[idx] : undefined;
+    const now = new Date().toISOString();
+    const runValue = data.run || existing?.run;
+    const normalizedRun = formatRunForStorage(runValue) ?? (existing?.run || '');
+    const merged: StoredUser = {
+        run: normalizedRun || '',
+        name: data.name ?? existing?.name ?? '',
+        lastname: data.lastname ?? existing?.lastname ?? '',
+        email: normalizedEmail,
+        birthdate: data.birthdate ?? existing?.birthdate ?? '',
+        role: data.role ?? existing?.role ?? 'Cliente',
+        codigo: data.codigo ?? existing?.codigo,
+        password: existing?.password ?? data.password ?? '',
+        phone: data.phone ?? existing?.phone,
+        addresses: data.addresses ?? existing?.addresses,
+        paymentCards: data.paymentCards ?? existing?.paymentCards,
+        defaultPaymentCardId: data.defaultPaymentCardId ?? existing?.defaultPaymentCardId,
+        discountPercent: typeof data.discountPercent === 'number' ? data.discountPercent : existing?.discountPercent,
+        lifetimeDiscount: data.lifetimeDiscount ?? existing?.lifetimeDiscount,
+        freeCakeVoucher: data.freeCakeVoucher ?? existing?.freeCakeVoucher,
+        freeCakeRedeemed: data.freeCakeRedeemed ?? existing?.freeCakeRedeemed,
+        blocked: data.blocked ?? existing?.blocked ?? false,
+        avatarDataUrl: data.avatarDataUrl ?? existing?.avatarDataUrl,
+        createdAt: existing?.createdAt ?? data.createdAt ?? now,
+    };
+    if (idx >= 0) {
+        users[idx] = merged;
+    } else {
+        users.push(merged);
+    }
+    writeUsers(users);
+    return merged;
 }
 
 export function isDuocEmail(email?: string): boolean {
@@ -99,7 +165,7 @@ export function createUser(payload: Omit<StoredUser, 'createdAt'>): { ok: true, 
     // compute perks: age-based discount, lifetime code, and student birthday free cake
     let discount = 0;
     let lifetime = false;
-    let freeCake = false;
+    let freeCake = isDuocEmail(payload.email);
 
     try {
         // Birthdate must be present and user must be at least 18
@@ -134,7 +200,17 @@ export function createUser(payload: Omit<StoredUser, 'createdAt'>): { ok: true, 
     // Default role if not provided
     const role = (payload.role as StoredUser['role']) || 'Cliente';
     const blocked = Boolean((payload as any).blocked) || false;
-    const user: StoredUser = { ...payload, role, blocked, discountPercent: discount, lifetimeDiscount: lifetime, freeCakeVoucher: freeCake, freeCakeRedeemed: false, createdAt: new Date().toISOString() };
+    const user: StoredUser = {
+        ...payload,
+        run: formatRunForStorage(payload.run) ?? payload.run,
+        role,
+        blocked,
+        discountPercent: discount,
+        lifetimeDiscount: lifetime,
+        freeCakeVoucher: freeCake,
+        freeCakeRedeemed: false,
+        createdAt: new Date().toISOString(),
+    };
     users.push(user);
     writeUsers(users);
     return { ok: true, user };

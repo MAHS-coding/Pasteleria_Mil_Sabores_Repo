@@ -1,44 +1,42 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-const KEY_USER = "usuario";
+import {
+    initializeSession,
+    persistSessionToken,
+    persistSessionUser,
+    readSessionUser,
+} from "../services/session.ts";
+import type { SessionUser } from "../services/session.ts";
 
-import { getJSON, setJSON, remove } from "../utils/storage";
-import apiClient from '@/config/axiosConfig';
-
-type User = { name: string; email?: string } | null;
+type User = SessionUser | null;
 
 type AuthContextValue = {
     user: User;
-    login: (user: string | { name: string; email?: string }) => void;
+    login: (user: string | (SessionUser & { token?: string })) => void;
     logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function readUser(): User {
-    try {
-        return getJSON<User>(KEY_USER);
-    } catch {
-        return null;
-    }
-}
-
-function writeUser(u: User) {
-    try {
-        if (!u) remove(KEY_USER);
-        else setJSON(KEY_USER, u);
-    } catch {}
-}
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User>(() => readUser());
+    const [user, setUser] = useState<User>(() => readSessionUser());
 
     useEffect(() => {
-        writeUser(user);
+        initializeSession();
+    }, []);
+
+    useEffect(() => {
+        persistSessionUser(user);
     }, [user]);
 
-    function login(payload: string | { name: string; email?: string }) {
-        if (typeof payload === "string") setUser({ name: payload });
-        else setUser({ name: payload.name, email: payload.email });
+    function login(payload: string | (SessionUser & { token?: string })) {
+        if (typeof payload === "string") {
+            setUser({ name: payload });
+            return;
+        }
+        setUser({ name: payload.name, email: payload.email, run: payload.run });
+        if (payload.token) {
+            persistSessionToken(payload.token);
+        }
     }
 
     function logout() {
@@ -50,7 +48,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             sessionStorage.removeItem("admin.usuarios.orderDesc");
             sessionStorage.removeItem("admin.usuarios.qSearch");
         } catch {}
-        try { apiClient.setToken(null); } catch {}
+        persistSessionUser(null);
+        persistSessionToken(null);
         setUser(null);
     }
 

@@ -68,9 +68,12 @@ const PaymentCards: React.FC<Props> = ({ paymentCards, defaultCardId, mode = 'li
                         ) : (
                             <>
                                 <option value="">Selecciona…</option>
-                                {paymentCards.map((c) => (
-                                    <option key={c.id} value={c.id}>{c.brand} **** {c.last4}{c.expMonth && c.expYear ? ` — ${c.expMonth}/${c.expYear}` : ''}{defaultCardId === c.id ? ' (predeterminada)' : ''}</option>
-                                ))}
+                                {paymentCards.map((c) => {
+                                    const labelBrand = c.brand || 'Tarjeta';
+                                    return (
+                                        <option key={c.id} value={c.id}>{labelBrand} **** {c.last4}{c.expMonth && c.expYear ? ` — ${c.expMonth}/${c.expYear}` : ''}{defaultCardId === c.id ? ' (predeterminada)' : ''}</option>
+                                    );
+                                })}
                             </>
                         )}
                     </select>
@@ -112,23 +115,26 @@ const PaymentCards: React.FC<Props> = ({ paymentCards, defaultCardId, mode = 'li
     return (
         <div>
             <div className={styles.cardsList}>
-                {paymentCards.length ? paymentCards.map((c) => (
-                    <div key={c.id} className={styles.cardItem}>
-                        <div>
-                            <div style={{ cursor: 'pointer' }}>
-                                <span className={styles.cardMeta} style={{ marginLeft: 8 }}>{c.brand} **** {c.last4} {c.expMonth && c.expYear ? ` — ${c.expMonth}/${c.expYear}` : ''}</span>
+                {paymentCards.length ? paymentCards.map((c) => {
+                    const labelBrand = c.brand || 'Tarjeta';
+                    return (
+                        <div key={c.id} className={styles.cardItem}>
+                            <div>
+                                <div style={{ cursor: 'pointer' }}>
+                                    <span className={styles.cardMeta} style={{ marginLeft: 8 }}>{labelBrand} **** {c.last4} {c.expMonth && c.expYear ? ` — ${c.expMonth}/${c.expYear}` : ''}</span>
+                                </div>
+                            </div>
+                            <div>
+                                {defaultCardId === c.id ? (
+                                    <span className="badge bg-success me-2">Predeterminada</span>
+                                ) : (
+                                    <button type="button" className={`btn btn-sm ${styles['confirmBtn']} me-2`} onClick={() => onSetDefault?.(c.id)}>Establecer predeterminada</button>
+                                )}
+                                <button type="button" className="btn btn-danger btn-sm" onClick={() => setPendingRemoveId(c.id)}>Eliminar</button>
                             </div>
                         </div>
-                        <div>
-                            {defaultCardId === c.id ? (
-                                <span className="badge bg-success me-2">Predeterminada</span>
-                            ) : (
-                                <button type="button" className={`btn btn-sm ${styles['confirmBtn']} me-2`} onClick={() => onSetDefault?.(c.id)}>Establecer predeterminada</button>
-                            )}
-                            <button type="button" className="btn btn-danger btn-sm" onClick={() => setPendingRemoveId(c.id)}>Eliminar</button>
-                        </div>
-                    </div>
-                )) : (
+                    );
+                }) : (
                     <div className="alert alert-secondary">Aún no tienes tarjetas guardadas.</div>
                 )}
             </div>

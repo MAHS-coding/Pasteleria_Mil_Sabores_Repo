@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { findUserByEmail } from "../../utils/registro";
 import { formatearRun, validarRun, emailDominioValido } from "../../utils/validation";
-import authService from "../../services/authService";
-import userService from "../../services/userService";
 import Modal from "../../components/ui/Modal";
 import FieldFeedback from "../../components/ui/FieldFeedback";
 import FormField from "../../components/ui/FormField";
+import userService from "../../services/userService.ts";
 import styles from "./Registro.module.css";
 
 const Registro: React.FC = () => {
@@ -64,27 +64,45 @@ const Registro: React.FC = () => {
         const v = validate();
         setErrors(v);
         if (Object.keys(v).length) return;
-
-        // Register using authService which handles hashing and validation
-            const payload = { run, name, lastname, email, birthdate, codigo, passwordPlain: password };
-            // authService.register currently expects a StoredUser-like shape in types while it accepts a passwordPlain at runtime.
-            // Cast to any to satisfy TypeScript until the service typing is adjusted.
-            const result = await authService.register(payload as any);
-        if (!result.ok) {
-            if (result.error === 'email_exists') setErrors({ email: "Ya existe una cuenta con ese correo." });
-            else setErrors({ email: "No se pudo crear la cuenta." });
+        if (email && findUserByEmail(email)) {
+            setErrors({ email: "Ya existe una cuenta con ese correo; inicia sesión para continuar." });
             return;
         }
 
-        // Log the user in via userService to persist session, then update AuthContext
-        const loginRes = await userService.login(email, password);
-        if (loginRes.ok) {
-            login({ name: loginRes.user.name, email: loginRes.user.email });
-        } else {
-            // fallback: set context directly
-            login({ name, email });
+        const payload = {
+            run,
+            nombre: name,
+            apellidos: lastname,
+            correo: email,
+            fechaNacimiento: birthdate,
+            registrationCode: codigo || undefined,
+            password,
+        };
+        const result = await userService.register(payload);
+        if (!result.ok) {
+            const alreadyRegistered = /existe/i.test(result.error || "");
+            if (alreadyRegistered) {
+                window.dispatchEvent(new CustomEvent('open-login'));
+                navigate('/', { replace: true });
+                return;
+            }
+            setErrors({ email: result.error });
+            return;
         }
 
+        // Authenticate immediately after registration so the session is in sync
+        const loginRes = await userService.login(email, password, result.run);
+        if (!loginRes.ok) {
+            setErrors({ email: loginRes.error });
+            return;
+        }
+
+        login({
+            name: loginRes.user.name || name,
+            email: loginRes.user.email || email,
+            run: loginRes.user.run || result.run,
+            token: loginRes.token,
+        });
         setShowSuccess(true);
     }
 

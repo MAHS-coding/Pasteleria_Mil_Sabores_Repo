@@ -9,6 +9,10 @@ export type Product = {
     stock?: number;
     stockCritico?: number;
     capacidadDiaria?: number;
+    categoryId?: number;
+    categoriaId?: number;
+    categoryLabel?: string;
+    nombreCategoria?: string;
 };
 
 export type CatalogProduct = {
