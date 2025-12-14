@@ -3,7 +3,6 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { findUserByEmail } from "../../utils/registro";
 import { formatearRun, validarRun, emailDominioValido } from "../../utils/validation";
-import Modal from "../../components/ui/Modal";
 import FieldFeedback from "../../components/ui/FieldFeedback";
 import FormField from "../../components/ui/FormField";
 import userService from "../../services/userService.ts";
@@ -30,8 +29,6 @@ const Registro: React.FC = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [showSuccess, setShowSuccess] = useState(false);
-
     function clearFieldError(field: string) {
         setErrors(prev => {
             const copy = { ...prev } as Record<string,string>;
@@ -103,12 +100,8 @@ const Registro: React.FC = () => {
             run: loginRes.user.run || result.run,
             token: loginRes.token,
         });
-        setShowSuccess(true);
-    }
-
-    function closeSuccess() {
-        setShowSuccess(false);
-        navigate("/");
+        navigate("/", { replace: true });
+        window.setTimeout(() => window.dispatchEvent(new CustomEvent("open-login")), 0);
     }
 
     function onRunChange(v: string) {
@@ -222,15 +215,6 @@ const Registro: React.FC = () => {
                 </section>
             </main>
 
-            <Modal show={showSuccess} title="Registro exitoso" onClose={closeSuccess} hideFooter>
-                <div className="text-center">
-                    <i className="bi bi-check-circle-fill text-success fs-1 mb-3"></i>
-                    <p>¡Tu cuenta ha sido creada correctamente! Ahora estás conectado.</p>
-                    <div className="d-flex justify-content-center mt-3">
-                        <button type="button" className="btn btn-primary" onClick={closeSuccess}>Aceptar</button>
-                    </div>
-                </div>
-            </Modal>
         </>
     );
 };

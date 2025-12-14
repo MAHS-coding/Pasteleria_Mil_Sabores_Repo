@@ -358,6 +358,23 @@ const Perfil: React.FC = () => {
 
     // --- Payment cards helpers (shared in utils/cardUtils) ---
 
+    async function refreshPaymentCardsFromServer() {
+        const runId = user?.run ?? storedUser?.run;
+        const email = user?.email ?? storedUser?.email;
+        if (!runId || !email) return;
+        try {
+            const fetchedCards = await fetchUserCards(runId);
+            if (!fetchedCards) return;
+            const normalized = fetchedCards
+                .map(cardDtoToStoredCard)
+                .filter(Boolean) as StoredUser['paymentCards'];
+            const updated = updateUser(email, { paymentCards: normalized.length ? normalized : [] });
+            if (updated) setStoredUser(updated);
+        } catch (refreshError) {
+            console.error('Error sincronizando tarjetas', refreshError);
+        }
+    }
+
     async function addCard(cardData: { number: string; holder?: string; expMonth?: string; expYear?: string }) {
         const runId = user?.run ?? storedUser?.run;
         if (!user?.email || !runId) {
@@ -399,13 +416,25 @@ const Perfil: React.FC = () => {
                 setStoredUser(updated);
                 setCardSaveError('');
             }
+            await refreshPaymentCardsFromServer();
+            if (willSetDefault && storedCard.id) {
+                try {
+                    const serverUser = await persistProfilePayload({ defaultPaymentCardId: storedCard.id });
+                    if (serverUser) {
+                        login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
+                        setStoredUser(serverUser);
+                    }
+                } catch (syncError) {
+                    console.error('No se pudo actualizar la tarjeta predeterminada', syncError);
+                }
+            }
         } catch (error) {
             console.error(error);
             setCardSaveError('No fue posible guardar la tarjeta. Intenta de nuevo más tarde.');
         }
     }
 
-    function removeCard(id: string) {
+    async function removeCard(id: string) {
         if (!user?.email) return;
         const existing = storedUser?.paymentCards ?? [];
         const remaining = existing.filter((c: any) => c.id !== id);
@@ -414,13 +443,27 @@ const Perfil: React.FC = () => {
         const updated = updateUser(user.email, { paymentCards: remaining, defaultPaymentCardId: nextDefault });
         if (updated) {
             setStoredUser(updated);
+            try {
+                await persistProfilePayload({ defaultPaymentCardId: nextDefault });
+            } catch (error) {
+                console.error('No se pudo actualizar la tarjeta predeterminada', error);
+            }
         }
     }
 
-    function setDefaultCard(id: string) {
+    async function setDefaultCard(id: string) {
         if (!user?.email) return;
         const updated = updateUser(user.email, { defaultPaymentCardId: id });
         if (updated) setStoredUser(updated);
+        try {
+            const serverUser = await persistProfilePayload({ defaultPaymentCardId: id });
+            if (serverUser) {
+                login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
+                setStoredUser(serverUser);
+            }
+        } catch (error) {
+            console.error('No se pudo actualizar la tarjeta predeterminada', error);
+        }
     }
 
     function triggerAvatarUpload() {
