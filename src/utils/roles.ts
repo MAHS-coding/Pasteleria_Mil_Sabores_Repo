@@ -14,23 +14,23 @@ function isAdminRole(role?: string | null): boolean {
 
 export function isAdminEmail(email?: string | null): boolean {
   if (!email) return false;
-  const e = String(email).toLowerCase();
+  const e = String(email).trim().toLowerCase();
+  if (!e) return false;
   if (e === PRIMARY_ADMIN_EMAIL) return true;
   
-  // NOTE: localStorage checks disabled - admin role now determined by backend JWT token
-  // All admin verification should be done through the authentication token
+  // 1) Check registered users persisted locally (synced from backend profile)
+  try {
+    const users = readUsers();
+    const found = users.find((u) => String(u.email || '').toLowerCase() === e);
+    if (found && isAdminRole((found as any).role)) return true;
+  } catch {}
   
-  // 1) Check registered users store (authoritative for login accounts)
-  // const users = readUsers();
-  // const found = users.find(u => String(u.email || '').toLowerCase() === e);
-  // if (found && isAdminRole((found as any).role)) return true;
-  
-  // 2) Fallback: check legacy 'usuarios' store used by admin UI
-  // try {
-  //   const usuarios = getJSON<any[]>("usuarios") || [];
-  //   const legacy = usuarios.find((u) => String(u.correo || "").toLowerCase() === e);
-  //   if (legacy && isAdminRole(legacy.rol)) return true;
-  // } catch {}
+  // 2) Fallback: check legacy 'usuarios' store used by the admin UI bootstrap
+  try {
+    const usuarios = getJSON<any[]>("usuarios") || [];
+    const legacy = usuarios.find((u) => String(u.correo || u.email || '').toLowerCase() === e);
+    if (legacy && isAdminRole(legacy.rol || legacy.role)) return true;
+  } catch {}
   
   return false;
 }
