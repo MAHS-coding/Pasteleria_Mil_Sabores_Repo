@@ -5,11 +5,13 @@ import AuthContext from '../../context/AuthContext';
 import { useContext } from 'react';
 import { getProductByCode } from '../../utils/products';
 import { formatCLP } from '../../utils/currency';
+import Modal from '../ui/Modal';
 import styles from './CarritoFlotante.module.css';
 
 export const CarritoFlotante: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { items, count, setQuantity, remove, clear } = useCart();
+  const [confirmModal, setConfirmModal] = useState<{ show: boolean; type: 'clear' | 'remove-item'; itemCode?: string; itemMensaje?: string; itemName?: string }>({ show: false, type: 'clear' });
   // useContext(AuthContext) returns undefined if not wrapped in provider (useAuth would throw)
   const authCtx = useContext(AuthContext as any) as any;
   const user = authCtx?.user || null;
@@ -281,7 +283,7 @@ export const CarritoFlotante: React.FC = () => {
                           </button>
 
                           <button
-                            onClick={() => remove(item.code, item.mensaje)}
+                            onClick={() => setConfirmModal({ show: true, type: 'remove-item', itemCode: item.code, itemMensaje: item.mensaje, itemName: item.productName })}
                             className="btn btn-sm btn-outline-danger ms-auto"
                             title="Eliminar"
                           >
@@ -304,7 +306,7 @@ export const CarritoFlotante: React.FC = () => {
               })}
 
               {items.length > 0 && (
-                  <button onClick={() => clear()} className="btn btn-outline-danger btn-sm w-100 mt-2">
+                  <button onClick={() => setConfirmModal({ show: true, type: 'clear' })} className="btn btn-outline-danger btn-sm w-100 mt-2">
                   <i className="bi bi-trash-fill me-2"></i> Vaciar Carrito
                 </button>
               )}
@@ -339,6 +341,28 @@ export const CarritoFlotante: React.FC = () => {
           </div>
         )}
       </aside>
+
+      <Modal
+        show={confirmModal.show}
+        title={confirmModal.type === 'clear' ? '¿Vaciar carrito?' : `¿Eliminar ${confirmModal.itemName}?`}
+        onClose={() => setConfirmModal({ show: false, type: 'clear' })}
+        onConfirm={() => {
+          if (confirmModal.type === 'clear') {
+            clear();
+          } else if (confirmModal.type === 'remove-item') {
+            remove(confirmModal.itemCode || '', confirmModal.itemMensaje);
+          }
+          setConfirmModal({ show: false, type: 'clear' });
+        }}
+        confirmLabel={confirmModal.type === 'clear' ? 'Vaciar' : 'Eliminar'}
+        cancelLabel="Cancelar"
+      >
+        {confirmModal.type === 'clear' ? (
+          <p>¿Está seguro de que desea vaciar todos los productos del carrito?</p>
+        ) : (
+          <p>¿Está seguro de que desea eliminar <strong>{confirmModal.itemName}</strong> del carrito?</p>
+        )}
+      </Modal>
     </>
   );
 };

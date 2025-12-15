@@ -12,7 +12,7 @@ export type StoredUser = {
     phone?: string;
     addresses?: Array<{ id: string; address: string; region?: string; comuna?: string }>;
     // stored payment cards (only store non-sensitive display info)
-    paymentCards?: Array<{ id: string; brand?: string; last4: string; expMonth?: string; expYear?: string; holderName?: string }>;
+    paymentCards?: Array<{ id: string; brand?: string; last4: string; expMonth?: string; expYear?: string; holderName?: string; isDefault?: boolean }>;
     defaultPaymentCardId?: string;
     discountPercent?: number; // total discount percentage (age + lifetime)
     lifetimeDiscount?: boolean; // true when registered with FELICES50
@@ -51,7 +51,10 @@ export function readUsers(): StoredUser[] {
 }
 
 export function writeUsers(users: StoredUser[]) {
-    const normalized = users.map(normalizeStoredRun);
+    const normalized = users.map(normalizeStoredRun).map(u => {
+        const { paymentCards, defaultPaymentCardId, ...rest } = u as any;
+        return rest as StoredUser;
+    });
     setJSON(USERS_KEY, normalized);
 }
 
@@ -104,8 +107,6 @@ export function upsertStoredUser(data: Partial<StoredUser> & { email: string }):
         password: existing?.password ?? data.password ?? '',
         phone: data.phone ?? existing?.phone,
         addresses: data.addresses ?? existing?.addresses,
-        paymentCards: data.paymentCards ?? existing?.paymentCards,
-        defaultPaymentCardId: data.defaultPaymentCardId ?? existing?.defaultPaymentCardId,
         discountPercent: typeof data.discountPercent === 'number' ? data.discountPercent : existing?.discountPercent,
         lifetimeDiscount: data.lifetimeDiscount ?? existing?.lifetimeDiscount,
         freeCakeVoucher: data.freeCakeVoucher ?? existing?.freeCakeVoucher,
@@ -201,9 +202,16 @@ export function createUser(payload: Omit<StoredUser, 'createdAt'>): { ok: true, 
     const role = (payload.role as StoredUser['role']) || 'Cliente';
     const blocked = Boolean((payload as any).blocked) || false;
     const user: StoredUser = {
-        ...payload,
         run: formatRunForStorage(payload.run) ?? payload.run,
+        name: payload.name,
+        lastname: payload.lastname,
+        email: payload.email,
+        birthdate: payload.birthdate,
         role,
+        codigo: payload.codigo,
+        password: payload.password,
+        phone: payload.phone,
+        addresses: payload.addresses,
         blocked,
         discountPercent: discount,
         lifetimeDiscount: lifetime,

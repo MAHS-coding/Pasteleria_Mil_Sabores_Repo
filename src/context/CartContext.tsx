@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "./AuthContext";
 import { getProductByCode } from "../utils/products";
 import { products as seedProducts } from "../utils/dataLoaders";
 import { addCartItem, fetchCart, removeCartItem, updateCartItem } from "../services/cartService";
 import type { CartItemDto } from "../services/cartService";
 
-const KEY_CART = "carrito"; // base key; actual key will include user identifier
+// Cart is now fully server-backed; localStorage no longer used
 
 type CartItem = {
     code: string;
@@ -31,38 +31,13 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-function sanitizeKeyPart(s?: string) {
-    if (!s) return "guest";
-    return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "_");
-}
-
-function cartStorageKeyForUser(user: { name?: string; email?: string } | null) {
-    if (!user) return `${KEY_CART}_guest`;
-    if (user.email) return `${KEY_CART}_${sanitizeKeyPart(user.email)}`;
-    if (user.name) return `${KEY_CART}_${sanitizeKeyPart(user.name)}`;
-    return `${KEY_CART}_guest`;
-}
-
-import { getJSON, setJSON } from "../utils/storage";
-
-function readCartForKey(key: string): CartItem[] {
-    try {
-        const v = getJSON<CartItem[]>(key);
-        return Array.isArray(v) ? v : [];
-    } catch {
-        return [];
-    }
-}
-
-function writeCartForKey(key: string, items: CartItem[]) {
-    setJSON(key, items);
-}
-
-const STOCK_UNLIMITED = Number.POSITIVE_INFINITY;
+// Cart is now fully server-backed; localStorage functions removed
 
 function normalizeMessage(msg?: string | null) {
     return msg ?? "";
 }
+
+const STOCK_UNLIMITED = Number.POSITIVE_INFINITY;
 
 function resolveStockLimit(code: string): number {
     const product = getProductByCode(code, seedProducts);
@@ -83,19 +58,17 @@ function cartItemKey(code: string, mensaje?: string) {
     return `${code}::${normalizeMessage(mensaje)}`;
 }
 
-function cartItemDtoKey(code: string, mensaje?: string) {
-    return `${code}::${normalizeMessage(mensaje)}`;
-}
-
 function mapCartItemDtoToCartItem(dto: CartItemDto) {
-    if (!dto || (!dto.code && !dto.productId)) return null;
-    const code = dto.code || dto.productId || "";
-    const cantidad = typeof dto.cantidad === "number" ? dto.cantidad : typeof dto.qty === "number" ? dto.qty : 0;
+    if (!dto || !dto.productoCodigo) return null;
+    const code = dto.productoCodigo;
+    const cantidad = typeof dto.cantidad === "number" ? dto.cantidad : 0;
+    const product = getProductByCode(code, seedProducts);
     return {
         code,
-        productId: dto.productId,
-        productName: dto.productName || getProductByCode(code, seedProducts)?.productName || code,
-        price: typeof dto.price === "number" ? dto.price : undefined,
+        productId: code,
+        productName: product?.productName || code,
+        price: typeof dto.precioUnitario === "number" ? dto.precioUnitario : undefined,
+        img: product?.img,
         cantidad,
         mensaje: dto.mensaje,
         serverItemId: dto.id,
@@ -104,9 +77,7 @@ function mapCartItemDtoToCartItem(dto: CartItemDto) {
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { user } = useAuth();
-    const storageKey = useMemo(() => cartStorageKeyForUser(user as any), [user]);
-    const prevKeyRef = useRef<string | null>(null);
-    const [items, setItems] = useState<CartItem[]>(() => readCartForKey(storageKey));
+    const [items, setItems] = useState<CartItem[]>([]);
 
     const applyRemoteItem = useCallback((dto: CartItemDto) => {
         const remoteItem = mapCartItemDtoToCartItem(dto);
@@ -116,98 +87,97 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const next = [...current];
             const idx = next.findIndex((it) => cartItemKey(it.code, it.mensaje) === key);
             if (idx >= 0) {
-                next[idx] = { ...next[idx], ...remoteItem };
+                // Preserve client-side properties like img, productName if not from server
+                next[idx] = { ...next[idx], ...remoteItem, img: remoteItem.img || next[idx].img, productName: remoteItem.productName || next[idx].productName };
             } else {
                 next.push(remoteItem);
             }
-            try { writeCartForKey(storageKey, next); } catch {};
             return next;
         });
-    }, [storageKey]);
+    }, []);
 
-    const syncItemWithServer = useCallback(async (code: string, mensaje?: string) => {
-        if (!user?.run) return;
-        const targetKey = cartItemKey(code, mensaje);
-        const latest = readCartForKey(storageKey);
-        const target = latest.find((it) => cartItemKey(it.code, it.mensaje) === targetKey);
-        if (!target) return;
-        const qty = Math.max(0, target.cantidad || 0);
-        if (qty <= 0) {
-            if (target.serverItemId) {
-                await removeCartItem(user.run, target.serverItemId);
+    const [pendingSync, setPendingSync] = useState<Set<string>>(new Set());
+
+    const syncItemWithServer = useCallback((code: string, mensaje?: string) => {
+        const key = cartItemKey(code, mensaje);
+        setPendingSync((prev) => new Set(prev).add(key));
+    }, []);
+
+    // Separate effect to handle async sync with server
+    useEffect(() => {
+        if (!user?.run || pendingSync.size === 0) return;
+        
+        const userRun = user.run;
+        const syncKeys = Array.from(pendingSync);
+        
+        (async () => {
+            for (const key of syncKeys) {
+                const target = items.find((it) => cartItemKey(it.code, it.mensaje) === key);
+                if (!target) {
+                    setPendingSync((prev) => {
+                        const next = new Set(prev);
+                        next.delete(key);
+                        return next;
+                    });
+                    continue;
+                }
+                
+                const qty = Math.max(0, target.cantidad || 0);
+                if (qty <= 0) {
+                    if (target.serverItemId) {
+                        await removeCartItem(userRun, target.serverItemId);
+                    }
+                    setPendingSync((prev) => {
+                        const next = new Set(prev);
+                        next.delete(key);
+                        return next;
+                    });
+                    continue;
+                }
+                
+                const payload = { qty, mensaje: target.mensaje };
+                let remote: CartItemDto | null = null;
+                if (target.serverItemId) {
+                    remote = await updateCartItem(userRun, target.serverItemId, payload);
+                } else {
+                    remote = await addCartItem(userRun, { productId: target.productId || target.code, qty, mensaje: target.mensaje });
+                }
+                
+                if (remote) {
+                    applyRemoteItem(remote);
+                }
+                
+                setPendingSync((prev) => {
+                    const next = new Set(prev);
+                    next.delete(key);
+                    return next;
+                });
             }
-            return;
-        }
-        const payload = { qty, mensaje: target.mensaje };
-        let remote: CartItemDto | null = null;
-        if (target.serverItemId) {
-            remote = await updateCartItem(user.run, target.serverItemId, payload);
-        } else {
-            remote = await addCartItem(user.run, { productId: target.productId || target.code, qty, mensaje: target.mensaje });
-        }
-        if (remote) {
-            applyRemoteItem(remote);
-        }
-    }, [storageKey, user?.run, applyRemoteItem]);
+        })();
+    }, [user?.run, items, pendingSync, applyRemoteItem]);
 
     const count = useMemo(() => items.reduce((s, it) => s + (it.cantidad || 0), 0), [items]);
 
+    // Load cart from server on mount or user change
     useEffect(() => {
-        const prevKey = prevKeyRef.current;
-        if (!prevKey) {
-            prevKeyRef.current = storageKey;
+        if (!user?.run) {
+            setItems([]);
             return;
         }
-        if (prevKey === storageKey) return;
-
-        const prevCart = readCartForKey(prevKey);
-        const newCart = readCartForKey(storageKey);
-
-        const prevIsGuest = prevKey.endsWith("_guest");
-        const newIsGuest = storageKey.endsWith("_guest");
-
-        if (prevIsGuest && !newIsGuest) {
-            const mergedMap = new Map<string, CartItem>();
-            function keyOf(it: CartItem) { return `${it.code}::${it.mensaje || ""}`; }
-            (newCart || []).forEach((it) => mergedMap.set(keyOf(it), { ...it }));
-            (prevCart || []).forEach((it) => {
-                const k = keyOf(it);
-                if (mergedMap.has(k)) {
-                    const ex = mergedMap.get(k)!;
-                    mergedMap.set(k, { ...ex, cantidad: (ex.cantidad || 0) + (it.cantidad || 0) });
-                } else {
-                    mergedMap.set(k, { ...it });
-                }
-            });
-            const merged = Array.from(mergedMap.values());
-            writeCartForKey(storageKey, merged);
-            writeCartForKey(prevKey, []);
-            setItems(merged);
-        } else if (!prevIsGuest && newIsGuest) {
-            writeCartForKey(storageKey, []);
-            setItems([]);
-        } else {
-            setItems(newCart || []);
-        }
-        prevKeyRef.current = storageKey;
-    }, [storageKey]);
-
-    useEffect(() => {
-        if (!user?.run) return;
+        const userRun = user.run;
         let active = true;
         (async () => {
-            const remoteCart = await fetchCart(user.run);
-            if (!active || !remoteCart?.items) return;
-            remoteCart.items.forEach(applyRemoteItem);
-            const stored = readCartForKey(storageKey);
-            for (const entry of stored) {
-                if (!entry.serverItemId) {
-                    await syncItemWithServer(entry.code, entry.mensaje);
-                }
+            const remoteCart = await fetchCart(userRun);
+            if (!active) return;
+            if (remoteCart?.items) {
+                const cartItems = remoteCart.items
+                    .map(mapCartItemDtoToCartItem)
+                    .filter((item): item is CartItem => item !== null);
+                setItems(cartItems);
             }
         })();
         return () => { active = false; };
-    }, [storageKey, user?.run, applyRemoteItem, syncItemWithServer]);
+    }, [user?.run]);
 
     function add(item: Omit<CartItem, "cantidad">): boolean {
         const limit = resolveStockLimit(item.code);
@@ -222,7 +192,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const next = existing
             ? items.map((c) => (c === existing ? { ...c, cantidad: (c.cantidad || 0) + increment } : c))
             : [...items, { ...item, cantidad: increment }];
-        try { writeCartForKey(storageKey, next); } catch {};
         setItems(next);
         void syncItemWithServer(item.code, item.mensaje);
         return true;
@@ -244,7 +213,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const next = existing
             ? items.map((c) => (c === existing ? { ...c, cantidad: (c.cantidad || 0) + toAdd } : c))
             : [...items, { ...item, cantidad: toAdd }];
-        try { writeCartForKey(storageKey, next); } catch {};
         setItems(next);
         if (toAdd > 0) void syncItemWithServer(item.code, item.mensaje);
         return toAdd;
@@ -254,12 +222,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const existing = items.find((c) => c.code === code && normalizeMessage(c.mensaje) === normalizeMessage(mensaje));
         const serverId = existing?.serverItemId;
         setItems((cur) => {
-            const next = cur.filter((c) => !(c.code === code && (c.mensaje || "") === (mensaje || "")));
-            try { writeCartForKey(storageKey, next); } catch {};
-            return next;
+            return cur.filter((c) => !(c.code === code && (c.mensaje || "") === (mensaje || "")));
         });
         if (serverId && user?.run) {
-            void removeCartItem(user.run, serverId);
+            const userRun = user.run;
+            void removeCartItem(userRun, serverId);
         }
     }
 
@@ -285,7 +252,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (Number.isFinite(limit) && targetQty <= 0) {
             const next = items.filter((_, idx) => idx !== index);
-            try { writeCartForKey(storageKey, next); } catch {};
             setItems(next);
             void syncItemWithServer(code, mensaje);
             return 0;
@@ -296,7 +262,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const next = items.map((c, idx) => (idx === index ? { ...c, cantidad: targetQty } : c));
-        try { writeCartForKey(storageKey, next); } catch {};
         setItems(next);
         void syncItemWithServer(code, mensaje);
         return targetQty;
@@ -326,7 +291,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         }
 
-        try { writeCartForKey(storageKey, next); } catch {};
         setItems(next);
         const messagesToSync = new Set<string | undefined>();
         for (let i = 0; i < canAdd; i++) {
@@ -341,13 +305,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     function clear() {
         const serverIds = items.map((it) => it.serverItemId).filter(Boolean) as string[];
-        setItems(() => {
-            const next: CartItem[] = [];
-            try { writeCartForKey(storageKey, next); } catch {};
-            return next;
-        });
+        setItems([]);
         if (serverIds.length > 0 && user?.run) {
-            serverIds.forEach((id) => void removeCartItem(user.run, id));
+            const userRun = user.run;
+            serverIds.forEach((id) => void removeCartItem(userRun, id));
         }
     }
 

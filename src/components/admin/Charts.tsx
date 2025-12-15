@@ -25,7 +25,17 @@ ChartJS.register(
     Legend
 );
 
-type Venta = { productId?: string; qty?: number; price?: number; tsISO?: string };
+type Venta = { 
+    productId?: string; 
+    qty?: number; 
+    price?: number; 
+    tsISO?: string;
+    // Nuevos campos para VentaResumen
+    fecha?: string;
+    productoCodigo?: string;
+    cantidadVendida?: number;
+    ingresosTotal?: number | string;
+};
 type Product = { code?: string; productName?: string; nombre?: string };
 
 function daysInMonthLabels(d: Date) {
@@ -63,11 +73,17 @@ export default function Charts({ ventas = [], catalogo = [], ordenes = [], usuar
         const map = new Array(labels.length).fill(0);
         for (const v of ventas) {
             try {
-                const d = v.tsISO ? new Date(v.tsISO) : null;
+                // Soportar ambos formatos: antiguo (tsISO) y nuevo (fecha)
+                const fechaStr = v.tsISO || v.fecha;
+                const d = fechaStr ? new Date(fechaStr) : null;
                 if (!d) continue;
                 if (d.getFullYear() !== today.getFullYear() || d.getMonth() !== today.getMonth()) continue;
                 const day = d.getDate();
-                map[day - 1] += Number(v.qty || 0) * Number(v.price || 0);
+                // Calcular monto: ingresosTotal (nuevo) o qty * price (antiguo)
+                const monto = (v.ingresosTotal !== undefined) 
+                    ? Number(v.ingresosTotal) 
+                    : (Number(v.qty || 0) * Number(v.price || 0));
+                map[day - 1] += monto;
             } catch { }
         }
         return map;
@@ -76,8 +92,11 @@ export default function Charts({ ventas = [], catalogo = [], ordenes = [], usuar
     const topProducts = useMemo(() => {
         const m = new Map<string, number>();
         for (const v of ventas) {
-            const id = String(v.productId || '');
-            m.set(id, (m.get(id) || 0) + Number(v.qty || 0));
+            // Soportar ambos formatos: productId (antiguo) y productoCodigo (nuevo)
+            const id = String(v.productoCodigo || v.productId || '');
+            // Cantidad: cantidadVendida (nuevo) o qty (antiguo)
+            const cantidad = Number(v.cantidadVendida !== undefined ? v.cantidadVendida : (v.qty || 0));
+            m.set(id, (m.get(id) || 0) + cantidad);
         }
         const arr = Array.from(m.entries()).map(([id, qty]) => ({ id, qty }));
         arr.sort((a, b) => b.qty - a.qty);

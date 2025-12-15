@@ -32,12 +32,18 @@ const PaymentCards: React.FC<Props> = ({ paymentCards, defaultCardId, mode = 'li
 
     function handleAdd() {
         if (!onAdd) return;
+        const cleanNumber = sanitizeCardNumber(number);
+        // Validate exactly 16 digits (or 15 for Amex)
+        const expectedLen = brand === 'Amex' ? 15 : 16;
+        if (cleanNumber.length !== expectedLen) {
+            return; // Form validation should prevent this, but double-check
+        }
         // normalize year: accept YY or YYYY from the form and send a 4-digit year
         const cleaned = String(expYear || '').replace(/\D/g, '');
         const normalizedExpYear = cleaned.length === 2 ? `20${cleaned}` : cleaned;
         // normalize holder before sending
         const normalizedHolder = normalizeHolderName(holder);
-        onAdd({ number, holder: normalizedHolder, expMonth, expYear: normalizedExpYear });
+        onAdd({ number: cleanNumber, holder: normalizedHolder, expMonth, expYear: normalizedExpYear });
         clearForm();
     }
 
@@ -55,14 +61,14 @@ const PaymentCards: React.FC<Props> = ({ paymentCards, defaultCardId, mode = 'li
     const yearIsValid = Number.isFinite(normalizedYearForCompare) && normalizedYearForCompare > currentYear;
     const monthIsValid = monthNum >= 1 && monthNum <= 12;
     const isExpValid = monthIsValid && yearIsValid && (yearLen === 2 || yearLen === 4);
-    // require expected length for the detected brand
-    const isFormValid = Boolean(number && holder && expMonth && expYear && isExpValid && sanitizedLen >= Math.min(expectedLen, 12) && sanitizedLen >= expectedLen);
+    // require exactly the expected length for the detected brand
+    const isFormValid = Boolean(number && holder && expMonth && expYear && isExpValid && sanitizedLen === expectedLen);
 
     if (mode === 'select') {
         return (
             <div>
                 <div className="input-group">
-                    <select className="form-select" value={selectedId ?? ''} onChange={(e) => onSelectedChange?.(e.target.value || null)}>
+                    <select id="paymentCardSelect" name="paymentCardSelect" className="form-select" value={selectedId ?? ''} onChange={(e) => onSelectedChange?.(e.target.value || null)}>
                         {!paymentCards.length ? (
                             <option value="">No tienes tarjetas guardadas</option>
                         ) : (
@@ -70,8 +76,9 @@ const PaymentCards: React.FC<Props> = ({ paymentCards, defaultCardId, mode = 'li
                                 <option value="">Selecciona…</option>
                                 {paymentCards.map((c) => {
                                     const labelBrand = c.brand || 'Tarjeta';
+                                    const isDefault = c.isDefault || defaultCardId === c.id;
                                     return (
-                                        <option key={c.id} value={c.id}>{labelBrand} **** {c.last4}{c.expMonth && c.expYear ? ` — ${c.expMonth}/${c.expYear}` : ''}{defaultCardId === c.id ? ' (predeterminada)' : ''}</option>
+                                        <option key={c.id} value={c.id}>{labelBrand} **** {c.last4}{c.expMonth && c.expYear ? ` — ${c.expMonth}/${c.expYear}` : ''}{isDefault ? ' (predeterminada)' : ''}</option>
                                     );
                                 })}
                             </>
@@ -82,11 +89,11 @@ const PaymentCards: React.FC<Props> = ({ paymentCards, defaultCardId, mode = 'li
 
                 {showNew && (
                     <div className={styles['newCardForm'] + ' mt-2'}>
-                        <input className="form-control mb-2" placeholder="Número de tarjeta (XXXX XXXX XXXX XXXX)" value={number} onChange={(e) => setNumber(formatCardNumber(e.target.value))} inputMode="numeric" maxLength={23} />
+                        <input id="newCardNumberSelect" name="newCardNumberSelect" className="form-control mb-2" placeholder="Número de tarjeta (XXXX XXXX XXXX XXXX)" value={number} onChange={(e) => setNumber(formatCardNumber(e.target.value))} inputMode="numeric" maxLength={23} />
                         <div className="d-flex gap-2 mb-2">
-                            <input className={`form-control ${styles['smallInput']}`} placeholder="MM" value={expMonth} onChange={(e) => setExpMonth(formatExpMonth(e.target.value))} inputMode="numeric" maxLength={2} />
-                            <input className={`form-control ${styles['smallInput']}`} placeholder="YYYY" value={expYear} onChange={(e) => setExpYear(formatExpYear(e.target.value))} inputMode="numeric" maxLength={4} />
-                            <input className="form-control" placeholder="Nombre en la tarjeta" value={holder} onChange={(e) => setHolder(e.target.value)} onBlur={(e) => setHolder(normalizeHolderName(e.target.value))} />
+                            <input id="newCardExpMonthSelect" name="newCardExpMonthSelect" className={`form-control ${styles['smallInput']}`} placeholder="MM" value={expMonth} onChange={(e) => setExpMonth(formatExpMonth(e.target.value))} inputMode="numeric" maxLength={2} />
+                            <input id="newCardExpYearSelect" name="newCardExpYearSelect" className={`form-control ${styles['smallInput']}`} placeholder="YYYY" value={expYear} onChange={(e) => setExpYear(formatExpYear(e.target.value))} inputMode="numeric" maxLength={4} />
+                            <input id="newCardHolderSelect" name="newCardHolderSelect" className="form-control" placeholder="Nombre en la tarjeta" value={holder} onChange={(e) => setHolder(e.target.value)} onBlur={(e) => setHolder(normalizeHolderName(e.target.value))} />
                         </div>
                         {( (sanitizedLen > 0 && sanitizedLen < expectedLen) || (!monthIsValid && expMonth) || (cleanedYear && !yearIsValid && yearsMissing !== null) ) && (
                             <div style={{ marginTop: 6 }}>
@@ -125,7 +132,7 @@ const PaymentCards: React.FC<Props> = ({ paymentCards, defaultCardId, mode = 'li
                                 </div>
                             </div>
                             <div>
-                                {defaultCardId === c.id ? (
+                                {c.isDefault || defaultCardId === c.id ? (
                                     <span className="badge bg-success me-2">Predeterminada</span>
                                 ) : (
                                     <button type="button" className={`btn btn-sm ${styles['confirmBtn']} me-2`} onClick={() => onSetDefault?.(c.id)}>Establecer predeterminada</button>
@@ -145,16 +152,20 @@ const PaymentCards: React.FC<Props> = ({ paymentCards, defaultCardId, mode = 'li
 
             {showNew && (
                 <div className={styles['newCardForm'] + ' mt-2'}>
-                    <input className="form-control mb-2" placeholder="Número de tarjeta (XXXX XXXX XXXX XXXX)" value={number} onChange={(e) => setNumber(formatCardNumber(e.target.value))} inputMode="numeric" maxLength={23} />
+                    <input id="newCardNumberList" name="newCardNumberList" className="form-control mb-2" placeholder="Número de tarjeta (XXXX XXXX XXXX XXXX)" value={number} onChange={(e) => setNumber(formatCardNumber(e.target.value))} inputMode="numeric" maxLength={19} />
                     <div className="d-flex gap-2 mb-2">
-                        <input required className={`form-control ${styles['smallInput']}`} placeholder="MM" value={expMonth} onChange={(e) => setExpMonth(formatExpMonth(e.target.value))} inputMode="numeric" maxLength={2} />
-                        <input required className={`form-control ${styles['smallInput']}`} placeholder="YYYY" value={expYear} onChange={(e) => setExpYear(formatExpYear(e.target.value))} inputMode="numeric" maxLength={4} />
-                        <input required className="form-control" placeholder="Nombre en la tarjeta" value={holder} onChange={(e) => setHolder(e.target.value)} onBlur={(e) => setHolder(normalizeHolderName(e.target.value))} />
+                        <input id="newCardExpMonthList" name="newCardExpMonthList" required className={`form-control ${styles['smallInput']}`} placeholder="MM" value={expMonth} onChange={(e) => setExpMonth(formatExpMonth(e.target.value))} inputMode="numeric" maxLength={2} />
+                        <input id="newCardExpYearList" name="newCardExpYearList" required className={`form-control ${styles['smallInput']}`} placeholder="YYYY" value={expYear} onChange={(e) => setExpYear(formatExpYear(e.target.value))} inputMode="numeric" maxLength={4} />
+                        <input id="newCardHolderList" name="newCardHolderList" required className="form-control" placeholder="Nombre en la tarjeta" value={holder} onChange={(e) => setHolder(e.target.value)} onBlur={(e) => setHolder(normalizeHolderName(e.target.value))} />
                     </div>
-                    {( (sanitizedLen > 0 && sanitizedLen < expectedLen) || (!monthIsValid && expMonth) || (cleanedYear && !yearIsValid && yearsMissing !== null) ) && (
+                    {( (sanitizedLen > 0 && sanitizedLen !== expectedLen) || (!monthIsValid && expMonth) || (cleanedYear && !yearIsValid && yearsMissing !== null) ) && (
                         <div style={{ marginTop: 6 }}>
-                            {sanitizedLen > 0 && sanitizedLen < expectedLen && (
-                                <div className="text-danger" style={{ fontSize: '0.85rem' }}>Número de tarjeta inválido</div>
+                            {sanitizedLen > 0 && sanitizedLen !== expectedLen && (
+                                <div className="text-danger" style={{ fontSize: '0.85rem' }}>
+                                    {brand === 'Amex' 
+                                        ? `Número de tarjeta debe tener 15 dígitos`
+                                        : `Número de tarjeta debe tener 16 dígitos`}
+                                </div>
                             )}
                             {!monthIsValid && expMonth && (
                                 <div className="text-danger" style={{ fontSize: '0.85rem' }}>Mes inválido: debe estar entre 01 y 12.</div>

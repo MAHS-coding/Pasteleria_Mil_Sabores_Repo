@@ -22,6 +22,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         initializeSession();
+        
+        // Use BroadcastChannel for cross-tab logout sync (modern browsers)
+        let logoutChannel: BroadcastChannel | null = null;
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                logoutChannel = new BroadcastChannel('auth-channel');
+                logoutChannel.onmessage = (event) => {
+                    if (event.data === 'logout') {
+                        setUser(null);
+                    }
+                };
+            }
+        } catch (e) {
+            // BroadcastChannel not supported
+        }
+        
+        // Fallback: Listen for logout events via storage (for older browsers or BroadcastChannel failures)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'sessionUser' && e.newValue === null) {
+                // Another tab logged out
+                setUser(null);
+            }
+        };
+        
+        window.addEventListener('storage', handleStorageChange);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            if (logoutChannel) {
+                logoutChannel.close();
+            }
+        };
     }, []);
 
     useEffect(() => {
@@ -51,6 +82,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         persistSessionUser(null);
         persistSessionToken(null);
         setUser(null);
+        
+        // Notify other tabs to logout
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                const channel = new BroadcastChannel('auth-channel');
+                channel.postMessage('logout');
+                channel.close();
+            }
+        } catch (e) {
+            // BroadcastChannel not supported, storage event will handle it
+        }
     }
 
     return <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>;

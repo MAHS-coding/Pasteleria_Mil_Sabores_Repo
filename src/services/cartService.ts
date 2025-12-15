@@ -59,3 +59,26 @@ export async function removeCartItem(run: string, itemId: string): Promise<boole
         return false;
     }
 }
+export async function clearCart(run: string): Promise<boolean> {
+    if (!run) return false;
+    // Try bulk delete and suppress axios throw on non-2xx
+    const bulkResp = await httpClient.delete(`/api/users/${encodeURIComponent(run)}/cart/items`, {
+        validateStatus: () => true,
+    });
+    if (bulkResp.status >= 200 && bulkResp.status < 300) {
+        return true;
+    }
+    // Fallback: delete items individually if bulk not allowed
+    try {
+        const cart = await fetchCart(run);
+        const items = cart?.items || [];
+        let ok = true;
+        for (const it of items) {
+            const done = await removeCartItem(run, it.id);
+            ok = ok && done;
+        }
+        return ok;
+    } catch {
+        return false;
+    }
+}

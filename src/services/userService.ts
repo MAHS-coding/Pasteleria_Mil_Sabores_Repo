@@ -2,7 +2,7 @@ import axios from "axios";
 import httpClient from "./httpClient.ts";
 import { persistSessionToken, persistSessionUser } from "./session.ts";
 import type { SessionUser } from "./session.ts";
-import { createUser as persistLocalUser, normalizeRun, upsertStoredUser } from "../utils/registro";
+import { createUser as persistLocalUser, normalizeRun } from "../utils/registro";
 import type { StoredUser } from "../utils/registro";
 
 type RawUserResponse = Record<string, unknown> & {
@@ -27,6 +27,8 @@ type RawUserResponse = Record<string, unknown> & {
     defaultPaymentCardId?: string;
     avatarDataUrl?: string;
     role?: string;
+    blocked?: boolean;
+    activo?: boolean;
 };
 
 function formatRunForApi(run?: string): string | undefined {
@@ -91,35 +93,49 @@ function extractErrorMessage(error: unknown, fallback = "Error al comunicarse co
     return fallback;
 }
 
+export { extractErrorMessage };
+
 export function syncLocalUserProfile(raw?: RawUserResponse | null, fallbackRun?: string): StoredUser | undefined {
+    // NOTE: localStorage sync disabled - all user data now comes from API
+    // Keeping function signature for compatibility but not persisting to localStorage
     if (!raw) return;
     const email = String(raw.email || raw.correo || "").trim();
     if (!email) return;
     const runValue = String(raw.run || fallbackRun || raw.userId || "").trim() || undefined;
     const lifetimeDiscountFlag = raw.lifetimeDiscount ?? (typeof raw.lifetimeDiscountPercent === 'number' ? raw.lifetimeDiscountPercent > 0 : undefined);
-    return upsertStoredUser({
-        run: runValue,
+    const isBlocked = raw.blocked !== undefined ? raw.blocked : (raw.activo === false ? true : undefined);
+    
+    // Return user object without persisting to localStorage
+    return {
+        run: runValue || '',
         name: String(raw.nombre || raw.name || raw.firstName || raw.nombreCompleto || raw.fullName || ""),
         lastname: String(raw.apellidos || raw.lastname || ""),
         email,
         birthdate: String(raw.fechaNacimiento || raw.birthdate || ""),
+        password: '', // not stored
         role: (String(raw.tipoUsuario || raw.role || "") as StoredUser['role']) || undefined,
         phone: String(raw.telefono || raw.phone || "") || undefined,
         discountPercent: typeof raw.discountPercent === 'number' ? raw.discountPercent : undefined,
         lifetimeDiscount: lifetimeDiscountFlag,
         freeCakeVoucher: raw.freeCakeVoucher ?? raw.freeCakeEligible ?? undefined,
         freeCakeRedeemed: raw.freeCakeRedeemed ?? undefined,
+        blocked: isBlocked,
         addresses: Array.isArray(raw.addresses) ? raw.addresses as StoredUser['addresses'] : undefined,
         paymentCards: Array.isArray(raw.paymentCards) ? raw.paymentCards as StoredUser['paymentCards'] : undefined,
         defaultPaymentCardId: raw.defaultPaymentCardId ?? undefined,
         avatarDataUrl: raw.avatarDataUrl ? String(raw.avatarDataUrl) : undefined,
-    });
+        createdAt: String(raw.createdAt || new Date().toISOString()),
+    };
+    // Original code: return upsertStoredUser({ ... });
 }
 
 export type UserProfileUpdateRequest = {
     nombre?: string;
     apellidos?: string;
+    correo?: string;
+    fechaNacimiento?: string;
     telefono?: string;
+    tipoUsuario?: string;
     avatarDataUrl?: string;
     addresses?: StoredUser['addresses'];
     paymentCards?: StoredUser['paymentCards'];
@@ -134,7 +150,8 @@ export async function updateUserProfile(run: string, payload: UserProfileUpdateR
         const response = await httpClient.put(`/api/users/${encoded}`, payload);
         return (response.data || null) as RawUserResponse;
     } catch (error) {
-        return null;
+        console.error('Error updating user profile:', error);
+        throw error;
     }
 }
 
@@ -171,6 +188,19 @@ export async function addUserAddress(run: string, payload: AddressInput): Promis
     }
 }
 
+export async function deleteUserAddress(run: string, addressId: string): Promise<boolean> {
+    if (!run || !addressId) return false;
+    const encoded = encodeRun(run);
+    if (!encoded) return false;
+    try {
+        await httpClient.delete(`/api/users/${encoded}/addresses/${addressId}`);
+        return true;
+    } catch (error) {
+        console.error('Error deleting address:', error);
+        return false;
+    }
+}
+
 export type CardDto = {
     id: string;
     brand?: string;
@@ -179,12 +209,13 @@ export type CardDto = {
     month?: string;
     year?: string;
     cardholderName?: string;
+    isDefault?: boolean;
 };
 
 export type CardInput = {
     cardNumber: string;
-    month?: string;
-    year?: string;
+    month?: number;
+    year?: number;
     cardholderName?: string;
 };
 
@@ -197,6 +228,8 @@ function extractLastFourDigits(cardNumber?: string): string | undefined {
 
 type StoredCard = StoredUser['paymentCards'] extends Array<infer C> ? C : never;
 
+export type { StoredCard };
+
 export function cardDtoToStoredCard(card?: CardDto): StoredCard | undefined {
     if (!card || !card.id) return undefined;
     const last4 = card.lastFourDigits || extractLastFourDigits(card.cardNumber);
@@ -208,6 +241,7 @@ export function cardDtoToStoredCard(card?: CardDto): StoredCard | undefined {
         expMonth: card.month ?? undefined,
         expYear: card.year ?? undefined,
         holderName: card.cardholderName ?? undefined,
+        isDefault: card.isDefault ?? undefined,
     } as StoredCard;
 }
 
@@ -231,6 +265,34 @@ export async function addUserCard(run: string, payload: CardInput): Promise<Card
         const response = await httpClient.post(`/api/users/${encoded}/cards`, payload);
         return (response.data || null) as CardDto;
     } catch (error) {
+        return null;
+    }
+}
+
+export async function deleteUserCard(run: string, cardId: string): Promise<boolean> {
+    if (!run || !cardId) return false;
+    const encoded = encodeRun(run);
+    if (!encoded) return false;
+    try {
+        await httpClient.delete(`/api/users/${encoded}/cards/${cardId}`);
+        return true;
+    } catch (error) {
+        console.error('Error deleting card:', error);
+        return false;
+    }
+}
+
+export async function setDefaultCard(run: string, cardId: string): Promise<CardDto | null> {
+    if (!run || !cardId) return null;
+    const encoded = encodeRun(run);
+    if (!encoded) return null;
+    try {
+        // Use the existing PUT endpoint with isDefault flag
+        const payload: CardDto = { id: cardId, isDefault: true };
+        const response = await httpClient.put(`/api/users/${encoded}/cards/${cardId}`, payload);
+        return (response.data || null) as CardDto;
+    } catch (error) {
+        console.error('Error setting default card:', error);
         return null;
     }
 }
@@ -262,7 +324,13 @@ export async function register(payload: RegistrationPayload): Promise<RegisterRe
 
 export async function login(email: string, password: string, runHint?: string): Promise<LoginResult> {
     try {
-        const response = await httpClient.post("/api/auth/login", { correo: email, password });
+        // Enviar email en múltiples campos para compatibilidad con backend
+        const response = await httpClient.post("/api/auth/login", {
+            correo: email,
+            email,
+            username: email,
+            password,
+        });
         const { accessToken, token, user } = response.data || {};
         const { userId, run } = (response.data || {}) as RawUserResponse;
         const authToken = String(accessToken || token || "").trim();
@@ -292,6 +360,28 @@ export async function fetchUserProfile(run: string): Promise<RawUserResponse | n
         const response = await httpClient.get(`/api/users/${encoded}`);
         return (response.data || null) as RawUserResponse;
     } catch (error) {
+        return null;
+    }
+}
+
+export async function fetchAllUsers(): Promise<RawUserResponse[]> {
+    try {
+        const response = await httpClient.get('/api/users');
+        return (Array.isArray(response.data) ? response.data : []) as RawUserResponse[];
+    } catch (error) {
+        console.error('Error fetching all users:', error);
+        return [];
+    }
+}
+
+export async function toggleUserActive(run: string, activo: boolean): Promise<RawUserResponse | null> {
+    const encoded = encodeRun(run);
+    if (!encoded) return null;
+    try {
+        const response = await httpClient.put(`/api/users/${encoded}/toggle-active`, { activo });
+        return (response.data || null) as RawUserResponse;
+    } catch (error) {
+        console.error('Error toggling user active status:', error);
         return null;
     }
 }

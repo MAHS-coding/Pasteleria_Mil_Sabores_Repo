@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { getRatings, addRating, getAverage, removeRating, type Rating } from "../../utils/ratings";
-import Modal from "../ui/Modal";
 import { useAuth } from "../../context/AuthContext";
 import useInfoModal from "../../hooks/useInfoModal";
 import styles from "./RatingsSection.module.css";
+import { fetchRatingsByProduct, createRating, deleteRating, type RatingDto } from "../../services/ratingsService";
+import Modal from "../ui/Modal";
+//
 
 type Props = {
   productCode: string;
 };
 
 const RatingsSection: React.FC<Props> = ({ productCode }) => {
-  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [ratings, setRatings] = useState<RatingDto[]>([]);
   const [avg, setAvg] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
   const [newStars, setNewStars] = useState<number>(0);
   const [newComment, setNewComment] = useState<string>("");
@@ -20,36 +21,26 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
   const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
 
   useEffect(() => {
-    setRatings(getRatings(productCode));
-    setAvg(getAverage(productCode));
-
-    const handler = (ev: Event) => {
+    let active = true;
+    const load = async () => {
       try {
-        const ce = ev as CustomEvent;
-        if (!ce?.detail || ce.detail.productCode !== productCode) return;
-        setRatings(getRatings(productCode));
-        setAvg(getAverage(productCode));
+        const list = await fetchRatingsByProduct(productCode);
+        if (!active) return;
+        setRatings(list || []);
+        const sum = (list || []).reduce((s, r) => s + (r.stars || 0), 0);
+        const count = list?.length || 0;
+        setAvg({ avg: count > 0 ? sum / count : 0, count });
       } catch {
-        // ignore
+        if (!active) return;
+        setRatings([]);
+        setAvg({ avg: 0, count: 0 });
       }
     };
-
-    const storageHandler = (ev: StorageEvent) => {
-      if (ev.key === 'product_ratings_v1') {
-        setRatings(getRatings(productCode));
-        setAvg(getAverage(productCode));
-      }
-    };
-
-    window.addEventListener('ratings-updated', handler as EventListener);
-    window.addEventListener('storage', storageHandler);
-    return () => {
-      window.removeEventListener('ratings-updated', handler as EventListener);
-      window.removeEventListener('storage', storageHandler);
-    };
+    load();
+    return () => { active = false; };
   }, [productCode]);
 
-  function submitRating(e?: React.FormEvent) {
+  async function submitRating(e?: React.FormEvent) {
     if (e) e.preventDefault();
     if (!user || !user.email) {
       // trigger global login modal
@@ -65,40 +56,56 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
       showInfo('Comentario requerido', 'Por favor escribe un comentario para acompañar tu calificación.');
       return;
     }
-    const r: Rating = {
-      userEmail: String(user.email),
+    const r: RatingDto = {
+      userRun: user.run,
       userName: user.name || (user as any).nombre || undefined,
+      productoCodigoProducto: productCode,
       stars: newStars,
       comment: txt,
-      date: new Date().toISOString(),
     };
-    addRating(productCode, r);
-    // read fresh list from storage (addRating already persisted it and dispatched update)
-    setRatings(getRatings(productCode));
-    setAvg(getAverage(productCode));
-    setNewStars(0);
-    setNewComment("");
-    showInfo('Gracias', 'Tu calificación fue registrada.');
+    try {
+      const saved = await createRating(r);
+      if (!saved) throw new Error('No se pudo guardar la calificación');
+      const list = await fetchRatingsByProduct(productCode);
+      setRatings(list || []);
+      const sum = (list || []).reduce((s, rr) => s + (rr.stars || 0), 0);
+      const count = list?.length || 0;
+      setAvg({ avg: count > 0 ? sum / count : 0, count });
+      setNewStars(0);
+      setNewComment("");
+      showInfo('Gracias', 'Tu calificación fue registrada.');
+    } catch (err) {
+      showInfo('Error', 'No se pudo guardar tu calificación. Intenta más tarde.', 'Aceptar');
+    }
   }
 
   function handleDelete(idx: number) {
     if (!user || !user.email) return;
     const r = ratings[idx];
     if (!r) return;
-    if (String(r.userEmail).toLowerCase() !== String(user.email).toLowerCase()) return;
+    if (r.userRun && user.run && String(r.userRun) !== String(user.run)) return;
     setPendingDeleteIdx(idx);
     setConfirmOpen(true);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     const idx = pendingDeleteIdx;
     setConfirmOpen(false);
     setPendingDeleteIdx(null);
     if (idx === null || idx === undefined) return;
-    removeRating(productCode, idx);
-    setRatings(getRatings(productCode));
-    setAvg(getAverage(productCode));
-    showInfo('Eliminado', 'Tu calificación fue eliminada.', 'Aceptar');
+    try {
+      const target = ratings[idx];
+      if (!target || !target.id || !user?.run) return;
+      await deleteRating(target.id, user.run);
+      const list = await fetchRatingsByProduct(productCode);
+      setRatings(list || []);
+      const sum = (list || []).reduce((s, rr) => s + (rr.stars || 0), 0);
+      const count = list?.length || 0;
+      setAvg({ avg: count > 0 ? sum / count : 0, count });
+      showInfo('Eliminado', 'Tu calificación fue eliminada.', 'Aceptar');
+    } catch (err) {
+      showInfo('Error', 'No se pudo eliminar tu calificación. Intenta más tarde.', 'Aceptar');
+    }
   }
 
   function cancelDelete() {
@@ -157,24 +164,24 @@ const RatingsSection: React.FC<Props> = ({ productCode }) => {
           <div className="mt-3">
             {ratings.map((r, idx) => (
               <div key={idx} className={`mb-3 ${styles.reviewItem}`}>
-                <div className={styles.avatar}>{(r.userName || r.userEmail || '').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}</div>
+                <div className={styles.avatar}>{(r.userName || r.userRun || '').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}</div>
                 <div className={styles.reviewContent}>
                   <div className="d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center">
-                      <strong className="me-2">{r.userName ?? r.userEmail}</strong>
+                      <strong className="me-2">{r.userName ?? r.userRun ?? 'Cliente'}</strong>
                     </div>
                     <div className="d-flex align-items-center">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <i key={i} className={`bi ${i < r.stars ? 'bi-star-fill' : 'bi-star'} text-warning me-1`} />
                       ))}
-                      {user && String(user.email).toLowerCase() === String(r.userEmail).toLowerCase() ? (
+                      {user && r.userRun && user.run && String(r.userRun) === String(user.run) ? (
                         <button type="button" className="btn btn-sm btn-link ms-2 p-0" aria-label="Eliminar calificación" onClick={() => handleDelete(idx)}>
                           <i className="bi bi-trash-fill text-danger" />
                         </button>
                       ) : null}
                     </div>
                   </div>
-                  <div className={styles.reviewMeta}>{new Date(r.date).toLocaleString()}</div>
+                  <div className={styles.reviewMeta}>{r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</div>
                   <div className={`mt-1 ${styles.reviewText}`}>{r.comment}</div>
                 </div>
               </div>

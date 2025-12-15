@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { findUserByEmail, updateUser, upsertStoredUser, isDuocEmail, isBirthdayToday } from '../../utils/registro';
+import { upsertStoredUser, isDuocEmail, isBirthdayToday } from '../../utils/registro';
 import type { StoredUser } from '../../utils/registro';
-import { addUserAddress, cardDtoToStoredCard, fetchUserAddresses, fetchUserCards, fetchUserProfile, syncLocalUserProfile, type UserProfileUpdateRequest, updateUserProfile } from '../../services/userService';
+import { addUserAddress, addUserCard, cardDtoToStoredCard, deleteUserAddress, deleteUserCard, fetchUserAddresses, fetchUserCards, fetchUserProfile, syncLocalUserProfile, setDefaultCard, type UserProfileUpdateRequest, updateUserProfile, extractErrorMessage } from '../../services/userService';
 import { fetchOrders, type OrderResponse } from '../../services/pedidosService';
 import Modal from '../../components/ui/Modal';
 import FormField from '../../components/ui/FormField';
@@ -10,8 +10,8 @@ import { regions, products as allProducts } from '../../utils/dataLoaders';
 import styles from './Perfil.module.css';
 // checkout styles are used by the shared PaymentCards component when needed
 import PaymentCards from '../../components/payments/PaymentCards';
-import { formatCardNumber, formatExpMonth, formatExpYear, normalizeHolderName, detectBrand, maskLast4, sanitizeCardNumber } from '../../utils/cardUtils';
-import { getJSON } from '../../utils/storage';
+import { formatCardNumber, formatExpMonth, formatExpYear, normalizeHolderName, detectBrand, sanitizeCardNumber } from '../../utils/cardUtils';
+
 import { formatCLP } from '../../utils/currency';
 
 const Perfil: React.FC = () => {
@@ -58,24 +58,51 @@ const Perfil: React.FC = () => {
     }
 
     function orderResponseToProfileOrder(payload: OrderResponse) {
-        const items = (payload.items || []).map((it) => ({
+        const items = (payload.items || []).map((it: any) => ({
             code: it.productCode ?? it.productoCodigo,
             productId: it.productCode ?? it.productoCodigo,
             qty: Number(it.qty ?? it.cantidad ?? 0),
             cantidad: Number(it.cantidad ?? it.qty ?? 0),
             price: Number(it.price ?? it.precioUnitario ?? 0),
         }));
+
+        // Normalize card info variations from backend
+        const cardLastFour = (payload as any).cardLastFour
+            || (payload as any).cardLast4
+            || (payload as any).paymentLastFour
+            || (payload as any).cardLastDigits
+            || (payload as any).last4
+            || (payload as any).lastFour;
+        const cardBrand = (payload as any).cardBrand || (payload as any).paymentBrand || (payload as any).brand;
+        
+        // Construct discounts object from server fields if not already present
+        const discounts = payload.discounts || {
+            agePercent: payload.discountPercentApplied ? (payload.discountPercentApplied >= 50 ? 50 : 0) : 0,
+            codePercent: payload.lifetimeDiscountPercentApplied ?? 0,
+            ageDiscountMoney: 0,
+            codeDiscountMoney: 0,
+            discountPercentMoney: Number(payload.discountAmount ?? 0),
+            freeCakeApplied: payload.freeCakeApplied ?? false,
+            freeCakeMoney: Number(payload.freeCakeAmount ?? 0),
+            totalDiscountMoney: Number(payload.discountAmount ?? 0) + (payload.freeCakeApplied ? Number(payload.freeCakeAmount ?? 0) : 0),
+        };
+        
         return {
             id: payload.pedidoId || payload.id || '',
             items,
-            total: Number(payload.total ?? payload.totalConDescuento ?? 0),
+            total: Number(payload.totalConDescuento ?? payload.total ?? 0),
+            subtotal: Number(payload.subtotal ?? 0),
             estado: payload.status || payload.estado || 'Pendiente',
             tsISO: payload.createdAt || payload.tsISO || payload.fechaPedido,
-            direccionEntrega: payload.deliveryAddress || payload.direccionEntrega,
+            direccionEntrega: payload.deliveryAddress || '',
             usuarioCorreo: payload.usuarioCorreo,
             purchaserCorreo: payload.purchaserCorreo,
-            discounts: payload.discounts,
-            discountDescriptions: Array.isArray(payload.discountDescriptions) ? payload.discountDescriptions : undefined,
+            discounts,
+            freeCakeAmount: payload.freeCakeAmount,
+            discountAmount: payload.discountAmount,
+            cardId: payload.cardId,
+            cardLastFour,
+            cardBrand,
         };
     }
 
@@ -83,16 +110,14 @@ const Perfil: React.FC = () => {
         let active = true;
         const loadProfile = async () => {
             if (!user?.run) {
-                const fallback = user?.email ? findUserByEmail(user.email) : null;
-                if (active) setStoredUser(fallback ?? null);
+                if (active) setStoredUser(null);
                 return;
             }
             try {
                 const raw = await fetchUserProfile(user.run);
                 if (!active) return;
                 if (!raw) {
-                    const fallback = user.email ? findUserByEmail(user.email) : null;
-                    setStoredUser(fallback ?? null);
+                    setStoredUser(null);
                     return;
                 }
                 const profileEmail = String(raw.email || raw.correo || user.email || '').trim();
@@ -100,8 +125,8 @@ const Perfil: React.FC = () => {
                     setStoredUser(null);
                     return;
                 }
-                let addresses = Array.isArray(raw.addresses) ? raw.addresses : undefined;
-                let paymentCards: StoredUser['paymentCards'] | undefined = Array.isArray(raw.paymentCards) ? raw.paymentCards as StoredUser['paymentCards'] : undefined;
+                let addresses: any[] | undefined;
+                let paymentCards: StoredUser['paymentCards'] | undefined;
                 try {
                     const fetched = await fetchUserAddresses(user.run);
                     if (fetched && fetched.length) {
@@ -113,38 +138,54 @@ const Perfil: React.FC = () => {
                 try {
                     const fetchedCards = await fetchUserCards(user.run);
                     if (fetchedCards && fetchedCards.length) {
-                        const normalized = fetchedCards
+                        const normalized: any[] = fetchedCards
                             .map(cardDtoToStoredCard)
-                            .filter(Boolean) as StoredUser['paymentCards'];
+                            .filter((c): c is Exclude<ReturnType<typeof cardDtoToStoredCard>, null> => c !== null);
                         if (normalized.length) {
-                            paymentCards = normalized;
+                            paymentCards = normalized as StoredUser['paymentCards'];
                         }
                     }
                 } catch {
                     // use existing cards
                 }
-                const updated = upsertStoredUser({
-                    run: raw.run || user.run,
+                // upsertStoredUser writes to LocalStorage but now strips paymentCards, so we manually build storedUser
+                const runValue = raw.run || user.run || 'unknown';
+                const updated: StoredUser = {
+                    run: runValue,
                     name: String(raw.nombre || raw.name || user.name || ''),
                     lastname: String(raw.apellidos || raw.lastname || ''),
                     email: profileEmail,
                     birthdate: String(raw.fechaNacimiento || raw.birthdate || ''),
-                    role: (String(raw.tipoUsuario || raw.role || '') as StoredUser['role']) || undefined,
-                    phone: String(raw.telefono || raw.phone || '') || undefined,
-                    addresses: Array.isArray(addresses) ? addresses : undefined,
-                    paymentCards: Array.isArray(paymentCards) ? paymentCards : undefined,
+                    role: (String(raw.tipoUsuario || raw.role || '') as StoredUser['role']) || 'Cliente',
+                    codigo: undefined,
+                    password: '',
+                    phone: (String(raw.telefono || raw.phone || '') || undefined) as string | undefined,
+                    addresses: addresses as any,
+                    paymentCards: paymentCards || undefined,
                     defaultPaymentCardId: raw.defaultPaymentCardId ?? undefined,
                     avatarDataUrl: raw.avatarDataUrl ? String(raw.avatarDataUrl) : undefined,
                     discountPercent: typeof raw.discountPercent === 'number' ? raw.discountPercent : undefined,
                     lifetimeDiscount: raw.lifetimeDiscount ?? (typeof raw.lifetimeDiscountPercent === 'number' ? raw.lifetimeDiscountPercent > 0 : undefined),
                     freeCakeVoucher: raw.freeCakeVoucher ?? raw.freeCakeEligible ?? undefined,
                     freeCakeRedeemed: raw.freeCakeRedeemed ?? undefined,
+                    blocked: Boolean(raw.blocked ?? false),
+                    createdAt: String(raw.createdAt || new Date().toISOString()),
+                };
+                // Still upsert basic user data to LocalStorage (without cards)
+                upsertStoredUser({
+                    run: updated.run,
+                    name: updated.name,
+                    lastname: updated.lastname,
+                    email: updated.email,
+                    birthdate: updated.birthdate,
+                    role: updated.role,
+                    phone: updated.phone,
+                    addresses: updated.addresses,
                 });
                 setStoredUser(updated);
             } catch {
                 if (!active) return;
-                const fallback = user.email ? findUserByEmail(user.email) : null;
-                setStoredUser(fallback ?? null);
+                setStoredUser(null);
             }
         };
         loadProfile();
@@ -160,13 +201,6 @@ const Perfil: React.FC = () => {
         setAvatarPreview(storedUser?.avatarDataUrl ?? null);
         // exit editing mode when stored user changes
         setIsEditing(false);
-        // load orders for this user
-        try {
-            const all = getJSON<any[]>('ordenes') || [];
-            const own = storedUser?.email ? all.filter(o => String(o.usuarioCorreo || '').toLowerCase() === String(storedUser.email).toLowerCase()) : [];
-            own.sort((a: any, b: any) => String(b.tsISO || '').localeCompare(String(a.tsISO || '')));
-            setOrders(own);
-        } catch { setOrders([]); }
     }, [storedUser]);
 
     useEffect(() => {
@@ -190,61 +224,116 @@ const Perfil: React.FC = () => {
     }, [storedUser?.email]);
 
     useEffect(() => {
-        function onStorage(e: StorageEvent) {
-            if (e.key === 'ordenes') {
-                try {
-                    const all = getJSON<any[]>('ordenes') || [];
-                    const own = storedUser?.email ? all.filter(o => String(o.usuarioCorreo || '').toLowerCase() === String(storedUser.email).toLowerCase()) : [];
-                    own.sort((a: any, b: any) => String(b.tsISO || '').localeCompare(String(a.tsISO || '')));
-                    setOrders(own);
-                } catch { }
+        let active = true;
+        if (!storedUser?.email) return undefined;
+        (async () => {
+            try {
+                const remote = await fetchOrders();
+                if (!active) return;
+                const emailLower = String(storedUser.email).toLowerCase();
+                const normalized = remote
+                    .map(orderResponseToProfileOrder)
+                    .filter((o) => String(o.usuarioCorreo || o.purchaserCorreo || '').toLowerCase() === emailLower);
+                normalized.sort((a, b) => String(b.tsISO || '').localeCompare(String(a.tsISO || '')));
+                setOrders(normalized as any[]);
+            } catch (error) {
+                console.error('Error cargando órdenes del servidor', error);
             }
-        }
-        window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
-    }, [storedUser]);
+        })();
+        return () => { active = false; };
+    }, [storedUser?.email]);
 
     async function persistProfilePayload(payload: UserProfileUpdateRequest) {
-        if (!user?.run) return undefined;
-        const serverResponse = await updateUserProfile(user.run, payload);
-        if (!serverResponse) return undefined;
-        return syncLocalUserProfile(serverResponse, user.run);
+        if (!user?.run || !storedUser) return undefined;
+        try {
+            // Merge with current stored user data to ensure all required fields are sent
+            const fullPayload: UserProfileUpdateRequest = {
+                nombre: payload.nombre ?? storedUser.name,
+                apellidos: payload.apellidos ?? storedUser.lastname,
+                correo: payload.correo ?? storedUser.email,
+                fechaNacimiento: payload.fechaNacimiento ?? storedUser.birthdate,
+                telefono: payload.telefono ?? storedUser.phone,
+                tipoUsuario: payload.tipoUsuario ?? storedUser.role,
+                ...payload, // Override with any explicitly provided values
+            };
+            console.log('📤 Enviando payload al servidor:', fullPayload);
+            const serverResponse = await updateUserProfile(user.run, fullPayload);
+            if (!serverResponse) {
+                setProfileSaveError('No se recibió respuesta del servidor.');
+                return undefined;
+            }
+            return syncLocalUserProfile(serverResponse, user.run);
+        } catch (error) {
+            console.error('❌ Error en persistProfilePayload:', error);
+            const errorMsg = extractErrorMessage(error);
+            setProfileSaveError(errorMsg);
+            throw error;
+        }
     }
 
     async function handleSaveProfile() {
-        if (!user?.email) return;
-        // Birthdate is read-only: do not allow updating it here
-        const changes: Partial<StoredUser> = { name: nombre, lastname: apellido, phone: telefono };
-        const updated = updateUser(user.email, changes);
-        if (!updated) return false;
-        login({ name: updated.name, email: updated.email, run: updated.run });
-        setStoredUser(updated);
-
+        if (!user?.email || !storedUser) return false;
+        
+        // Create payload with updated values
         const payload: UserProfileUpdateRequest = {
-            nombre: updated.name,
-            apellidos: updated.lastname,
-            telefono: updated.phone ?? undefined,
+            nombre: nombre,
+            apellidos: apellido,
+            correo: storedUser.email,
+            telefono: telefono || undefined,
+            fechaNacimiento: storedUser.birthdate ?? undefined,
+            tipoUsuario: storedUser.role ?? undefined,
         };
-        const serverUser = await persistProfilePayload(payload);
-        if (serverUser) {
-            login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
-            setStoredUser(serverUser);
-            return true;
+        
+        try {
+            const serverUser = await persistProfilePayload(payload);
+            if (serverUser) {
+                console.log('✅ Perfil actualizado:', serverUser);
+                login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
+                // Preserve existing cards (syncLocalUserProfile doesn't return them anymore)
+                const merged: StoredUser = {
+                    ...serverUser,
+                    paymentCards: storedUser.paymentCards,
+                    defaultPaymentCardId: storedUser.defaultPaymentCardId,
+                };
+                setStoredUser(merged);
+                return true;
+            }
+        } catch (error) {
+            console.error('Error en handleSaveProfile:', error);
         }
         return false;
     }
 
     async function persistAvatar(nextAvatar: string | null) {
-        if (!user?.email) return;
-        const updated = updateUser(user.email, { avatarDataUrl: nextAvatar ?? undefined });
-        if (updated) {
-            login({ name: updated.name, email: updated.email, run: updated.run });
-            setStoredUser(updated);
-            const serverUser = await persistProfilePayload({ avatarDataUrl: nextAvatar ?? undefined });
-            if (serverUser) {
-                login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
-                setStoredUser(serverUser);
-            }
+        if (!user?.email || !storedUser) return;
+        
+        // Create updated user object in memory (don't save to localStorage)
+        const updated: StoredUser = {
+            ...storedUser,
+            avatarDataUrl: nextAvatar ?? undefined,
+        };
+        
+        login({ name: updated.name, email: updated.email, run: updated.run });
+        setStoredUser(updated);
+        
+        const serverUser = await persistProfilePayload({ 
+            nombre: updated.name,
+            apellidos: updated.lastname,
+            correo: updated.email,
+            avatarDataUrl: nextAvatar ?? undefined,
+            telefono: updated.phone ?? undefined,
+            fechaNacimiento: updated.birthdate ?? undefined,
+            tipoUsuario: updated.role ?? undefined,
+        });
+        if (serverUser) {
+            login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
+            // Preserve existing cards
+            const merged: StoredUser = {
+                ...serverUser,
+                paymentCards: storedUser.paymentCards,
+                defaultPaymentCardId: storedUser.defaultPaymentCardId,
+            };
+            setStoredUser(merged);
         }
     }
 
@@ -256,6 +345,8 @@ const Perfil: React.FC = () => {
         try {
             const saved = await handleSaveProfile();
             if (saved) {
+                // Los valores ya están actualizados en storedUser desde handleSaveProfile
+                // Solo necesitamos salir del modo edición
                 setIsEditing(false);
                 setProfileSaveError('');
             } else {
@@ -307,7 +398,7 @@ const Perfil: React.FC = () => {
     }
 
     async function handleAddAddress() {
-        if (!user?.email || !user?.run) return;
+        if (!user?.email || !user?.run || !storedUser) return;
         if (!addrLine.trim() || !addrRegion || !addrComuna) {
             setAddAddressError('Completa dirección, región y comuna para guardar.');
             return;
@@ -319,18 +410,23 @@ const Perfil: React.FC = () => {
             return;
         }
         const existing = storedUser?.addresses ?? [];
-        const updated = updateUser(user.email, { addresses: [...existing, created] });
-        if (updated) setStoredUser(updated);
+        const updated: StoredUser = { ...storedUser, addresses: [...existing, created] };
+        setStoredUser(updated);
         setAddrLine(''); setAddrRegion(''); setAddrComuna('');
         setAddAddressError('');
         setShowAddAddr(false);
     }
 
-    function removeAddress(id: string) {
-        if (!user?.email) return;
+    async function removeAddress(id: string) {
+        if (!user?.email || !storedUser || !user?.run) return;
         const existing = storedUser?.addresses ?? [];
-        const updated = updateUser(user.email, { addresses: existing.filter(a => a.id !== id) });
-        if (updated) setStoredUser(updated);
+        const updated: StoredUser = { ...storedUser, addresses: existing.filter(a => a.id !== id) };
+        setStoredUser(updated);
+        try {
+            await deleteUserAddress(user.run, id);
+        } catch (error) {
+            console.error('Error eliminando dirección del servidor:', error);
+        }
     }
 
     function requestRemoveAddress(id: string, label: string) {
@@ -353,6 +449,10 @@ const Perfil: React.FC = () => {
             const c = storedUser?.paymentCards?.find((pc: any) => String(pc.id) === String(o.paymentMethodId));
             return c ? `${c.brand} **** ${c.last4}` : String(o.paymentMethodId);
         }
+        if (o.cardLastFour) {
+            const brand = o.cardBrand || 'Tarjeta';
+            return `${brand} **** ${o.cardLastFour}`;
+        }
         return o.paymentMethod || '—';
     }
 
@@ -361,15 +461,20 @@ const Perfil: React.FC = () => {
     async function refreshPaymentCardsFromServer() {
         const runId = user?.run ?? storedUser?.run;
         const email = user?.email ?? storedUser?.email;
-        if (!runId || !email) return;
+        if (!runId || !email || !storedUser) return;
         try {
             const fetchedCards = await fetchUserCards(runId);
             if (!fetchedCards) return;
-            const normalized = fetchedCards
+            const normalized: any[] = fetchedCards
                 .map(cardDtoToStoredCard)
-                .filter(Boolean) as StoredUser['paymentCards'];
-            const updated = updateUser(email, { paymentCards: normalized.length ? normalized : [] });
-            if (updated) setStoredUser(updated);
+                .filter((c): c is Exclude<ReturnType<typeof cardDtoToStoredCard>, null> => c !== null);
+            // Merge fetched cards with existing to avoid losing freshly added items
+            const byId: Record<string, any> = {};
+            (storedUser.paymentCards || []).forEach((c: any) => { if (c?.id) byId[String(c.id)] = c; });
+            normalized.forEach((c: any) => { if (c?.id) byId[String(c.id)] = c; });
+            const merged = Object.values(byId) as StoredUser['paymentCards'];
+            const updated: StoredUser = { ...storedUser, paymentCards: merged };
+            setStoredUser(updated);
         } catch (refreshError) {
             console.error('Error sincronizando tarjetas', refreshError);
         }
@@ -390,8 +495,8 @@ const Perfil: React.FC = () => {
         try {
             const payload = {
                 cardNumber: cleanNumber,
-                month: cardData.expMonth || undefined,
-                year: cardData.expYear || undefined,
+                month: cardData.expMonth ? Number(cardData.expMonth) : undefined,
+                year: cardData.expYear ? Number(cardData.expYear) : undefined,
                 cardholderName: normalizeHolderName(cardData.holder || ''),
             };
             const created = await addUserCard(runId, payload);
@@ -408,26 +513,38 @@ const Perfil: React.FC = () => {
             };
             const existing = storedUser?.paymentCards ?? [];
             const willSetDefault = !storedUser?.defaultPaymentCardId;
-            const updated = updateUser(user.email, {
-                paymentCards: [...existing, storedCard],
-                defaultPaymentCardId: willSetDefault ? storedCard.id : storedUser?.defaultPaymentCardId,
-            });
-            if (updated) {
+            // Append new card at the end
+            const updatedCards = [...existing, storedCard];
+            if (storedUser) {
+                const updated: StoredUser = {
+                    ...storedUser,
+                    paymentCards: updatedCards,
+                    defaultPaymentCardId: willSetDefault ? storedCard.id : storedUser?.defaultPaymentCardId,
+                };
                 setStoredUser(updated);
-                setCardSaveError('');
             }
-            await refreshPaymentCardsFromServer();
+            setCardSaveError('');
+            
             if (willSetDefault && storedCard.id) {
                 try {
                     const serverUser = await persistProfilePayload({ defaultPaymentCardId: storedCard.id });
                     if (serverUser) {
                         login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
-                        setStoredUser(serverUser);
+                        // Preserve the updated cards list (with the new card)
+                        const merged: StoredUser = {
+                            ...serverUser,
+                            paymentCards: updatedCards,
+                            defaultPaymentCardId: storedCard.id,
+                        };
+                        setStoredUser(merged);
                     }
                 } catch (syncError) {
                     console.error('No se pudo actualizar la tarjeta predeterminada', syncError);
                 }
             }
+            
+            // Refresh from server to sync any additional details, merging with our local list
+            await refreshPaymentCardsFromServer();
         } catch (error) {
             console.error(error);
             setCardSaveError('No fue posible guardar la tarjeta. Intenta de nuevo más tarde.');
@@ -435,34 +552,115 @@ const Perfil: React.FC = () => {
     }
 
     async function removeCard(id: string) {
-        if (!user?.email) return;
+        if (!user?.email || !storedUser || !user?.run) return;
         const existing = storedUser?.paymentCards ?? [];
         const remaining = existing.filter((c: any) => c.id !== id);
         // if removed card was default, pick a new default (first remaining) or clear
         const nextDefault = storedUser?.defaultPaymentCardId === id ? (remaining[0]?.id ?? undefined) : storedUser?.defaultPaymentCardId;
-        const updated = updateUser(user.email, { paymentCards: remaining, defaultPaymentCardId: nextDefault });
-        if (updated) {
-            setStoredUser(updated);
-            try {
-                await persistProfilePayload({ defaultPaymentCardId: nextDefault });
-            } catch (error) {
-                console.error('No se pudo actualizar la tarjeta predeterminada', error);
-            }
-        }
-    }
-
-    async function setDefaultCard(id: string) {
-        if (!user?.email) return;
-        const updated = updateUser(user.email, { defaultPaymentCardId: id });
-        if (updated) setStoredUser(updated);
+        const updated: StoredUser = { ...storedUser, paymentCards: remaining, defaultPaymentCardId: nextDefault };
+        setStoredUser(updated);
         try {
-            const serverUser = await persistProfilePayload({ defaultPaymentCardId: id });
+            await deleteUserCard(user.run, id);
+        } catch (error) {
+            console.error('Error eliminando tarjeta del servidor:', error);
+        }
+        try {
+            const serverUser = await persistProfilePayload({ defaultPaymentCardId: nextDefault });
             if (serverUser) {
-                login({ name: serverUser.name, email: serverUser.email, run: serverUser.run });
-                setStoredUser(serverUser);
+                // Preserve the updated cards list AND existing addresses
+                const merged: StoredUser = {
+                    ...serverUser,
+                    addresses: storedUser.addresses,
+                    paymentCards: remaining,
+                    defaultPaymentCardId: nextDefault,
+                };
+                setStoredUser(merged);
             }
         } catch (error) {
             console.error('No se pudo actualizar la tarjeta predeterminada', error);
+        }
+    }
+
+    async function handleSetDefaultCard(id: string) {
+        if (!user?.email || !user?.run || !storedUser) return;
+        
+        const userRun = user.run;
+        
+        // Update cards locally to mark the selected one as default
+        const updatedCards = storedUser.paymentCards?.map(card => ({
+            ...card,
+            isDefault: card.id === id
+        }));
+        
+        const updated: StoredUser = { 
+            ...storedUser, 
+            defaultPaymentCardId: id,
+            paymentCards: updatedCards
+        };
+        setStoredUser(updated);
+        
+        try {
+            // Call the server to set the default card
+            console.log('Setting default card:', userRun, id);
+            const response = await setDefaultCard(userRun, id);
+            console.log('Server response:', response);
+            
+            if (response) {
+                // Server confirmed, refresh all cards from server to get accurate state
+                const refreshedCards = await fetchUserCards(userRun);
+                console.log('Refreshed cards:', refreshedCards);
+                
+                if (refreshedCards && refreshedCards.length > 0) {
+                    const normalized: any[] = refreshedCards
+                        .map(cardDtoToStoredCard)
+                        .filter((c): c is Exclude<ReturnType<typeof cardDtoToStoredCard>, null> => c !== null);
+                    
+                    // Update the profile with refreshed cards
+                    const merged: StoredUser = {
+                        ...storedUser,
+                        paymentCards: normalized.length > 0 ? normalized : updatedCards,
+                        defaultPaymentCardId: id,
+                    };
+                    setStoredUser(merged);
+                    console.log('Cards updated successfully');
+                }
+            } else {
+                console.warn('Server did not return a response for setting default card');
+                // Still refresh cards to sync with server state
+                const refreshedCards = await fetchUserCards(userRun);
+                if (refreshedCards && refreshedCards.length > 0) {
+                    const normalized: any[] = refreshedCards
+                        .map(cardDtoToStoredCard)
+                        .filter((c): c is Exclude<ReturnType<typeof cardDtoToStoredCard>, null> => c !== null);
+                    
+                    const merged: StoredUser = {
+                        ...storedUser,
+                        paymentCards: normalized.length > 0 ? normalized : updatedCards,
+                        defaultPaymentCardId: id,
+                    };
+                    setStoredUser(merged);
+                }
+            }
+        } catch (error) {
+            console.error('Error al actualizar la tarjeta predeterminada:', error);
+            // Even on error, try to refresh from server
+            try {
+                const refreshedCards = await fetchUserCards(userRun);
+                if (refreshedCards && refreshedCards.length > 0) {
+                    const normalized: any[] = refreshedCards
+                        .map(cardDtoToStoredCard)
+                        .filter((c): c is Exclude<ReturnType<typeof cardDtoToStoredCard>, null> => c !== null);
+                    
+                    const merged: StoredUser = {
+                        ...storedUser,
+                        paymentCards: normalized.length > 0 ? normalized : updatedCards,
+                        defaultPaymentCardId: id,
+                    };
+                    setStoredUser(merged);
+                }
+            } catch (refreshError) {
+                console.error('Error refreshing cards:', refreshError);
+            }
         }
     }
 
@@ -692,7 +890,7 @@ const Perfil: React.FC = () => {
                                                                         <div className="small text-secondary">{o.direccionEntrega || o.direccion || '—'}</div>
                                                                     </div>
                                                                     <div className="col-12 mt-2">
-                                                                        <div className="fw-semibold">Detalles</div>
+                                                                        <div className="fw-semibold">Productos</div>
                                                                         <div className="small text-secondary">
                                                                             {Array.isArray(o.items) && o.items.length > 0 ? (
                                                                                 <ul className="mb-0">
@@ -703,25 +901,31 @@ const Perfil: React.FC = () => {
                                                                             ) : '—'}
                                                                         </div>
                                                                     </div>
-                                                                    {o.discounts ? (
-                                                                        <div className="col-12 mt-3">
-                                                                            <div className="fw-semibold">Descuentos aplicados</div>
-                                                                            <div className="small text-secondary">
-                                                                                <ul className="mb-0">
+                                                                    <div className="col-12 mt-3">
+                                                                        <div className="fw-semibold mb-2">Resumen de pago</div>
+                                                                        <div className="small text-secondary">
+                                                                            {typeof o.subtotal === 'number' ? (
+                                                                                <>
+                                                                                    <div className="d-flex justify-content-between"><span>Subtotal</span><span>{formatCLP(o.subtotal)}</span></div>
+                                                                                </>
+                                                                            ) : null}
+                                                                            {o.discounts ? (
+                                                                                <>
                                                                                     {o.discounts.agePercent > 0 ? (
-                                                                                        <li>50% beneficio mayores — {formatCLP(Number(o.discounts.ageDiscountMoney || 0))}</li>
+                                                                                        <div className="d-flex justify-content-between text-success"><span>50% beneficio mayores</span><span>-{formatCLP(Number(o.discounts.ageDiscountMoney || 0))}</span></div>
                                                                                     ) : null}
                                                                                     {o.discounts.codePercent > 0 ? (
-                                                                                        <li>10% descuento de por vida (FELICES50) — {formatCLP(Number(o.discounts.codeDiscountMoney || 0))}</li>
+                                                                                        <div className="d-flex justify-content-between text-success"><span>10% descuento de por vida</span><span>-{formatCLP(Number(o.discounts.codeDiscountMoney || 0))}</span></div>
                                                                                     ) : null}
                                                                                     {o.discounts.freeCakeApplied ? (
-                                                                                        <li>Torta gratis — {formatCLP(Number(o.discounts.freeCakeMoney || 0))}</li>
+                                                                                        <div className="d-flex justify-content-between text-success"><span>Torta gratis</span><span>-{formatCLP(Number(o.discounts.freeCakeMoney || 0))}</span></div>
                                                                                     ) : null}
-                                                                                    <li className="fw-semibold mt-1">Total descuentos — {formatCLP(Number(o.discounts.totalDiscountMoney || 0))}</li>
-                                                                                </ul>
-                                                                            </div>
+                                                                                </>
+                                                                            ) : null}
+                                                                            <div className="d-flex justify-content-between"><span>Total descuentos</span><span>-{formatCLP(Number(o.discountAmount ?? o.discounts?.totalDiscountMoney ?? 0))}</span></div>
+                                                                            <div className="border-top pt-2 mt-2 d-flex justify-content-between fw-semibold"><span>Total</span><span>{formatCLP(Number(o.total || 0))}</span></div>
                                                                         </div>
-                                                                    ) : null}
+                                                                    </div>
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -772,10 +976,11 @@ const Perfil: React.FC = () => {
                             <div className="row g-3" id="cards-container">
                                 <div className="col-12">
                                     <PaymentCards
+                                        key={(storedUser?.paymentCards || []).length}
                                         mode="list"
                                         paymentCards={storedUser?.paymentCards || []}
                                         defaultCardId={storedUser?.defaultPaymentCardId}
-                                        onSetDefault={(id) => setDefaultCard(id)}
+                                        onSetDefault={(id) => handleSetDefaultCard(id)}
                                         onRemove={(id) => removeCard(id)}
                                         onAdd={(data) => addCard({ number: formatCardNumber(data.number), holder: normalizeHolderName(data.holder || ''), expMonth: formatExpMonth(data.expMonth || ''), expYear: formatExpYear(data.expYear || '') })}
                                     />

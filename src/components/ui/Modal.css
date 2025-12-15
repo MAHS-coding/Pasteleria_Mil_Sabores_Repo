@@ -15,8 +15,13 @@
     color: var(--accent-dark);
 }
 
+.modal {
+    z-index: 1300 !important;
+}
+
 .modal-backdrop {
     background-color: rgba(0,0,0,0.45) !important;
+    z-index: 1299 !important;
 }
 
 .modal .modal-footer,

@@ -157,7 +157,7 @@
     font-size: 0.85rem;
 }
 .stockBadgeLow {
-    background: rgba(var(--accent-main-rgb), 0.7);
+    background: #722f37;
     color: #fff;
     border-radius: 8px;
     padding: 0.35rem 0.8rem;

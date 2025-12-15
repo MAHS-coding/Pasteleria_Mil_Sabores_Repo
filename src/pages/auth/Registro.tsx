@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { findUserByEmail } from "../../utils/registro";
 import { formatearRun, validarRun, emailDominioValido } from "../../utils/validation";
 import FieldFeedback from "../../components/ui/FieldFeedback";
 import FormField from "../../components/ui/FormField";
@@ -61,10 +60,6 @@ const Registro: React.FC = () => {
         const v = validate();
         setErrors(v);
         if (Object.keys(v).length) return;
-        if (email && findUserByEmail(email)) {
-            setErrors({ email: "Ya existe una cuenta con ese correo; inicia sesión para continuar." });
-            return;
-        }
 
         const payload = {
             run,

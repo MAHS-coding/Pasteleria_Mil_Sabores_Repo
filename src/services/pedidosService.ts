@@ -20,16 +20,29 @@ export type OrderItemRequest = {
 };
 
 export type OrderRequest = {
-    run?: string;
-    correo?: string;
+    // Backend expects these names
+    userRun?: string;
+    purchaserCorreo?: string;
     total: number;
+    subtotal?: number;
+    shippingCost?: number;
+    freeCakeAmount?: number;
+    discountAmount?: number;
     fechaEntrega: string;
-    direccionEntrega: string;
+    deliveryAddress: string;
+    applyDiscounts?: boolean;
+    applyFreeCakeCoupon?: boolean;
     paymentMethodId?: string;
     paymentMethod?: string;
     items: OrderItemRequest[];
     discounts?: OrderDiscounts;
     estado?: string;
+    // Payment metadata (frontend sends these for card association)
+    cardId?: string;
+    cardLastFour?: string;
+    cardBrand?: string;
+    paymentLastFour?: string;
+    paymentBrand?: string;
 };
 
 export type OrderItemSummaryDto = {
@@ -44,32 +57,41 @@ export type OrderItemSummaryDto = {
 };
 
 export type OrderResponse = {
-    id?: string;
     pedidoId?: string;
+    subtotal?: number;
+    shippingCost?: number;
+    freeCakeAmount?: number;
+    discountPercentApplied?: number;
+    lifetimeDiscountPercentApplied?: number;
+    discountAmount?: number;
+    total?: number;
+    items?: any[];
+    cardId?: string;
+    cardLastFour?: string;
+    cardBrand?: string;
+    freeCakeAvailable?: boolean;
+    freeCakeSuggestedProducts?: string[];
+    // Legacy/alternative field names for backwards compatibility
+    id?: string;
     tsISO?: string;
+    createdAt?: string;
     fechaPedido?: string;
     usuarioCorreo?: string;
-    total?: number;
-    items?: OrderItemSummaryDto[];
-    estado?: string;
-    status?: string;
-    createdAt?: string;
-    deliveryAddress?: string;
-    freeCakeApplied?: boolean;
-    freeCakeAmount?: number;
-    discountAppliedPercent?: number;
-    lifetimeDiscountAppliedPercent?: number;
-    subtotal?: number;
-    discountAmount?: number;
+    purchaserCorreo?: string;
     purchaserRun?: string;
     purchaserNombre?: string;
     purchaserApellidos?: string;
-    purchaserCorreo?: string;
     purchaserTelefono?: string;
-    freeCakeTortaKey?: string;
-    discounts?: OrderDiscounts;
+    deliveryAddress?: string;
+    estado?: string;
+    status?: string;
+    freeCakeApplied?: boolean;
+    discountAppliedPercent?: number;
+    lifetimeDiscountAppliedPercent?: number;
     totalSinDescuento?: number;
     totalConDescuento?: number;
+    freeCakeTortaKey?: string;
+    discounts?: OrderDiscounts;
 };
 
 export async function createOrder(payload: OrderRequest): Promise<OrderResponse> {

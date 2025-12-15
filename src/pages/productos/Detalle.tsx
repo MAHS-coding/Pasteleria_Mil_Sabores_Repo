@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import RatingsSection from "../../components/product/RatingsSection";
-import { getRatings, getAverage } from '../../utils/ratings';
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { products as seedProducts } from "../../utils/dataLoaders";
 import type { Product } from "../../types/product";
@@ -8,8 +7,10 @@ import styles from "./Detalle.module.css";
 import { scrollToTop } from "../../utils/scroll";
 import ProductCard from "../../components/product/ProductCard";
 import { useCart } from "../../context/CartContext";
-import { getRelatedProducts, isPersonalizable, getProductByCode } from "../../utils/products";
+import { getRelatedProducts, isPersonalizable } from "../../utils/products";
 import { formatCLP } from "../../utils/currency";
+import { fetchRatingsByProduct } from "../../services/ratingsService";
+import { fetchProductByCode, dtoToProduct } from "../../services/productosService";
 import Modal from "../../components/ui/Modal";
 import { STOCK_INSUFICIENTE_TITLE, STOCK_INSUFICIENTE_MSG, CANTIDAD_AJUSTADA_TITLE, soloQuedanUnidades, seSolicitaranMensajes } from "../../utils/messages";
 
@@ -21,6 +22,7 @@ const Detalle: React.FC = () => {
   const [producto, setProducto] = useState<Product | null>(null);
   const [qty, setQty] = useState<number>(1);
   const [mensaje, setMensaje] = useState("");
+  const [ratingSummary, setRatingSummary] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
   const { items, addMultiple, add, addPersonalizedBatch } = useCart();
   const [showMessageWizard, setShowMessageWizard] = useState(false);
   const [wizardMessages, setWizardMessages] = useState<string[]>([]);
@@ -35,13 +37,52 @@ const Detalle: React.FC = () => {
   const [pendingWizardQtyToAdd, setPendingWizardQtyToAdd] = useState<number | null>(null);
 
   useEffect(() => {
-    const found = getProductByCode(code, seedProducts);
-    if (!found) {
+    if (!code) {
       setProducto(null);
       return;
     }
-    setProducto(found as Product);
+    let active = true;
+    (async () => {
+      try {
+        const dto = await fetchProductByCode(code);
+        if (!active) return;
+        if (!dto) {
+          setProducto(null);
+          return;
+        }
+        const found = dtoToProduct(dto);
+        setProducto(found as Product);
+      } catch (error) {
+        console.error("Error loading product:", error);
+        if (active) setProducto(null);
+      }
+    })();
+    return () => { active = false; };
   }, [code]);
+
+  useEffect(() => {
+    if (!producto?.code) {
+      setRatingSummary({ avg: 0, count: 0 });
+      return;
+    }
+    let active = true;
+    const loadRatings = async () => {
+      try {
+        const ratings = await fetchRatingsByProduct(producto.code);
+        if (!active) return;
+        if (ratings && ratings.length > 0) {
+          const total = ratings.reduce((s, r) => s + Number(r.stars || 0), 0);
+          setRatingSummary({ avg: total / ratings.length, count: ratings.length });
+        } else {
+          setRatingSummary({ avg: 0, count: 0 });
+        }
+      } catch (err) {
+        if (active) setRatingSummary({ avg: 0, count: 0 });
+      }
+    };
+    loadRatings();
+    return () => { active = false; };
+  }, [producto?.code]);
 
   // Asegura que al navegar al detalle la vista quede al inicio (importante en mobile)
   useEffect(() => {
@@ -275,8 +316,8 @@ const Detalle: React.FC = () => {
 
             {/* ratings */}
             {(() => {
-              const rese = getRatings(producto.code);
-              const avg = getAverage(producto.code).avg || 0;
+              const avg = ratingSummary.avg || 0;
+              const count = ratingSummary.count;
               return (
                 <div className="mb-3">
                   <span className="me-2">
@@ -284,7 +325,9 @@ const Detalle: React.FC = () => {
                       <i key={i} className={`bi ${i < Math.round(avg) ? 'bi-star-fill' : 'bi-star'} text-warning me-1`} />
                     ))}
                   </span>
-                  <span className={styles.ratingMeta}>{(avg).toFixed(1)} ({rese.length} {rese.length === 1 ? 'reseña' : 'reseñas'})</span>
+                  <span className={styles.ratingMeta}>
+                    {count > 0 ? `${avg.toFixed(1)} (${count} ${count === 1 ? 'reseña' : 'reseñas'})` : 'Sin reseñas aún'}
+                  </span>
                 </div>
               );
             })()}

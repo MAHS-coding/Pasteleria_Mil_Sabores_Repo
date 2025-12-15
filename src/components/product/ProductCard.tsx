@@ -5,7 +5,7 @@ import { scrollToTop } from "../../utils/scroll";
 import { useCart } from "../../context/CartContext";
 import Modal from "../ui/Modal";
 import { isPersonalizable } from "../../utils/products";
-import { getAverage } from "../../utils/ratings";
+import { fetchRatingsByProduct } from "../../services/ratingsService";
 import { formatCLP } from "../../utils/currency";
 import PersonalizeMessageModal from "./PersonalizeMessageModal";
 import { STOCK_INSUFICIENTE_TITLE, STOCK_INSUFICIENTE_MSG } from "../../utils/messages";
@@ -32,36 +32,24 @@ export const ProductCard: React.FC<Props> = ({ p, onPersonalize }) => {
     }
 
     useEffect(() => {
-        // initial average
-        try {
-            setAvg(getAverage(p.code));
-        } catch (err) {
-            // ignore
-        }
-
-        const handler = (ev: Event) => {
+        let active = true;
+        const load = async () => {
             try {
-                const ce = ev as CustomEvent;
-                if (ce?.detail?.productCode === p.code) {
-                    setAvg(getAverage(p.code));
+                const ratings = await fetchRatingsByProduct(p.code);
+                if (!active) return;
+                if (ratings && ratings.length > 0) {
+                    const total = ratings.reduce((s, r) => s + Number(r.stars || 0), 0);
+                    setAvg({ avg: total / ratings.length, count: ratings.length });
+                } else {
+                    setAvg({ avg: 0, count: 0 });
                 }
-            } catch {
-                // ignore
+            } catch (err) {
+                if (active) setAvg({ avg: 0, count: 0 });
             }
         };
-
-        window.addEventListener('ratings-updated', handler as EventListener);
-        // also listen to storage events for cross-tab updates
-        const storageHandler = (ev: StorageEvent) => {
-            if (ev.key === 'product_ratings_v1') {
-                setAvg(getAverage(p.code));
-            }
-        };
-        window.addEventListener('storage', storageHandler);
-
+        load();
         return () => {
-            window.removeEventListener('ratings-updated', handler as EventListener);
-            window.removeEventListener('storage', storageHandler);
+            active = false;
         };
     }, [p.code]);
 

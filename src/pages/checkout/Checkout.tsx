@@ -1,18 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
-import { findUserByEmail, updateUser, isDuocEmail, isBirthdayToday, type StoredUser } from "../../utils/registro";
+import { isDuocEmail, isBirthdayToday, type StoredUser } from "../../utils/registro";
 import { products as allProducts, regions } from "../../utils/dataLoaders";
 import { formatCLP } from "../../utils/currency";
 import Modal from "../../components/ui/Modal";
 import FormField from "../../components/ui/FormField";
 import styles from './Checkout.module.css';
-import { formatCardNumber, formatExpMonth, formatExpYear, normalizeHolderName, detectBrand, maskLast4 } from '../../utils/cardUtils';
+import { formatCardNumber, formatExpMonth, formatExpYear, normalizeHolderName, maskLast4 } from '../../utils/cardUtils';
+import { fetchUserAddresses, fetchUserCards, fetchUserProfile, type AddressDto } from "../../services/userService";
 import PaymentCards from '../../components/payments/PaymentCards';
-import { getJSON, setJSON } from "../../utils/storage";
 import { useNavigate } from "react-router-dom";
-import { createOrder, OrderRequest } from "../../services/pedidosService";
+import { createOrder, type OrderRequest, type OrderResponse } from "../../services/pedidosService";
 import { addUserAddress, addUserCard, cardDtoToStoredCard } from "../../services/userService";
+import { clearCart } from "../../services/cartService";
 
 const SHIPPING_COST = 5000;
 
@@ -45,14 +46,105 @@ const Checkout: React.FC = () => {
   const { items, clear } = useCart();
   const { user } = useAuth();
   const [storedUser, setStoredUser] = useState<StoredUser | null>(null);
+  // Local, server-backed cards state (no LocalStorage)
+  const [checkoutCards, setCheckoutCards] = useState<StoredUser['paymentCards']>([]);
+  const [defaultCardId, setDefaultCardId] = useState<string | undefined>(undefined);
+  const [addresses, setAddresses] = useState<AddressDto[]>([]);
+  
   useEffect(() => {
-    if (!user?.email) { setStoredUser(null); return; }
-    setStoredUser(findUserByEmail(user.email) ?? null);
+    if (!user?.email) { 
+      setStoredUser(null);
+      setAddresses([]);
+      return; 
+    }
+    // Reset local user and reload from server
+    setStoredUser(null);
+    
+    // Load profile (brings discounts/benefits)
+    if (user?.run) {
+      fetchUserProfile(user.run).then(raw => {
+        if (raw) {
+          setStoredUser({
+            run: raw.run || user.run,
+            name: raw.nombre || raw.name || user.name || '',
+            lastname: raw.apellidos || raw.lastname || '',
+            email: raw.correo || raw.email || user.email || '',
+            birthdate: raw.fechaNacimiento || raw.birthdate || '',
+            role: raw.tipoUsuario || raw.role,
+            discountPercent: typeof raw.discountPercent === 'number' ? raw.discountPercent : undefined,
+            lifetimeDiscount: raw.lifetimeDiscount ?? (typeof raw.lifetimeDiscountPercent === 'number' ? raw.lifetimeDiscountPercent > 0 : undefined),
+            freeCakeVoucher: raw.freeCakeVoucher ?? raw.freeCakeEligible ?? undefined,
+            freeCakeRedeemed: raw.freeCakeRedeemed ?? undefined,
+            blocked: raw.blocked ?? false,
+          } as StoredUser);
+        }
+      }).catch(err => {
+        console.error('Error loading profile:', err);
+        setStoredUser(null);
+      });
+
+      // Load addresses from server
+      fetchUserAddresses(user.run).then(addrs => {
+        if (addrs) setAddresses(addrs);
+      }).catch(err => {
+        console.error('Error loading addresses:', err);
+        setAddresses([]);
+      });
+
+      // Load cards from server
+      fetchUserCards(user.run).then(cards => {
+        if (cards) {
+          const result: any[] = [];
+          for (const card of cards) {
+            const mapped = cardDtoToStoredCard(card);
+            if (mapped) result.push(mapped);
+          }
+          setCheckoutCards(result);
+          // Select the card marked as default from server, or first one if none is marked
+          const defaultCard = result.find((c) => c.isDefault) || result[0];
+          setDefaultCardId(defaultCard?.id);
+        } else {
+          setCheckoutCards([]);
+          setDefaultCardId(undefined);
+        }
+      }).catch(err => {
+        console.error('Error loading cards:', err);
+        setCheckoutCards([]);
+        setDefaultCardId(undefined);
+      });
+    }
   }, [user]);
 
   useEffect(() => {
     setBlockedMsg(storedUser?.blocked ? "Tu cuenta está bloqueada. Contacta al administrador para desbloquearla." : "");
   }, [storedUser]);
+
+  // Periodically re-validate blocking status (every 30 seconds) to catch real-time updates
+  useEffect(() => {
+    const userRun = user?.run;
+    if (!userRun) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const freshProfile = await fetchUserProfile(userRun);
+        if (freshProfile && (freshProfile.blocked === true || freshProfile.activo === false)) {
+          // User was blocked while on checkout page
+          if (!storedUser?.blocked) {
+            setStoredUser(prev => prev ? { ...prev, blocked: true } : null);
+            setBlockedMsg("Tu cuenta ha sido bloqueada. No puedes confirmar pedidos.");
+          }
+        } else if (freshProfile && freshProfile.blocked === false && storedUser?.blocked) {
+          // User was unblocked
+          setStoredUser(prev => prev ? { ...prev, blocked: false } : null);
+          setBlockedMsg("");
+        }
+      } catch (err) {
+        // Silent fail on validation checks
+      }
+    }, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [user?.run, storedUser?.blocked]);
 
   // address management
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
@@ -74,11 +166,12 @@ const Checkout: React.FC = () => {
 
   // confirmation modal after placing order
   const [confirmPlacedOpen, setConfirmPlacedOpen] = useState(false);
+  const [serverOrder, setServerOrder] = useState<OrderResponse | null>(null);
   const [blockedMsg, setBlockedMsg] = useState<string>("");
   const [orderError, setOrderError] = useState<string>("");
 
-  const discountPercent = storedUser?.discountPercent ?? 0;
   // determine contributors to the discount for clearer UI
+  const isBirthdayTodayFlag = isBirthdayToday(storedUser?.birthdate);
   const ageDiscountPercent = (() => {
     try {
       if (!storedUser?.birthdate) return 0;
@@ -92,8 +185,9 @@ const Checkout: React.FC = () => {
     } catch { return 0; }
   })();
   const codeDiscountPercent = storedUser?.lifetimeDiscount ? 10 : 0;
-  const dynamicBirthdayVoucher = !!(storedUser && isDuocEmail(storedUser.email) && isBirthdayToday(storedUser.birthdate) && !storedUser.freeCakeRedeemed);
-  const hasFreeCakeVoucher = !!(storedUser?.freeCakeVoucher && !storedUser?.freeCakeRedeemed) || dynamicBirthdayVoucher;
+  const dynamicBirthdayVoucher = !!(storedUser && isDuocEmail(storedUser.email) && isBirthdayTodayFlag && !storedUser.freeCakeRedeemed);
+  // Solo permitir torta gratis si es el día de cumpleaños
+  const hasFreeCakeVoucher = (storedUser?.freeCakeVoucher && !storedUser?.freeCakeRedeemed && isBirthdayTodayFlag) || dynamicBirthdayVoucher;
 
   // Respect user's choice (from Cart) to apply the birthday voucher
   const userKey = (storedUser?.email || "guest").toLowerCase();
@@ -139,11 +233,18 @@ const Checkout: React.FC = () => {
     const p = allProducts.find((p) => p.code === target.code);
     return p?.price || 0;
   }, [items, applyFreeCakeVoucher, selectedTortaKey]);
-  // Apply free cake first (if selected), then percentage discounts over the remaining subtotal
-  const discountAmount = useMemo(() => {
-    const combinedPercent = ageDiscountPercent + codeDiscountPercent;
-    const base = Math.max(0, subtotal - (applyFreeCakeVoucher ? freeCakeAmount : 0));
-    return Math.round(base * (combinedPercent / 100));
+  // Apply free cake first, then 50% age discount, then 10% lifetime over the remaining (sequential)
+  const { ageDiscountMoneyCalc, codeDiscountMoneyCalc, discountAmount } = useMemo(() => {
+    const baseAfterCake = Math.max(0, subtotal - (applyFreeCakeVoucher ? freeCakeAmount : 0));
+    // Apply age discount first (50%), then code discount (10%) on the remaining
+    const ageMoney = Math.round(baseAfterCake * (ageDiscountPercent / 100));
+    const remainingAfterAge = Math.max(0, baseAfterCake - ageMoney);
+    const codeMoney = Math.round(remainingAfterAge * (codeDiscountPercent / 100));
+    return {
+      ageDiscountMoneyCalc: ageMoney,
+      codeDiscountMoneyCalc: codeMoney,
+      discountAmount: ageMoney + codeMoney,
+    };
   }, [subtotal, ageDiscountPercent, codeDiscountPercent, freeCakeAmount, applyFreeCakeVoucher]);
   const shippingAmount = items.length > 0 ? SHIPPING_COST : 0;
   const totalBeforeShipping = Math.max(0, subtotal - discountAmount - freeCakeAmount);
@@ -173,12 +274,9 @@ const Checkout: React.FC = () => {
       if (!added || !added.id) {
         throw new Error("No se obtuvo la dirección guardada");
       }
-      const existing = storedUser?.addresses ?? [];
-      const updated = updateUser(user.email, { addresses: [...existing, added] });
-      if (updated) {
-        setStoredUser(updated);
-        setSelectedAddressId(added.id);
-      }
+      // Add the new address to the local list
+      setAddresses([...addresses, added]);
+      setSelectedAddressId(added.id);
       setShowAddAddr(false);
     } catch (error) {
       setAddAddressError("No fue posible guardar la dirección. Intenta de nuevo más tarde.");
@@ -186,7 +284,7 @@ const Checkout: React.FC = () => {
   }
 
   function getSelectedAddressLabel(): string {
-    const a = storedUser?.addresses?.find((x) => x.id === selectedAddressId);
+    const a = addresses.find((x) => x.id === selectedAddressId);
     if (a) return `${a.address}${a.comuna ? ", " + a.comuna : ""}${a.region ? ", " + a.region : ""}`;
     return "";
   }
@@ -217,19 +315,45 @@ const Checkout: React.FC = () => {
     try {
       const saved = await addUserCard(user.run, {
         cardNumber: cardData.number,
-        month: cardData.expMonth,
-        year: cardData.expYear,
+        month: cardData.expMonth ? Number(cardData.expMonth) : undefined,
+        year: cardData.expYear ? Number(cardData.expYear) : undefined,
         cardholderName: cardData.holder,
       });
-      const storedCard = cardDtoToStoredCard(saved);
+      const storedCard = cardDtoToStoredCard(saved || undefined);
       if (!storedCard) {
         throw new Error("No se pudo formatear la tarjeta");
       }
-      const existing = storedUser?.paymentCards ?? [];
-      const willSetDefault = !storedUser?.defaultPaymentCardId;
-      const updated = updateUser(user.email, { paymentCards: [storedCard, ...existing], defaultPaymentCardId: willSetDefault ? storedCard.id : storedUser?.defaultPaymentCardId });
-      if (updated) setStoredUser(updated);
-      setSelectedCardId(storedCard.id);
+      // Optimistically update local cards state: append at end
+      setCheckoutCards(prev => ([...(prev || []), storedCard]));
+      // Light server sync to reconcile without losing the new item
+      try {
+        const serverCards = await fetchUserCards(user.run);
+        if (serverCards) {
+          const result: any[] = [];
+          for (const card of serverCards) {
+            const mapped = cardDtoToStoredCard(card);
+            if (mapped) result.push(mapped);
+          }
+          const normalized = result;
+          // Merge by id, preserve optimistic order with new card at the end
+          const existingById = new Map<string, any>();
+          (normalized || []).forEach(c => { if (c?.id) existingById.set(String(c.id), c); });
+          setCheckoutCards(prev => {
+            const base = [...(prev || [])];
+            const seen = new Set(base.map(c => String(c.id)));
+            const merged = [...base];
+            normalized.forEach(c => {
+              const id = String(c.id);
+              if (!seen.has(id)) merged.push(c);
+            });
+            // Also refresh any details for duplicates from server
+            return merged.map(c => existingById.get(String(c.id)) || c);
+          });
+        }
+      } catch {}
+      // Set default if none
+      setDefaultCardId(prev => prev ?? (storedCard as any).id);
+      setSelectedCardId((storedCard as any).id);
     } catch (error) {
       setPaymentMethodError("No fue posible guardar la tarjeta. Intenta de nuevo más tarde.");
     }
@@ -238,6 +362,21 @@ const Checkout: React.FC = () => {
   async function placeOrder(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) return;
+    
+    // Re-validate user blocking status before placing order (check for real-time updates)
+    if (user?.run) {
+      try {
+        const freshProfile = await fetchUserProfile(user.run);
+        if (freshProfile && (freshProfile.blocked === true || freshProfile.activo === false)) {
+          setBlockedMsg("Tu cuenta está bloqueada. Contacta al administrador para desbloquearla.");
+          return;
+        }
+      } catch (err) {
+        console.error('Error validating user status:', err);
+        // Continue even if validation fails, let backend handle it
+      }
+    }
+    
     if (storedUser?.blocked) {
       setBlockedMsg("Tu cuenta está bloqueada. Contacta al administrador para desbloquearla.");
       return;
@@ -276,12 +415,15 @@ const Checkout: React.FC = () => {
     const codePercentApplied = codeDiscountPercent;
     const freeCakeApplied = applyFreeCakeVoucher && freeCakeAmount > 0 && !!selectedTortaKey;
     const freeCakeMoney = freeCakeApplied ? freeCakeAmount : 0;
-    // Apply percent discounts over the subtotal after removing free cake value
+    // Apply percent discounts sequentially: age discount first, then code discount on the remaining
     const baseForPercent = Math.max(0, subtotal - freeCakeMoney);
     const ageDiscountMoney = Math.round(baseForPercent * (agePercentApplied / 100));
-    const codeDiscountMoney = Math.round(baseForPercent * (codePercentApplied / 100));
-    const discountPercentMoney = ageDiscountMoney + codeDiscountMoney;
+    const remainingAfterAge = Math.max(0, baseForPercent - ageDiscountMoney);
+    const codeDiscountMoney = Math.round(remainingAfterAge * (codePercentApplied / 100));
+    const discountPercentMoney = codeDiscountMoney + ageDiscountMoney;
     const totalDiscountMoney = discountPercentMoney + freeCakeMoney;
+
+    const selectedCard = (checkoutCards || []).find(pc => String(pc.id) === String(selectedCardId));
 
     // build order
     const order: Order = {
@@ -294,8 +436,11 @@ const Checkout: React.FC = () => {
       fechaEntrega,
       direccionEntrega: addressText,
       estado: "Pendiente",
-      paymentMethodId: selectedCardId ?? undefined,
-      paymentMethod: selectedCardId ? (storedUser?.paymentCards?.find(pc => String(pc.id) === String(selectedCardId)) ? `${storedUser?.paymentCards?.find(pc => String(pc.id) === String(selectedCardId))?.brand} **** ${storedUser?.paymentCards?.find(pc => String(pc.id) === String(selectedCardId))?.last4}` : String(selectedCardId)) : undefined,
+      paymentMethodId: selectedCard?.id ?? selectedCardId ?? undefined,
+      paymentMethod: selectedCardId ? (() => {
+        const pc = selectedCard;
+        return pc ? `${pc.brand} **** ${pc.last4}` : String(selectedCardId);
+      })() : undefined,
       discounts: {
         agePercent: agePercentApplied,
         codePercent: codePercentApplied,
@@ -310,14 +455,26 @@ const Checkout: React.FC = () => {
     };
 
     const orderRequest: OrderRequest = {
-      run: user?.run,
-      correo: storedUser?.email,
+      userRun: user?.run,
+      purchaserCorreo: storedUser?.email,
       total,
+      subtotal,
+      shippingCost: shippingAmount,
+      freeCakeAmount,
+      discountAmount: discountAmount,
       fechaEntrega,
-      direccionEntrega: addressText,
+      deliveryAddress: addressText,
+      applyDiscounts: true,
+      applyFreeCakeCoupon: applyFreeCakeVoucher,
       estado: order.estado,
       paymentMethodId: order.paymentMethodId,
       paymentMethod: order.paymentMethod,
+      // Provide explicit card metadata for backend variants
+      cardId: selectedCard?.id ?? selectedCardId ?? undefined,
+      cardLastFour: selectedCard?.last4,
+      cardBrand: selectedCard?.brand,
+      paymentLastFour: selectedCard?.last4,
+      paymentBrand: selectedCard?.brand,
       items: items.map((it) => ({
         productoCodigo: it.code,
         cantidad: it.cantidad || 0,
@@ -329,41 +486,26 @@ const Checkout: React.FC = () => {
 
     setOrderError("");
     try {
-      await createOrder(orderRequest);
+      const response = await createOrder(orderRequest);
+      setServerOrder(response || null);
     } catch (err) {
       setOrderError("No fue posible guardar el pedido. Intenta de nuevo más tarde.");
       return;
     }
 
-    // persist into 'ordenes'
-    try {
-      const prev: Order[] = getJSON<Order[]>("ordenes") || [];
-      prev.push(order);
-      setJSON("ordenes", prev as any);
-    } catch { }
+    // NOTE: localStorage persistence disabled - orders now saved only via API
+    // NOTE: Stock updates now handled by backend API
+    // NOTE: Free cake redemption now handled by backend when order is created
 
-    // decrement stock in 'catalogo'
-    try {
-      const catalogo: any[] = getJSON<any[]>("catalogo") || [];
-      for (const it of items) {
-        const idx = catalogo.findIndex((p) => String(p.code) === String(it.code));
-        if (idx >= 0) {
-          const base = Number(catalogo[idx].stock || 0);
-          const next = Math.max(0, base - Number(it.cantidad || 0));
-          catalogo[idx].stock = next;
-        }
+    // clear cart from database (fallback handles 403 bulk delete)
+    if (user?.run) {
+      const cleared = await clearCart(user.run);
+      if (!cleared) {
+        console.warn('No se pudo limpiar el carrito en el servidor.');
       }
-      setJSON("catalogo", catalogo);
-    } catch { }
+    }
 
-    // mark free cake redeemed if applied
-    try {
-      if (applyFreeCakeVoucher && freeCakeAmount > 0 && storedUser?.email) {
-        updateUser(storedUser.email, { freeCakeVoucher: false, freeCakeRedeemed: true });
-      }
-    } catch { }
-
-    // clear cart
+    // clear cart locally
     clear();
 
     // show confirmation and redirect to perfil
@@ -389,13 +531,13 @@ const Checkout: React.FC = () => {
             <div className="mb-3">
               <label htmlFor="direccionSelect" className="form-label">Dirección de entrega</label>
               <div className="input-group">
-                <select id="direccionSelect" className="form-select" required={!!(storedUser?.addresses?.length)} value={selectedAddressId} onChange={(e) => setSelectedAddressId(e.target.value)}>
-                  {!storedUser?.addresses?.length ? (
+                <select id="direccionSelect" className="form-select" required={!!addresses.length} value={selectedAddressId} onChange={(e) => setSelectedAddressId(e.target.value)}>
+                  {!addresses.length ? (
                     <option value="">No tienes direcciones guardadas</option>
                   ) : (
                     <>
                       <option value="">Selecciona…</option>
-                      {(storedUser.addresses || []).map((a) => (
+                      {(addresses || []).map((a) => (
                         <option key={a.id} value={a.id}>{a.address}{a.comuna ? `, ${a.comuna}` : ''}{a.region ? `, ${a.region}` : ''}</option>
                       ))}
                     </>
@@ -410,9 +552,10 @@ const Checkout: React.FC = () => {
               {user ? (
                 <div>
                   <PaymentCards
+                    key={(checkoutCards || []).length}
                     mode="select"
-                    paymentCards={storedUser?.paymentCards || []}
-                    defaultCardId={storedUser?.defaultPaymentCardId}
+                    paymentCards={checkoutCards || []}
+                    defaultCardId={defaultCardId}
                     selectedId={selectedCardId}
                     onSelectedChange={(id) => { setSelectedCardId(id); setPaymentMethodError(""); }}
                     onAdd={(data) => addCard({ number: formatCardNumber(data.number), holder: normalizeHolderName(data.holder || ''), expMonth: formatExpMonth(data.expMonth || ''), expYear: formatExpYear(data.expYear || '') })}
@@ -480,13 +623,13 @@ const Checkout: React.FC = () => {
                       {ageDiscountPercent > 0 ? (
                         <li className="d-flex justify-content-between text-success"> 
                           <span>50% beneficio mayores</span>
-                          <span>-{formatCLP(Math.round(Math.max(0, subtotal - (hasFreeCakeVoucher ? freeCakeAmount : 0)) * (ageDiscountPercent / 100)))}</span>
+                          <span>-{formatCLP(ageDiscountMoneyCalc)}</span>
                         </li>
                       ) : null}
                       {codeDiscountPercent > 0 ? (
                         <li className="d-flex justify-content-between text-success"> 
                           <span>10% descuento de por vida (FELICES50)</span>
-                          <span>-{formatCLP(Math.round(Math.max(0, subtotal - (hasFreeCakeVoucher ? freeCakeAmount : 0)) * (codeDiscountPercent / 100)))}</span>
+                          <span>-{formatCLP(codeDiscountMoneyCalc)}</span>
                         </li>
                       ) : null}
                       {hasFreeCakeVoucher && freeCakeAmount > 0 ? (
@@ -509,6 +652,9 @@ const Checkout: React.FC = () => {
                 </div>
               </>
             )}
+            <div className="mt-3 text-muted" style={{ fontSize: "0.75rem" }}>
+              * Los descuentos se aplican secuencialmente: primero el 50% de mayores, luego el 10% sobre el monto restante.
+            </div>
           </div>
         </div>
       </div>
@@ -552,7 +698,23 @@ const Checkout: React.FC = () => {
         cancelLabel="Cerrar"
       >
         <div>
-          ¡Tu pedido ha sido confirmado con éxito! Serás redirigido a tu perfil.
+          <p className="mb-2">¡Tu pedido ha sido confirmado con éxito!</p>
+          {serverOrder ? (
+            <div className="small">
+              <div className="d-flex justify-content-between"><span>Subtotal</span><span>{formatCLP(serverOrder.subtotal ?? subtotal)}</span></div>
+              {serverOrder.freeCakeApplied && typeof serverOrder.freeCakeAmount === 'number' ? (
+                <div className="d-flex justify-content-between text-success"><span>Torta gratis</span><span>-{formatCLP(serverOrder.freeCakeAmount)}</span></div>
+              ) : null}
+              {typeof serverOrder.discountAmount === 'number' && serverOrder.discountAmount > 0 ? (
+                <div className="d-flex justify-content-between text-success"><span>Descuentos</span><span>-{formatCLP(serverOrder.discountAmount)}</span></div>
+              ) : null}
+              <div className="d-flex justify-content-between"><span>Despacho</span><span>{formatCLP(typeof serverOrder.shippingCost === 'number' ? serverOrder.shippingCost : (items.length > 0 ? SHIPPING_COST : 0))}</span></div>
+              <hr />
+              <div className="d-flex justify-content-between fw-semibold"><span>Total</span><span>{formatCLP(typeof serverOrder.totalConDescuento === 'number' ? serverOrder.totalConDescuento : (serverOrder.total ?? total))}</span></div>
+            </div>
+          ) : (
+            <div>Serás redirigido a tu perfil.</div>
+          )}
         </div>
       </Modal>
     </main>

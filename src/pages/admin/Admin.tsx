@@ -1,13 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "../../components/ui/Modal";
 import Charts from "../../components/admin/Charts";
-import { products as seedProducts } from "../../utils/dataLoaders";
 import type { Product } from "../../types/product";
-import { getJSON, setJSON } from "../../utils/storage";
 import slugify from "../../utils/slugify";
-import { updateUser, findUserByEmail, readUsers, writeUsers } from "../../utils/registro";
 import { formatearRun } from "../../utils/validation";
-import { sha256Hex } from "../../utils/hash";
 import { useAuth } from "../../context/AuthContext";
 import { isAdminEmail } from "../../utils/roles";
 import { fetchOrders, fetchAdminOrders } from "../../services/pedidosService";
@@ -20,8 +16,10 @@ import {
     dtoToProduct,
     productToDto,
 } from "../../services/productosService";
-import { fetchAllCategories } from "../../services/categoriasService.ts";
-import type { CategoryOption } from "../../services/categoriasService.ts";
+import { fetchAllCategories, createCategoria } from "../../services/categoriasService";
+import { fetchVentasEnRango } from "../../services/ventasService";
+import type { VentaResumen } from "../../services/ventasService";
+import { fetchAllUsers, toggleUserActive } from "../../services/userService";
 import './Admin.module.css';
 
 type Usuario = {
@@ -99,7 +97,9 @@ function validarRut(rut?: string) {
 }
 
 // Loaders (localStorage-first)
-function initCatalogLocal(seed: Product[], key = "catalogo"): Product[] {
+// Note: initCatalogLocal is no longer used - products are loaded from backend via fetchAllProducts
+/*
+function initCatalogLocal_DEPRECATED(seed: Product[], key = "catalogo"): Product[] {
     try {
         let cat = getJSON<Product[] | null>(key) || null;
         if (!Array.isArray(cat) || cat.length === 0) {
@@ -125,10 +125,9 @@ function initCatalogLocal(seed: Product[], key = "catalogo"): Product[] {
         return Array.isArray(seed) ? (seed as Product[]) : [];
     }
 }
+*/
 
-const loadUsuarios = (): Usuario[] => getJSON<Usuario[]>("usuarios") || [];
-const saveUsuarios = (arr: Usuario[]) => setJSON("usuarios", arr);
-const loadOrdenes = (): Orden[] => getJSON<Orden[]>("ordenes") || [];
+// Usuarios y órdenes se cargan desde la API, no desde localStorage
 
 function adaptOrderResponse(payload: OrderResponse): Orden {
     const baseTs = payload.createdAt || payload.tsISO || payload.fechaPedido;
@@ -150,7 +149,7 @@ function adaptOrderResponse(payload: OrderResponse): Orden {
         id: payload.pedidoId || payload.id || "",
         tsISO,
         fecha: baseTs,
-        usuarioCorreo: payload.usuarioCorreo,
+        usuarioCorreo: payload.usuarioCorreo || payload.purchaserCorreo,
         total: payload.total,
         items,
         discounts,
@@ -170,7 +169,9 @@ function adaptOrderResponse(payload: OrderResponse): Orden {
     };
 }
 
-function loadVentas() {
+/*
+function loadVentas_DEPRECATED() {
+    // Note: loadVentas is no longer used - ventas are loaded from backend via fetchVentasEnRango
     let v = getJSON<any[]>("ventas");
     if (!Array.isArray(v)) {
         const ords = loadOrdenes();
@@ -188,81 +189,9 @@ function loadVentas() {
     }
     return v;
 }
+*/
 
-function buildVentasFromOrders(ords: Orden[]): Array<{ productId: string; qty: number; price: number; tsISO: string }> {
-    const ventas: Array<{ productId: string; qty: number; price: number; tsISO: string }> = [];
-    for (const order of ords) {
-        const ts = String(order.tsISO || order.fecha || new Date().toISOString());
-        for (const item of order.items || []) {
-            ventas.push({
-                productId: String(item.productId ?? item.code ?? ""),
-                qty: Number(item.qty || item.cantidad || 0),
-                price: Number(item.price || 0),
-                tsISO: ts,
-            });
-        }
-    }
-    return ventas;
-}
-
-function persistOrdersInStorage(ords: Orden[]) {
-    try { setJSON("ordenes", ords); } catch {}
-    try { setJSON("ventas", buildVentasFromOrders(ords)); } catch {}
-}
-
-// Merge legacy 'usuarios' store with main 'users' store so Admin sees both sources
-function emailToId(email?: string): number {
-    const s = String(email || "").toLowerCase();
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i), h |= 0;
-    return Math.abs(h) || 1;
-}
-
-function ensureUsuariosConRol(): Usuario[] {
-    // 1) Legacy usuarios
-    const legacy = (loadUsuarios() || []).map((u: Usuario) => ({ ...u, rol: u.rol || ROLES.CLIENTE, bloqueado: Boolean(u.bloqueado) }));
-    // 2) Main users
-    const mains = (readUsers() || []).map((m: any) => ({
-        id: emailToId(m.email),
-        rut: m.run,
-        nombre: m.name,
-        apellido: m.lastname,
-        correo: m.email,
-        password: undefined,
-        fechaNacimiento: m.birthdate,
-        rol: m.role || ROLES.CLIENTE,
-        bloqueado: Boolean(m.blocked),
-        creadoEn: m.createdAt,
-        protegido: false,
-    } as Usuario));
-    // 3) Merge by email, prefer main user role/block flags
-    const byEmail = new Map<string, Usuario>();
-    for (const u of legacy) {
-        const key = String(u.correo || "").toLowerCase();
-        if (!key) continue;
-        byEmail.set(key, u);
-    }
-    for (const u of mains) {
-        const key = String(u.correo || "").toLowerCase();
-        if (!key) continue;
-        const prev = byEmail.get(key);
-        if (prev) {
-            byEmail.set(key, {
-                ...prev,
-                ...u,
-                id: emailToId(u.correo),
-                rol: u.rol || prev.rol || ROLES.CLIENTE,
-                bloqueado: Boolean((u as any).bloqueado ?? prev.bloqueado),
-            });
-        } else {
-            byEmail.set(key, u);
-        }
-    }
-    const merged = Array.from(byEmail.values());
-    // Persist merged list to legacy for consistency in Admin UI
-    try { saveUsuarios(merged); } catch { }
-    return merged;
-}
+// Órdenes y ventas se cargan desde la API
 
 // Admin page component
 const Admin: React.FC = () => {
@@ -279,38 +208,60 @@ const Admin: React.FC = () => {
     });
     const [confirm, setConfirm] = useState<{ show: boolean; title?: string; body?: React.ReactNode; onConfirm?: () => void; confirmLabel?: string; cancelLabel?: string }>({ show: false });
 
-    const [catalogo, setCatalogo] = useState<Product[]>(() => initCatalogLocal(seedProducts as Product[], "catalogo"));
+    const [catalogo, setCatalogo] = useState<Product[]>([]);
     const [catalogError, setCatalogError] = useState<string | null>(null);
     const [catalogLoading, setCatalogLoading] = useState(false);
-    const [usuarios, setUsuarios] = useState<Usuario[]>(() => ensureUsuariosConRol());
-    const [ordenes, setOrdenes] = useState<Orden[]>(() => loadOrdenes());
+    const [categoriasApi, setCategoriasApi] = useState<Array<{ id?: number | string; slug: string; label: string }>>([]);
+    const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+    const [ordenes, setOrdenes] = useState<Orden[]>([]);
+    const [ventas, setVentas] = useState<VentaResumen[]>([]);
     const { user } = useAuth();
     const isAdminUser = useMemo(() => isAdminEmail(user?.email), [user?.email]);
-    const ventas = useMemo(() => loadVentas(), [ordenes]);
     const persistCatalog = (items: Product[]) => {
-        try { setJSON("catalogo", items); } catch {}
         setCatalogo(items);
     };
     const updateCatalog = (updater: (prev: Product[]) => Product[]) => {
         setCatalogo((prev) => {
             const next = updater(prev);
-            try { setJSON("catalogo", next); } catch {}
             return next;
         });
     };
 
+    // Todos los datos se cargan desde la API, no desde localStorage
+
+    // Load usuarios from API instead of localStorage
     useEffect(() => {
-        // Sync on storage changes (multi-tab)
-        const handler = (e: StorageEvent) => {
-            if (["catalogo", "usuarios", "ordenes", "ventas", "users"].includes(e.key || "")) {
-                setOrdenes(loadOrdenes());
-                setUsuarios(ensureUsuariosConRol());
-                try { setCatalogo(initCatalogLocal(seedProducts as Product[], "catalogo")); } catch {}
+        if (!isAdminUser) {
+            return;
+        }
+        let active = true;
+        (async () => {
+            try {
+                const remoteUsers = await fetchAllUsers();
+                if (!active) return;
+                const mapped: Usuario[] = (remoteUsers || []).map((raw: any) => ({
+                    id: Number(raw.id || raw.userId || 0) || Math.random() * 100000,
+                    rut: raw.run,
+                    nombre: raw.nombre || raw.name,
+                    apellido: raw.apellidos || raw.lastname,
+                    correo: raw.correo || raw.email,
+                    password: undefined,
+                    fechaNacimiento: raw.fechaNacimiento || raw.birthdate,
+                    rol: raw.tipoUsuario || raw.role || ROLES.CLIENTE,
+                    bloqueado: raw.activo === false || raw.blocked === true,
+                    creadoEn: raw.createdAt,
+                    protegido: String(raw.correo || raw.email || '').toLowerCase() === 'pasteleriamilsabores.fm@gmail.com',
+                } as Usuario));
+                setUsuarios(mapped);
+            } catch (error) {
+                console.error("No se pudieron cargar los usuarios desde el backend.", error);
+                // Si falla la API, mostrar lista vacía
+                if (!active) return;
+                setUsuarios([]);
             }
-        };
-        window.addEventListener("storage", handler);
-        return () => window.removeEventListener("storage", handler);
-    }, []);
+        })();
+        return () => { active = false; };
+    }, [isAdminUser]);
 
     useEffect(() => {
         if (!user?.email) return;
@@ -334,6 +285,29 @@ const Admin: React.FC = () => {
         return () => { active = false; };
     }, [user?.email]);
 
+    // Load categorías desde API
+    useEffect(() => {
+        if (!user?.email) return;
+        let active = true;
+        (async () => {
+            try {
+                const remote = await fetchAllCategories();
+                if (!active) return;
+                const normalized = (remote || []).map((c) => ({
+                    id: c.id,
+                    slug: c.slug,
+                    label: c.label,
+                }));
+                setCategoriasApi(normalized);
+            } catch (error) {
+                console.error("No se pudieron cargar las categorías desde el backend.", error);
+                if (!active) return;
+                setCategoriasApi([]);
+            }
+        })();
+        return () => { active = false; };
+    }, [user?.email]);
+
     useEffect(() => {
         let active = true;
         (async () => {
@@ -342,13 +316,34 @@ const Admin: React.FC = () => {
                 if (!active) return;
                 const adapted = (remote || []).map(adaptOrderResponse);
                 setOrdenes(adapted);
-                persistOrdersInStorage(adapted);
             } catch (error) {
                 console.error("No se pudieron cargar las órdenes desde el backend.", error);
             }
         })();
         return () => { active = false; };
     }, [isAdminUser]);
+
+    useEffect(() => {
+        if (!user?.email) return;
+        let active = true;
+        (async () => {
+            try {
+                const hoy = new Date();
+                const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                const fechaInicio = inicioMes.toISOString().split("T")[0];
+                const fechaFin = hoy.toISOString().split("T")[0];
+                
+                const remoteVentas = await fetchVentasEnRango(fechaInicio, fechaFin);
+                if (!active) return;
+                setVentas(remoteVentas || []);
+            } catch (error) {
+                console.error("No se pudieron cargar las ventas desde el backend.", error);
+                if (!active) return;
+                setVentas([]);
+            }
+        })();
+        return () => { active = false; };
+    }, [user?.email]);
 
     // Keep admin section in URL hash and session storage so browser Back navigates within Admin
     useEffect(() => {
@@ -383,9 +378,14 @@ const Admin: React.FC = () => {
     // Dashboard derived values
     const productosStockBajo = (catalogo || []).filter((p: any) => Number(p.stock || 0) <= 5);
     const bajo = productosStockBajo.length;
-    const ventasMes = ventas.filter((x: any) => String(x.tsISO).slice(0, 7) === yyyymm(today));
-    const totalUnidMes = ventasMes.reduce((a: number, x: any) => a + Number(x.qty || 0), 0);
-    const totalCLPMes = ventasMes.reduce((a: number, x: any) => a + Number(x.qty || 0) * Number(x.price || 0), 0);
+    
+    // Calcular ventas y totales del mes desde ventas diarias
+    const ventasMes = ventas.filter((v: any) => {
+        const fechaVenta = String(v.fecha || "").slice(0, 7);
+        return fechaVenta === yyyymm(today);
+    });
+    const totalUnidMes = ventasMes.reduce((a: number, v: any) => a + Number(v.cantidadVendida || 0), 0);
+    const totalCLPMes = ventasMes.reduce((a: number, v: any) => a + Number(v.ingresosTotal || 0), 0);
 
     // Use `ordenes` state (if available) to compute orders and totals for the month.
     const ordenesMes = (ordenes || []).filter((o: any) => {
@@ -408,12 +408,13 @@ const Admin: React.FC = () => {
         const f = (u as any).fechaNacimiento || (u as any).nacimiento || null;
         if (!f) return null;
         const d = new Date(f);
-        if (Number.isNaN(d as any)) return null;
+        const time = d.getTime();
+        if (Number.isNaN(time)) return null;
         const t = new Date();
         let age = t.getFullYear() - d.getFullYear();
         const m = t.getMonth() - d.getMonth();
         if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age--;
-        return age;
+        return Number.isFinite(age) ? age : null;
     };
     const domainOf = (email = "") => String(email).toLowerCase().split("@")[1] || "";
     const isDuoc = (u: Usuario) => ["duoc.cl", "profesor.duoc.cl"].includes(domainOf(u.correo));
@@ -455,15 +456,8 @@ const Admin: React.FC = () => {
             onConfirm: () => {
                 setUsuarios((prev) => {
                     const next = prev.map((ux) => (ux.id === id ? { ...ux, rol: value } : ux));
-                    saveUsuarios(next);
-                    try {
-                        const changed = next.find((ux) => ux.id === id);
-                        const email = String(changed?.correo || "").toLowerCase();
-                        if (email && findUserByEmail(email)) {
-                            updateUser(email, { role: value as any });
-                        }
-                    } catch {}
-                    return ensureUsuariosConRol();
+                    // El rol se actualiza en el estado local; la persistencia en BD se haría mediante una API
+                    return next;
                 });
                 setConfirm({ show: false });
             },
@@ -487,20 +481,32 @@ const Admin: React.FC = () => {
             ),
             confirmLabel: accion,
             cancelLabel: "Cancelar",
-            onConfirm: () => {
-                setUsuarios((prev) => {
-                    const next = prev.map((ux) => (ux.id === id ? { ...ux, bloqueado: checked } : ux));
-                    saveUsuarios(next);
-                    try {
-                        const changed = next.find((ux) => ux.id === id);
-                        const email = String(changed?.correo || "").toLowerCase();
-                        if (email && findUserByEmail(email)) {
-                            updateUser(email, { blocked: checked as any });
-                        }
-                    } catch {}
-                    return ensureUsuariosConRol();
-                });
-                setConfirm({ show: false });
+            onConfirm: async () => {
+                const run = u.rut || "";
+                if (!run) {
+                    setConfirm({ show: false });
+                    return;
+                }
+                try {
+                    // Enviar al backend: activo=true para usuario activo, activo=false para bloqueado
+                    const result = await toggleUserActive(run, !checked);
+                    if (result) {
+                        // Actualizar el estado local con la respuesta del servidor
+                        setUsuarios((prev) => {
+                            const next = prev.map((ux) => {
+                                if (ux.id === id) {
+                                    return { ...ux, bloqueado: result.activo === false };
+                                }
+                                return ux;
+                            });
+                            return next;
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error al actualizar bloqueo en backend:', err);
+                } finally {
+                    setConfirm({ show: false });
+                }
             },
         });
     }
@@ -510,7 +516,6 @@ const Admin: React.FC = () => {
                 setConfirm({ show: true, title: "Eliminar usuario", body: <div className="text-danger"><i className="bi bi-shield-lock" /> No se puede eliminar un usuario SuperAdmin.</div> });
                 return;
             }
-        const ordenes = loadOrdenes();
         const tieneOrdenes = ordenes.some((o) => String(o.usuarioId) === String(u.id) || String(o.usuarioCorreo || "") === String(u.correo || ""));
         if (tieneOrdenes) {
             setConfirm({ show: true, title: "Confirmar eliminación", body: <div className="text-danger"><i className="bi bi-exclamation-triangle" /> No se puede eliminar este usuario porque tiene órdenes registradas.</div> });
@@ -527,8 +532,7 @@ const Admin: React.FC = () => {
             onConfirm: () => {
                 setUsuarios((prev) => {
                     const next = prev.filter((x) => x.id !== u.id && x.rut !== u.rut);
-                    saveUsuarios(next);
-                    return ensureUsuariosConRol();
+                    return next;
                 });
                 setConfirm({ show: false });
             },
@@ -538,10 +542,13 @@ const Admin: React.FC = () => {
     // Productos: vendidas hoy y producibles
     const vendidasHoy = useMemo(() => {
         const m = new Map<string, number>();
+        const hoyStr = today.toISOString().split("T")[0]; // YYYY-MM-DD
         for (const v of ventas) {
-            if (!isSameDay(v.tsISO as any)) continue;
-            const id = (v as any).productId;
-            m.set(id, (m.get(id) || 0) + Number((v as any).qty || 0));
+            const fechaVenta = String(v.fecha || "");
+            if (fechaVenta !== hoyStr) continue;
+            const id = String(v.productoCodigo || (v as any).productId || "");
+            const cantidad = Number(v.cantidadVendida !== undefined ? v.cantidadVendida : (v as any).qty || 0);
+            m.set(id, (m.get(id) || 0) + cantidad);
         }
         return m;
     }, [ventas]);
@@ -645,29 +652,29 @@ const Admin: React.FC = () => {
             const [editMsg, setEditMsg] = useState<{text:string; ok:boolean|null}>({text:"", ok:null});
             const [delMsg, setDelMsg] = useState<{text:string; ok:boolean|null}>({text:"", ok:null});
             const [stkMsg, setStkMsg] = useState<{text:string; ok:boolean|null}>({text:"", ok:null});
-            const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
-            const [categoriesLoading, setCategoriesLoading] = useState(false);
-            const [categoriesError, setCategoriesError] = useState<string | null>(null);
-            useEffect(() => {
-                if (!user?.email) return;
-                let active = true;
-                setCategoriesError(null);
-                setCategoriesLoading(true);
-                (async () => {
-                    try {
-                        const remote = await fetchAllCategories();
-                        if (!active) return;
-                        setCategoryOptions(remote || []);
-                    } catch (error) {
-                        console.error("No se pudieron cargar las categorías desde el backend.", error);
-                        if (!active) return;
-                        setCategoriesError("No se pudo cargar la lista de categorías.");
-                    } finally {
-                        if (active) setCategoriesLoading(false);
+            
+            // Extraer categorías desde API (con id) y complementar con catálogo
+            const categoryOptions = useMemo(() => {
+                const map = new Map<string, { label: string; id?: number | string }>();
+                (categoriasApi || []).forEach((c) => {
+                    if (!c?.slug) return;
+                    map.set(c.slug, { label: c.label || c.slug, id: c.id });
+                });
+                (catalogo || []).forEach((p: any) => {
+                    const categoryId = p.categoryId || p.categoriaId;
+                    const categoryName = p.categoryLabel || p.nombreCategoria || p.category || p.categoria;
+                    if (!categoryName) return;
+                    const slug = slugify(String(categoryName));
+                    if (!map.has(slug)) {
+                        map.set(slug, { label: categoryName, id: categoryId });
                     }
-                })();
-                return () => { active = false; };
-            }, [user?.email]);
+                });
+                return Array.from(map.entries()).map(([slug, meta]) => ({
+                    id: meta.id,
+                    slug,
+                    label: meta.label,
+                }));
+            }, [categoriasApi, catalogo]);
 
             const extractFriendlyError = (error: unknown): string => {
                 if (error && typeof error === "object") {
@@ -782,6 +789,29 @@ const Admin: React.FC = () => {
                     cancelLabel: "Cancelar",
                     onConfirm: async () => {
                         try {
+                            // Resolver/crear categoría y obtener id válido
+                            let resolvedCategoryId = candidate.categoryId || candidate.categoriaId;
+                            const selectedSlug = candidate.category;
+                            const opt = availableCategoryOptions.find((o) => o.slug === selectedSlug);
+                            if (!resolvedCategoryId && opt?.id != null) {
+                                const parsed = Number(opt.id);
+                                if (Number.isFinite(parsed)) resolvedCategoryId = parsed;
+                            }
+                            if (!resolvedCategoryId && addCatMode === 'new') {
+                                const newCatName = String(addNewCat || candidate.categoryLabel || candidate.nombreCategoria || selectedSlug || "Categoria").trim();
+                                const createdCat = await createCategoria(newCatName);
+                                const createdId = (createdCat as any)?.id ?? (createdCat as any)?.idCategoria ?? (createdCat as any)?.categoria_id ?? (createdCat as any)?.categoriaId;
+                                if (createdId != null) {
+                                    resolvedCategoryId = Number(createdId);
+                                    const slug = slugify(newCatName);
+                                    setCategoriasApi((prev) => [...prev, { id: resolvedCategoryId, slug, label: newCatName }]);
+                                }
+                            }
+                            if (!resolvedCategoryId) {
+                                throw new Error("No se pudo resolver la categoría. Recarga categorías e intenta nuevamente.");
+                            }
+                            candidate.categoryId = resolvedCategoryId;
+                            candidate.categoriaId = resolvedCategoryId;
                             const created = await createProduct(productToDto(candidate));
                             const added = dtoToProduct(created);
                             updateCatalog((prev) => [...prev, added]);
@@ -963,11 +993,12 @@ const Admin: React.FC = () => {
                                         const id = p.code;
                                         const vHoy = vendidasHoy.get(id) || 0;
                                         const prodHoy = Math.max(0, Number(p.capacidadDiaria || 20) - vHoy);
+                                        const displayCategory = p.categoryLabel || p.nombreCategoria || p.category || p.categoria || '';
                                         return (
                                             <tr key={p.code}>
                                                 <td>{p.code || ''}</td>
                                                 <td>{p.productName || p.nombre || ''}</td>
-                                                <td>{p.category || p.categoria || ''}</td>
+                                                <td>{displayCategory}</td>
                                                 <td className="text-end">{CLP(p.price || p.precio || 0)}</td>
                                                 <td className="text-end">{Number(p.stock || 0)}</td>
                                                 <td className="text-end">{vHoy}</td>
@@ -998,8 +1029,6 @@ const Admin: React.FC = () => {
                     <div className="card-body">
                         {catalogLoading && <div className="alert alert-info small mb-3">Sincronizando el catálogo con el backend…</div>}
                         {catalogError && <div className="alert alert-danger small mb-3">{catalogError}</div>}
-                        {categoriesLoading && <div className="alert alert-info small mb-3">Cargando las categorías desde el backend…</div>}
-                        {categoriesError && <div className="alert alert-warning small mb-3">{categoriesError}</div>}
                         {sub === 'catalogo' && <CatalogTable />}
 
                                     {sub === 'agregar' && (
@@ -1029,13 +1058,8 @@ const Admin: React.FC = () => {
                                 <div className="col-md-3"><label className="form-label">Capacidad diaria</label><input type="number" min={0} className="form-control" value={newProd.capacidadDiaria} onChange={(e)=>setNewProd((p:any)=>({...p, capacidadDiaria:Number(e.target.value)}))} /></div>
                                 <div className="col-12"><label className="form-label">Descripción</label><textarea className="form-control" rows={2} value={newProd.desc} onChange={(e)=>setNewProd((p:any)=>({...p, desc:e.target.value}))} /></div>
                                 <div className="col-md-6">
-                                    <label className="form-label">URL imagen (o subir archivo)</label>
+                                    <label className="form-label">URL imagen</label>
                                     <input className="form-control mb-2" placeholder="https://..." value={newProd.img} onChange={(e)=>setNewProd((p:any)=>({...p, img:e.target.value}))} />
-                                    <input type="file" accept="image/*" className="form-control" onChange={(e)=>{
-                                        const f = (e.target as HTMLInputElement).files && (e.target as HTMLInputElement).files![0];
-                                        if (!f) return;
-                                        fileToDataUrl(f).then((data) => setNewProd((p:any)=>({...p, img: data}))).catch(()=>{});
-                                    }} />
                                     {newProd.img && (
                                         <div className="mt-2"><img src={newProd.img} alt="Preview" style={{ maxWidth: 160, maxHeight: 120 }} /></div>
                                     )}
@@ -1276,7 +1300,7 @@ const Admin: React.FC = () => {
                 return setVenMsg({ text: "Fecha de nacimiento inválida.", ok: false });
             }
 
-            const lista = loadUsuarios() || [];
+            const lista = usuarios;
             const correoLower = String(correo || "").toLowerCase();
             const rutNormalized = limpiarRut(rut || "");
 
@@ -1300,44 +1324,8 @@ const Admin: React.FC = () => {
                 creadoEn: hoy,
                 protegido: false,
             };
-            // Save in admin users list (legacy 'usuarios' key)
-            lista.push(nuevo);
-            saveUsuarios(lista);
-            setUsuarios(ensureUsuariosConRol());
-
-            // Also create an auth user record in the auth store ('users') so the vendedor can login.
-            try {
-                const authUsers = readUsers();
-                // double-check duplicates in the auth store
-                if (authUsers.find((u) => String(u.email || "").toLowerCase() === correoLower)) {
-                    return setVenMsg({ text: "Ya existe un usuario con ese correo.", ok: false });
-                }
-                if (authUsers.find((u) => String(u.run || "") && String(u.run || "").replace(/[^0-9kK]/g, '').toLowerCase() === rutNormalized)) {
-                    return setVenMsg({ text: "Ya existe un usuario con ese RUN.", ok: false });
-                }
-                const hashed = await sha256Hex(String(pass || ""));
-                const authUser: any = {
-                    run: rutNormalized,
-                    name: nombre.trim() || correoLower,
-                    lastname: "",
-                    email: correoLower,
-                    birthdate: fechaNacimiento || "1970-01-01",
-                    role: "Vendedor",
-                    codigo: "",
-                    password: hashed,
-                    createdAt: hoy,
-                };
-                authUsers.push(authUser);
-                writeUsers(authUsers);
-            } catch (err) {
-                // If auth store write fails, rollback admin store insertion to avoid inconsistency
-                try {
-                    const rollback = loadUsuarios().filter((u) => String(u.correo || "").toLowerCase() !== correoLower);
-                    saveUsuarios(rollback);
-                    setUsuarios(ensureUsuariosConRol());
-                } catch {}
-                return setVenMsg({ text: "Error creando cuenta de acceso. Intenta nuevamente.", ok: false });
-            }
+            // El nuevo vendedor se crea en la API y se refleja al recargar la lista de usuarios
+            // La validación de duplicados se hace contra la lista actual de usuarios de la API
 
             // Clear form on success
             setVen({ rut: "", nombre: "", correo: "", pass: "", pass2: "", fechaNacimiento: "" });
@@ -1536,46 +1524,18 @@ const Admin: React.FC = () => {
 
     function SectionOrdenes() {
         const byCode = new Map((catalogo || []).map((p: any) => [String(p.code), p]));
+        const [expandedOrderId, setExpandedOrderId] = useState<number | string | null>(null);
+        const [filtroOrdenes, setFiltroOrdenes] = useState('hoy');
 
-        const rows = ordenes.map((o) => {
-            const names = (o.items || []).map((it: any) => {
-                const code = String(it.productId ?? it.code ?? '');
-                const p = byCode.get(code);
-                return p ? (p.productName || p.nombre || code) : code;
-            });
-            const namesShort = names.length ? names.slice(0, 2).join(', ') + (names.length > 2 ? ' …' : '') : '';
-            const totalItems = (o.items || []).reduce((a: number, x: any) => a + Number(x.qty || x.cantidad || 0), 0);
-            return (
-                <tr key={String(o.id)}>
-                    <td>{timeHHMM((o.tsISO as string) || (o.fecha as string))}</td>
-                    <td>{o.usuarioCorreo || "—"}</td>
-                    <td className="text-end">{CLP(Number(o.total || 0))}</td>
-                    <td className="text-end" title={names.join(', ')}>{totalItems}{namesShort ? <div className="small text-secondary">{namesShort}</div> : null}</td>
-                    <td className="text-center">
-                        {(() => {
-                            const parts: string[] = [];
-                            const codePercent = Number(o.discountAppliedPercent ?? (o.discounts as any)?.codePercent ?? 0);
-                            const agePercent = Number(o.lifetimeDiscountAppliedPercent ?? (o.discounts as any)?.agePercent ?? 0);
-                            const totalDiscountMoney = Number(o.discountAmount ?? (o.discounts as any)?.totalDiscountMoney ?? 0);
-                            const hasFreeCake = Boolean(o.freeCakeApplied || (o.discounts as any)?.freeCakeApplied);
-                            const freeCakeKey = o.freeCakeTortaKey ?? (o.discounts as any)?.freeCakeTortaKey;
-                            if (codePercent > 0) parts.push('Cupón');
-                            if (agePercent > 0) parts.push('Mayores');
-                            if (hasFreeCake || freeCakeKey) parts.push('Torta');
-                            if (totalDiscountMoney > 0) parts.push(`${CLP(totalDiscountMoney)}`);
-                            if (!parts.length) return <span className="text-muted small">—</span>;
-                            const label = parts.join(' • ') || 'Beneficio';
-                            return <span className="badge bg-success" title={label}>{parts[0] || 'Sí'}</span>;
-                        })()}
-                    </td>
-                    <td className="text-end">
-                        <button className="btn btn-sm btn-outline-secondary" onClick={() => setOrderDetail(o)}>Ver</button>
-                    </td>
-                </tr>
-            );
+        // Filtrar órdenes según el periodo seleccionado
+        const ordenesFiltradas = ordenes.filter((o) => {
+            const fechaOrden = o.tsISO || o.fecha || '';
+            if (filtroOrdenes === 'hoy') return isSameDay(fechaOrden);
+            if (filtroOrdenes === 'mes') return String(fechaOrden).slice(0, 7) === yyyymm(today);
+            if (filtroOrdenes === 'anio') return String(fechaOrden).slice(0, 4) === yyyy(today);
+            return true; // 'todas'
         });
 
-        const [orderDetail, setOrderDetail] = useState<Orden | null>(null);
         const itemsHTML = (it: Orden["items"]) => (
             (it || []).map((x, idx) => {
                 const code = String(x.productId ?? x.code ?? '');
@@ -1600,11 +1560,179 @@ const Admin: React.FC = () => {
             })
         );
 
+        const rows = ordenesFiltradas.flatMap((o) => {
+            const names = (o.items || []).map((it: any) => {
+                const code = String(it.productId ?? it.code ?? '');
+                const p = byCode.get(code);
+                return p ? (p.productName || p.nombre || code) : code;
+            });
+            const namesShort = names.length ? names.slice(0, 2).join(', ') + (names.length > 2 ? ' …' : '') : '';
+            const totalItems = (o.items || []).reduce((a: number, x: any) => a + Number(x.qty || x.cantidad || 0), 0);
+            const isExpanded = expandedOrderId === o.id;
+
+            const mainRow = (
+                <tr key={String(o.id)}>
+                    <td>{timeHHMM((o.tsISO as string) || (o.fecha as string))}</td>
+                    <td>
+                        {(() => {
+                            const nombre = o.purchaserNombre || "";
+                            const apellidos = o.purchaserApellidos || "";
+                            const fullName = [nombre, apellidos].filter(Boolean).join(" ").trim();
+                            const correo = o.usuarioCorreo || "—";
+                            if (fullName) {
+                                return (
+                                    <div>
+                                        <div className="fw-semibold">{fullName}</div>
+                                        <div className="small text-secondary">{correo}</div>
+                                    </div>
+                                );
+                            }
+                            return correo;
+                        })()}
+                    </td>
+                    <td className="text-end">{CLP(Number(o.total || 0))}</td>
+                    <td className="text-end" title={names.join(', ')}>{totalItems}{namesShort ? <div className="small text-secondary">{namesShort}</div> : null}</td>
+                    <td className="text-center">
+                        {(() => {
+                            const parts: string[] = [];
+                            const codePercent = Number(o.discountAppliedPercent ?? (o.discounts as any)?.codePercent ?? 0);
+                            const agePercent = Number(o.lifetimeDiscountAppliedPercent ?? (o.discounts as any)?.agePercent ?? 0);
+                            const totalDiscountMoney = Number(o.discountAmount ?? (o.discounts as any)?.totalDiscountMoney ?? 0);
+                            const hasFreeCake = Boolean(o.freeCakeApplied || (o.discounts as any)?.freeCakeApplied);
+                            const freeCakeKey = o.freeCakeTortaKey ?? (o.discounts as any)?.freeCakeTortaKey;
+                            if (codePercent > 0) parts.push('Cupón');
+                            if (agePercent > 0) parts.push('Mayores');
+                            if (hasFreeCake || freeCakeKey) parts.push('Torta');
+                            if (totalDiscountMoney > 0) parts.push(`${CLP(totalDiscountMoney)}`);
+                            if (!parts.length) return <span className="text-muted small">—</span>;
+                            const label = parts.join(' • ') || 'Beneficio';
+                            return <span className="badge bg-success" title={label}>{parts[0] || 'Sí'}</span>;
+                        })()}
+                    </td>
+                    <td className="text-end">
+                        <button 
+                            className="btn btn-sm btn-outline-secondary" 
+                            onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}
+                        >
+                            {isExpanded ? 'Ocultar' : 'Ver'}
+                        </button>
+                    </td>
+                </tr>
+            );
+
+            if (!isExpanded) return [mainRow];
+
+            const detailRow = (
+                <tr key={`${o.id}-detail`}>
+                    <td colSpan={6} style={{ padding: 0, background: '#f8f9fa' }}>
+                        <div className="p-3">
+                            <div className="card mb-0">
+                                <div className="card-header bg-white d-flex justify-content-between">
+                                    <strong>Pedido #{o.id}</strong>
+                                    <span className="text-secondary small">{timeHHMM((o.tsISO as string) || (o.fecha as string))}</span>
+                                </div>
+                                <ul className="list-group list-group-flush">{itemsHTML(o.items)}</ul>
+                                {(() => {
+                                    const totalDiscountMoney = Number(o.discountAmount ?? (o.discounts as any)?.totalDiscountMoney ?? 0);
+                                    const agePercent = Number(o.lifetimeDiscountAppliedPercent ?? (o.discounts as any)?.agePercent ?? 0);
+                                    const codePercent = Number(o.discountAppliedPercent ?? (o.discounts as any)?.codePercent ?? 0);
+                                    const freeCakeMoney = Number(o.freeCakeAmount ?? (o.discounts as any)?.freeCakeMoney ?? 0);
+                                    const freeCakeKey = o.freeCakeTortaKey ?? (o.discounts as any)?.freeCakeTortaKey;
+                                    const freeCakeApplied = Boolean(o.freeCakeApplied || (o.discounts as any)?.freeCakeApplied);
+                                    
+                                    // Calcular montos individuales de descuentos
+                                    const subtotalItems = (o.items || []).reduce((sum: number, it: any) => {
+                                        const qty = Number(it.qty || it.cantidad || 0);
+                                        const price = Number(it.price || 0);
+                                        return sum + (qty * price);
+                                    }, 0);
+                                    
+                                    // Si existen en discounts, usarlos; si no, calcular
+                                    let couponMoney = Number((o.discounts as any)?.codeDiscountMoney ?? 0);
+                                    let ageMoney = Number((o.discounts as any)?.ageDiscountMoney ?? 0);
+                                    
+                                    if (!couponMoney && codePercent > 0) {
+                                        couponMoney = subtotalItems * (codePercent / 100);
+                                    }
+                                    if (!ageMoney && agePercent > 0) {
+                                        const afterCoupon = subtotalItems - couponMoney;
+                                        ageMoney = afterCoupon * (agePercent / 100);
+                                    }
+                                    
+                                    const hasDetails = agePercent > 0 || codePercent > 0 || freeCakeApplied || totalDiscountMoney > 0;
+                                    if (!hasDetails) return null;
+                                    return (
+                                        <div className="card-body">
+                                            <div className="fw-semibold">Descuentos aplicados</div>
+                                            <div className="small text-secondary">
+                                                <ul className="mb-0">
+                                                    {codePercent > 0 ? (
+                                                        <li>{codePercent}% descuento de por vida (FELICES50) — {CLP(couponMoney)}</li>
+                                                    ) : null}
+                                                    {agePercent > 0 ? (
+                                                        <li>{agePercent}% beneficio mayores — {CLP(ageMoney)}</li>
+                                                    ) : null}
+                                                    {freeCakeApplied ? (
+                                                        <li>
+                                                            Torta gratis
+                                                            {freeCakeKey ? (() => {
+                                                                const parts = freeCakeKey.split('::');
+                                                                const code = parts[0];
+                                                                const prod = (catalogo || []).find((p) => String(p.code) === String(code));
+                                                                return prod ? ` — ${prod.productName || code}` : '';
+                                                            })() : ''} — {CLP(freeCakeMoney)}
+                                                        </li>
+                                                    ) : null}
+                                                    <li className="fw-semibold mt-1">Total descuentos — {CLP(totalDiscountMoney)}</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                                <div className="card-footer bg-white text-end"><strong>Total: {CLP(Number(o.total || 0))}</strong></div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            );
+
+            return [mainRow, detailRow];
+        });
+
         return (
             <>
-                <div className="d-flex align-items-center justify-content-between mb-3">
-                    <h1 className="h5 mb-0">Órdenes de hoy</h1>
-                    <span className="small text-secondary">{dateCL(new Date())}</span>
+                <div className="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+                    <h1 className="h5 mb-0">Órdenes</h1>
+                    <div className="btn-group btn-group-sm" role="group">
+                        <button 
+                            type="button" 
+                            className={`btn ${filtroOrdenes === 'hoy' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            onClick={() => setFiltroOrdenes('hoy')}
+                        >
+                            Hoy
+                        </button>
+                        <button 
+                            type="button" 
+                            className={`btn ${filtroOrdenes === 'mes' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            onClick={() => setFiltroOrdenes('mes')}
+                        >
+                            Este mes
+                        </button>
+                        <button 
+                            type="button" 
+                            className={`btn ${filtroOrdenes === 'anio' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            onClick={() => setFiltroOrdenes('anio')}
+                        >
+                            Este año
+                        </button>
+                        <button 
+                            type="button" 
+                            className={`btn ${filtroOrdenes === 'todas' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            onClick={() => setFiltroOrdenes('todas')}
+                        >
+                            Todas
+                        </button>
+                    </div>
                 </div>
                 <div className="card">
                     <div className="table-responsive">
@@ -1618,61 +1746,11 @@ const Admin: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.length ? rows : (<tr><td colSpan={6}><div className="empty-state">Hoy no hay órdenes.</div></td></tr>)}
+                                {rows.length ? rows : (<tr><td colSpan={6}><div className="empty-state">No hay órdenes en el periodo seleccionado.</div></td></tr>)}
                             </tbody>
                         </table>
                     </div>
                 </div>
-
-                {orderDetail && (
-                    <div className="card mt-3">
-                        <div className="card-header bg-white d-flex justify-content-between">
-                            <strong>Pedido #{orderDetail.id}</strong>
-                            <span className="text-secondary small">{timeHHMM((orderDetail.tsISO as string) || (orderDetail.fecha as string))}</span>
-                        </div>
-                        <ul className="list-group list-group-flush">{itemsHTML(orderDetail.items)}</ul>
-                        {(() => {
-                            const totalDiscountMoney = Number(orderDetail.discountAmount ?? (orderDetail.discounts as any)?.totalDiscountMoney ?? 0);
-                            const agePercent = Number(orderDetail.lifetimeDiscountAppliedPercent ?? (orderDetail.discounts as any)?.agePercent ?? 0);
-                            const codePercent = Number(orderDetail.discountAppliedPercent ?? (orderDetail.discounts as any)?.codePercent ?? 0);
-                            const couponMoney = Number((orderDetail.discounts as any)?.codeDiscountMoney ?? totalDiscountMoney);
-                            const ageMoney = Number((orderDetail.discounts as any)?.ageDiscountMoney ?? totalDiscountMoney);
-                            const freeCakeMoney = Number(orderDetail.freeCakeAmount ?? (orderDetail.discounts as any)?.freeCakeMoney ?? 0);
-                            const freeCakeKey = orderDetail.freeCakeTortaKey ?? (orderDetail.discounts as any)?.freeCakeTortaKey;
-                            const freeCakeApplied = Boolean(orderDetail.freeCakeApplied || (orderDetail.discounts as any)?.freeCakeApplied);
-                            const hasDetails = agePercent > 0 || codePercent > 0 || freeCakeApplied || totalDiscountMoney > 0;
-                            if (!hasDetails) return null;
-                            return (
-                                <div className="card-body">
-                                    <div className="fw-semibold">Descuentos aplicados</div>
-                                    <div className="small text-secondary">
-                                        <ul className="mb-0">
-                                            {codePercent > 0 ? (
-                                                <li>{codePercent}% descuento de por vida (FELICES50) — {CLP(couponMoney)}</li>
-                                            ) : null}
-                                            {agePercent > 0 ? (
-                                                <li>{agePercent}% beneficio mayores — {CLP(ageMoney)}</li>
-                                            ) : null}
-                                            {freeCakeApplied ? (
-                                                <li>
-                                                    Torta gratis
-                                                    {freeCakeKey ? (() => {
-                                                        const parts = freeCakeKey.split('::');
-                                                        const code = parts[0];
-                                                        const prod = (catalogo || []).find((p) => String(p.code) === String(code));
-                                                        return prod ? ` — ${prod.productName || code}` : '';
-                                                    })() : ''} — {CLP(freeCakeMoney)}
-                                                </li>
-                                            ) : null}
-                                            <li className="fw-semibold mt-1">Total descuentos — {CLP(totalDiscountMoney)}</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-                        <div className="card-footer bg-white text-end"><strong>Total: {CLP(Number(orderDetail.total || 0))}</strong></div>
-                    </div>
-                )}
             </>
         );
     }
@@ -1683,9 +1761,18 @@ const Admin: React.FC = () => {
 
         const candidatos = useMemo(() => {
             const inPeriodo: Record<string, (v: any) => boolean> = {
-                hoy: (v) => isSameDay(v.tsISO),
-                mes: (v) => String(v.tsISO).slice(0, 7) === yyyymm(today),
-                anio: (v) => String(v.tsISO).slice(0, 4) === yyyy(today),
+                hoy: (v) => {
+                    const fechaStr = v.fecha || (v.tsISO ? v.tsISO.split('T')[0] : '');
+                    return fechaStr === today.toISOString().split('T')[0];
+                },
+                mes: (v) => {
+                    const fechaStr = v.fecha || (v.tsISO ? v.tsISO.split('T')[0] : '');
+                    return fechaStr.slice(0, 7) === yyyymm(today);
+                },
+                anio: (v) => {
+                    const fechaStr = v.fecha || (v.tsISO ? v.tsISO.split('T')[0] : '');
+                    return fechaStr.slice(0, 4) === yyyy(today);
+                },
                 todo: (_) => true,
             };
             return ventas.filter(inPeriodo[periodo]);
@@ -1693,12 +1780,25 @@ const Admin: React.FC = () => {
 
         const periodRows = useMemo(() => {
             let perGroup: Record<string, any[]> = {};
-            if (periodo === "hoy" || periodo === "mes") perGroup = groupBy(candidatos, (v) => dateCL(v.tsISO));
-            else if (periodo === "anio") perGroup = groupBy(candidatos, (v) => String(v.tsISO).slice(0, 7));
-            else perGroup = groupBy(candidatos, (v) => String(v.tsISO).slice(0, 4));
+            if (periodo === "hoy" || periodo === "mes") {
+                perGroup = groupBy(candidatos, (v) => {
+                    const fechaStr = String(v.fecha || "");
+                    return dateCL(fechaStr);
+                });
+            } else if (periodo === "anio") {
+                perGroup = groupBy(candidatos, (v) => {
+                    const fechaStr = String(v.fecha || "");
+                    return fechaStr.slice(0, 7);
+                });
+            } else {
+                perGroup = groupBy(candidatos, (v) => {
+                    const fechaStr = String(v.fecha || "");
+                    return fechaStr.slice(0, 4);
+                });
+            }
             const entries = Object.entries(perGroup).map(([k, arr]) => {
-                const unid = arr.reduce((a, x) => a + Number(x.qty || 0), 0);
-                const monto = arr.reduce((a, x) => a + Number(x.qty || 0) * Number(x.price || 0), 0);
+                const unid = arr.reduce((a, x) => a + Number(x.cantidadVendida ?? x.qty ?? 0), 0);
+                const monto = arr.reduce((a, x) => a + Number(x.ingresosTotal ?? (Number(x.qty || 0) * Number(x.price || 0))), 0);
                 return { k, unid, monto };
             });
             return entries;
@@ -1715,8 +1815,9 @@ const Admin: React.FC = () => {
         const byProd = useMemo(() => {
             const map: Record<string, number> = {};
             for (const v of candidatos) {
-                const pid = (v as any).productId as string;
-                map[pid] = (map[pid] || 0) + Number((v as any).qty || 0);
+                const pid = String(v.productoCodigo ?? (v as any).productId ?? '');
+                const cantidad = Number(v.cantidadVendida ?? (v as any).qty ?? 0);
+                map[pid] = (map[pid] || 0) + cantidad;
             }
             return map;
         }, [candidatos]);

@@ -10,6 +10,7 @@ import Modal from "../../components/ui/Modal";
 import PersonalizeMessageModal from "../../components/product/PersonalizeMessageModal";
 import useInfoModal from "../../hooks/useInfoModal";
 import { STOCK_INSUFICIENTE_TITLE, STOCK_INSUFICIENTE_MSG } from "../../utils/messages";
+import { fetchAllProducts, dtoToProduct } from "../../services/productosService";
 
 const KEY_CATALOG = "catalogo";
 
@@ -24,6 +25,8 @@ function titleCaseFromSlug(slug: string) {
 const Productos: React.FC = () => {
     const navigate = useNavigate();
     const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<string>("*");
     const location = useLocation();
     const [sort, setSort] = useState<string>("default");
@@ -40,10 +43,28 @@ const Productos: React.FC = () => {
     const [modalProduct, setModalProduct] = useState<Product | null>(null);
     const [mensaje, setMensaje] = useState<string>("");
 
-    // Inicializar catálogo en localStorage (si no existe) y cargarlo al state
+    // Cargar productos desde la base de datos
     useEffect(() => {
-        const cat = initCatalog(seedProducts, KEY_CATALOG);
-        setProducts(cat as Product[]);
+        let active = true;
+        setLoading(true);
+        setError(null);
+        (async () => {
+            try {
+                const dtos = await fetchAllProducts();
+                if (!active) return;
+                const mapped = dtos.map(dtoToProduct);
+                setProducts(mapped);
+            } catch (err) {
+                if (!active) return;
+                console.error("Error loading products from database:", err);
+                setError("No se pudo cargar los productos desde la base de datos.");
+                // Fallback a seedProducts si falla
+                setProducts(seedProducts as Product[]);
+            } finally {
+                if (active) setLoading(false);
+            }
+        })();
+        return () => { active = false; };
     }, []);
 
     // Read the URL (path or query) and apply a filter when the user navigates from the header links.
@@ -81,17 +102,8 @@ const Productos: React.FC = () => {
         }
     }, [location]);
 
-    // Keep products in sync if catalog changes in another tab
-    useEffect(() => {
-        const handler = (e: StorageEvent) => {
-            if (e.key === KEY_CATALOG) {
-                const cat = initCatalog(seedProducts, KEY_CATALOG);
-                setProducts(cat as Product[]);
-            }
-        };
-        window.addEventListener("storage", handler);
-        return () => window.removeEventListener("storage", handler);
-    }, []);
+    // Keep products in sync if they change on the server (periodic refresh could be added here)
+    // For now, products are loaded once on mount
 
     // Dynamic categories (from current catalog)
     const categories = useMemo(() => {
@@ -211,6 +223,10 @@ const Productos: React.FC = () => {
                 <section className="col-12 col-md-10">
                     <div className={`d-flex align-items-center justify-content-start mb-3 ${styles.controlsRow}`}>
                         <h1 className="h3 mb-0">Productos</h1>
+
+                        {/* Mostrar estados de carga/error */}
+                        {loading && <span className="ms-3 text-muted small">Cargando...</span>}
+                        {error && <span className="ms-3 text-warning small">{error}</span>}
 
                         {/* Contenedor de controles (filtro móvil + ordenar) */}
                         <div className={`${styles.controlsGroup} d-flex align-items-center`}> 
